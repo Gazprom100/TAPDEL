@@ -1,46 +1,30 @@
-import { useEffect, useState } from 'react'
+import React from 'react'
 import { TapButton } from './components/TapButton'
-import { EnergyIndicator } from './components/EnergyIndicator'
-import { TokenCounter } from './components/TokenCounter'
-import { useGameStore } from './stores/gameStore'
-import { initializeTelegramBot } from './utils/telegram'
+import { useGameStore } from './store/gameStore'
+import './styles/effects.css'
 
-function App() {
-  const { energy, tokens, addTokens, useEnergy } = useGameStore()
-  const [isVibrationEnabled, _setIsVibrationEnabled] = useState(true)
-
-  const handleTap = () => {
-    if (energy > 0) {
-      useEnergy()
-      addTokens(1)
-      
-      if (isVibrationEnabled && 'vibrate' in navigator) {
-        navigator.vibrate(50)
-      }
-    }
-  }
-
-  useEffect(() => {
-    // Initialize Telegram bot
-    initializeTelegramBot()
-    
-    // Other initialization code...
-  }, [])
+const App: React.FC = () => {
+  const { tokens, highScore } = useGameStore()
 
   return (
-    <div className="min-h-screen bg-cyber-gradient text-neon-green flex flex-col items-center justify-center p-4 relative overflow-hidden">
-      {/* Фоновый эффект */}
-      <div className="absolute inset-0 bg-cyber-gradient opacity-80" />
-      
-      {/* Основной контент */}
-      <div className="relative z-10 flex flex-col items-center justify-center gap-8">
-        <h1 className="text-4xl font-bold text-neon-green mb-8 animate-pulse-neon">
-          TAPDEL
-        </h1>
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4">
+      <div className="flex flex-col items-center gap-8">
+        <div className="text-center">
+          <div className="cyber-text text-sm mb-2">HIGH SCORE</div>
+          <div className="cyber-text text-xl">{Math.floor(highScore)}</div>
+        </div>
         
-        <TokenCounter tokens={tokens} />
-        <EnergyIndicator energy={energy} />
-        <TapButton onTap={handleTap} disabled={energy <= 0} />
+        <TapButton />
+        
+        <div className="text-center">
+          <div className="cyber-text text-sm mb-2">TOKENS</div>
+          <div className="cyber-text text-xl">{Math.floor(tokens)}</div>
+        </div>
+      </div>
+      
+      <div className="cyber-container mt-8">
+        <div className="cyber-text text-sm">CYBER FLEX v1.0</div>
+        <div className="cyber-text text-xs mt-2">ELECTRON SERIES</div>
       </div>
     </div>
   )
