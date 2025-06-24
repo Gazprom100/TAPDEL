@@ -1,14 +1,14 @@
 import express from 'express';
 import cors from 'cors';
 import TelegramBot from 'node-telegram-bot-api';
-import path from 'path';
 import { fileURLToPath } from 'url';
-import { config } from 'dotenv';
+import { dirname, join } from 'path';
+import * as dotenv from 'dotenv';
 
-config();
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -16,7 +16,7 @@ const PORT = process.env.PORT || 10000;
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '../dist')));
+app.use(express.static(join(__dirname, '../dist')));
 
 // Инициализация бота
 const token = process.env.VITE_TELEGRAM_BOT_TOKEN;
@@ -67,7 +67,7 @@ if (bot) {
 
 // Serve SPA
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../dist/index.html'));
+  res.sendFile(join(__dirname, '../dist/index.html'));
 });
 
 // Запуск сервера
@@ -81,11 +81,13 @@ const gracefulShutdown = async () => {
   console.log('\nStarting graceful shutdown...');
   
   // Останавливаем polling бота
-  try {
-    await bot.stopPolling();
-    console.log('Bot polling stopped');
-  } catch (error) {
-    console.error('Error stopping bot:', error);
+  if (bot) {
+    try {
+      await bot.stopPolling();
+      console.log('Bot polling stopped');
+    } catch (error) {
+      console.error('Error stopping bot:', error);
+    }
   }
   
   // Закрываем HTTP сервер
