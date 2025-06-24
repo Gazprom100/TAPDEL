@@ -28,10 +28,20 @@ function App() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-black text-neon-green flex flex-col items-center justify-center p-4">
-      <TokenCounter tokens={tokens} />
-      <EnergyIndicator energy={energy} />
-      <TapButton onTap={handleTap} disabled={energy <= 0} />
+    <div className="min-h-screen bg-cyber-gradient text-neon-green flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      {/* Фоновый эффект */}
+      <div className="absolute inset-0 bg-cyber-gradient opacity-80" />
+      
+      {/* Основной контент */}
+      <div className="relative z-10 flex flex-col items-center justify-center gap-8">
+        <h1 className="text-4xl font-bold text-neon-green mb-8 animate-pulse-neon">
+          TAPDEL
+        </h1>
+        
+        <TokenCounter tokens={tokens} />
+        <EnergyIndicator energy={energy} />
+        <TapButton onTap={handleTap} disabled={energy <= 0} />
+      </div>
     </div>
   )
 }

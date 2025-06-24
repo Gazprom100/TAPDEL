@@ -34,16 +34,36 @@ export const TapButton = ({ onTap, disabled }: TapButtonProps) => {
       onClick={handleTap}
       disabled={disabled}
       className={`
-        w-48 h-48 rounded-full 
-        bg-gradient-to-br from-green-400 to-green-600
-        shadow-[0_0_20px_rgba(0,255,136,0.5)]
-        transition-all duration-200
-        flex items-center justify-center
-        text-white text-2xl font-bold
-        ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-[0_0_30px_rgba(0,255,136,0.7)]'}
+        relative
+        w-48 h-48 
+        rounded-full 
+        bg-gradient-to-br 
+        from-green-400/20 
+        to-green-600/40
+        backdrop-blur-sm
+        border-2 
+        border-neon-green
+        shadow-neon
+        transition-all 
+        duration-200
+        flex 
+        items-center 
+        justify-center
+        text-neon-green 
+        text-2xl 
+        font-bold
+        overflow-hidden
+        ${disabled 
+          ? 'opacity-50 cursor-not-allowed' 
+          : 'hover:shadow-neon-strong hover:scale-105 active:scale-95'
+        }
       `}
     >
-      TAP
+      {/* Внутренний светящийся эффект */}
+      <div className="absolute inset-0 bg-gradient-to-br from-green-400/10 to-green-600/20 animate-pulse-neon" />
+      
+      {/* Текст */}
+      <span className="relative z-10 animate-pulse-neon">TAP</span>
     </button>
   )
 } 
