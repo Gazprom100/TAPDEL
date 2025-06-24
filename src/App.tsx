@@ -30,11 +30,6 @@ const App: React.FC = () => {
           ПРОФИЛЬ
         </button>
       </div>
-      
-      <div className="cyber-container mt-8">
-        <div className="cyber-text text-sm">CYBER FLEX v1.0</div>
-        <div className="cyber-text text-xs mt-2">ELECTRON SERIES</div>
-      </div>
 
       {isProfileOpen && <Profile onClose={() => setIsProfileOpen(false)} />}
     </div>
