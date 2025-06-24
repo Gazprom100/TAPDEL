@@ -7,7 +7,7 @@ import { initializeTelegramBot } from './utils/telegram'
 
 function App() {
   const { energy, tokens, addTokens, useEnergy } = useGameStore()
-  const [isVibrationEnabled, setIsVibrationEnabled] = useState(true)
+  const [isVibrationEnabled, _setIsVibrationEnabled] = useState(true)
 
   const handleTap = () => {
     if (energy > 0) {

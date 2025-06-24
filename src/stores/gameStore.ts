@@ -18,7 +18,7 @@ interface GameState {
   upgradeTokenMultiplier: () => void
 }
 
-export const useGameStore = create<GameState>((set, get) => ({
+export const useGameStore = create<GameState>((set) => ({
   energy: 100,
   maxEnergy: 100,
   tokens: 0,
