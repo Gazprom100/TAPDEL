@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useGameStore } from '../store/gameStore';
+import { COMPONENTS } from '../types/game';
 import '../styles/effects.css';
 
 type Gear = 'N' | '1' | '2' | '3' | '4' | 'M';
@@ -14,11 +15,30 @@ const ENERGY_CONSUMPTION_RATE = {
 };
 
 export const TapButton: React.FC = () => {
-  const { addTokens, energy, setEnergy } = useGameStore();
+  const { 
+    addTokens, 
+    energy, 
+    setEnergy,
+    engineLevel,
+    gearboxLevel,
+    batteryLevel,
+    hyperdriveLevel,
+    powerGridLevel
+  } = useGameStore();
+  
   const [gear, setGear] = useState<Gear>('N');
   const [taps, setTaps] = useState<number[]>([]);
   const [isCharging, setIsCharging] = useState(false);
-  const [intensity, setIntensity] = useState(0); // 0-100
+  const [intensity, setIntensity] = useState(0);
+  const [temperature, setTemperature] = useState(20);
+  const [isHyperdriveActive, setIsHyperdriveActive] = useState(false);
+
+  // Получаем текущие компоненты
+  const currentEngine = COMPONENTS.ENGINES.find(e => e.level === engineLevel)!;
+  const currentGearbox = COMPONENTS.GEARBOXES.find(g => g.level === gearboxLevel)!;
+  const currentBattery = COMPONENTS.BATTERIES.find(b => b.level === batteryLevel)!;
+  const currentHyperdrive = COMPONENTS.HYPERDRIVES.find(h => h.level === hyperdriveLevel)!;
+  const currentPowerGrid = COMPONENTS.POWER_GRIDS.find(p => p.level === powerGridLevel)!;
 
   // Расчет передачи на основе частоты нажатий
   const calculateGear = useCallback((tapHistory: number[]) => {
@@ -52,6 +72,7 @@ export const TapButton: React.FC = () => {
   // Обработка нажатия
   const handleTap = useCallback(() => {
     if (energy <= 0) return;
+    if (temperature >= currentEngine.maxTemp) return;
 
     const now = Date.now();
     const newTaps = [...taps.filter(tap => now - tap < 1000), now];
@@ -60,44 +81,80 @@ export const TapButton: React.FC = () => {
     const newGear = calculateGear(newTaps);
     setGear(newGear);
     
-    // Обновление интенсивности
+    // Обновление интенсивности и температуры
     const newIntensity = calculateIntensity(newGear);
     setIntensity(newIntensity);
+    setTemperature((prev: number) => Math.min(
+      currentEngine.maxTemp,
+      prev + (newIntensity / 100) * currentEngine.power
+    ));
     
-    // Добавление токенов с учетом передачи и энергии
-    const gearMultiplier = {
-      'N': 0.5,
-      '1': 1,
-      '2': 2,
-      '3': 3,
-      '4': 4,
-      'M': 5
-    }[newGear];
-    
+    // Расчет множителей
+    const gearMultiplier = currentGearbox.gear;
     const energyMultiplier = energy / 100;
-    const tokensToAdd = gearMultiplier * energyMultiplier;
+    const efficiencyMultiplier = currentPowerGrid.efficiency / 100;
+    const hyperdriveMultiplier = isHyperdriveActive ? currentHyperdrive.speedMultiplier : 1;
     
-    addTokens(tokensToAdd);
+    // Добавление токенов с учетом всех множителей
+    const baseTokens = currentEngine.power * gearMultiplier * energyMultiplier;
+    const totalTokens = baseTokens * efficiencyMultiplier * hyperdriveMultiplier;
     
-    // Уменьшение энергии в зависимости от передачи
-    const energyCost = ENERGY_CONSUMPTION_RATE[newGear];
-    setEnergy(Math.max(0, energy - energyCost));
+    addTokens(totalTokens);
     
+    // Расчет потребления энергии
+    const baseCost = ENERGY_CONSUMPTION_RATE[newGear];
+    const hyperdriveCost = isHyperdriveActive ? currentHyperdrive.energyConsumption : 0;
+    const totalCost = (baseCost / currentEngine.fuelEfficiency) + hyperdriveCost;
+    
+    setEnergy(Math.max(0, energy - totalCost));
     setIsCharging(false);
-  }, [taps, energy, addTokens, setEnergy, calculateGear]);
+  }, [
+    taps, 
+    energy, 
+    temperature,
+    currentEngine,
+    currentGearbox,
+    currentPowerGrid,
+    currentHyperdrive,
+    isHyperdriveActive,
+    addTokens, 
+    setEnergy
+  ]);
 
-  // Восстановление энергии
+  // Восстановление энергии и охлаждение
   useEffect(() => {
-    const energyRecoveryInterval = setInterval(() => {
-      if (taps.length === 0 || Date.now() - Math.max(...taps) > 1000) {
-        setEnergy(Math.min(100, energy + 0.1));
+    const recoveryInterval = setInterval(() => {
+      const now = Date.now();
+      const isIdle = taps.length === 0 || now - Math.max(...taps) > 1000;
+
+      if (isIdle) {
+        // Восстановление энергии
+        const chargeRate = currentBattery.chargeRate * (currentPowerGrid.efficiency / 100);
+        setEnergy(Math.min(currentBattery.capacity, energy + chargeRate));
+        
+        // Охлаждение
+        setTemperature((prev: number) => Math.max(20, prev - 1));
+        
+        // Отключение гипердвигателя при низком заряде
+        if (energy < currentHyperdrive.activationThreshold && isHyperdriveActive) {
+          setIsHyperdriveActive(false);
+        }
+
         setIsCharging(true);
-        setIntensity(Math.max(0, intensity - 5)); // Плавное угасание эффектов
+        setIntensity(Math.max(0, intensity - 5));
       }
     }, 50);
 
-    return () => clearInterval(energyRecoveryInterval);
-  }, [energy, taps, intensity, setEnergy]);
+    return () => clearInterval(recoveryInterval);
+  }, [
+    energy,
+    taps,
+    intensity,
+    currentBattery,
+    currentPowerGrid,
+    currentHyperdrive,
+    isHyperdriveActive
+  ]);
 
   // Очистка старых тапов
   useEffect(() => {
@@ -139,16 +196,46 @@ export const TapButton: React.FC = () => {
         </div>
       </div>
 
+      {/* Статистика компонентов */}
+      <div className="absolute top-4 left-4 space-y-2 text-xs">
+        <div className="cyber-text">
+          {currentEngine.level} • {currentEngine.power}W • {Math.round(temperature)}°C
+        </div>
+        <div className="cyber-text">
+          {currentGearbox.level} • {currentGearbox.gear}x • {currentGearbox.switchTime}ms
+        </div>
+        <div className="cyber-text">
+          {currentBattery.level} • {currentBattery.capacity}% • {currentBattery.chargeRate}%/s
+        </div>
+      </div>
+
+      <div className="absolute top-4 right-4 space-y-2 text-xs">
+        <div className="cyber-text">
+          {currentPowerGrid.level} • {currentPowerGrid.efficiency}% • {currentPowerGrid.maxLoad}W
+        </div>
+        <div className={`cyber-text ${isHyperdriveActive ? 'text-[#ff00ff]' : ''}`}>
+          {currentHyperdrive.level} • {currentHyperdrive.speedMultiplier}x
+        </div>
+      </div>
+
       <div className="status-indicators">
         <div>
-          <div className="cyber-text">WATT</div>
-          <div className="status-bar" />
-          <div className="status-particles" />
+          <div className="cyber-text">TEMP</div>
+          <div 
+            className="status-bar" 
+            style={{
+              background: `linear-gradient(to right, var(--glow-color) ${(temperature / currentEngine.maxTemp) * 100}%, transparent 0)`
+            }}
+          />
         </div>
         <div>
-          <div className="cyber-text">POWER</div>
-          <div className="status-bar" />
-          <div className="status-particles" />
+          <div className="cyber-text">LOAD</div>
+          <div 
+            className="status-bar"
+            style={{
+              background: `linear-gradient(to right, var(--glow-color) ${(intensity / 100) * 100}%, transparent 0)`
+            }}
+          />
         </div>
       </div>
 
@@ -169,10 +256,20 @@ export const TapButton: React.FC = () => {
         ))}
       </div>
 
+      {/* Кнопка гипердвигателя */}
+      {energy >= currentHyperdrive.activationThreshold && (
+        <button
+          className={`absolute bottom-4 right-4 cyber-button ${isHyperdriveActive ? 'bg-[#ff00ff]' : ''}`}
+          onClick={() => setIsHyperdriveActive(!isHyperdriveActive)}
+        >
+          HYPERDRIVE
+        </button>
+      )}
+
       <div 
         className="absolute inset-0 cursor-pointer" 
         onClick={handleTap}
       />
     </div>
   );
-}; 
+};
