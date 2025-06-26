@@ -9,28 +9,42 @@ const App: React.FC = () => {
   const { tokens, highScore } = useGameStore()
 
   return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4">
-      <div className="flex flex-col items-center gap-8">
-        <div className="text-center">
-          <div className="cyber-text text-sm mb-2">HIGH SCORE</div>
-          <div className="cyber-text text-xl">{Math.floor(highScore)}</div>
-        </div>
-        
-        <TapButton />
-        
-        <div className="text-center">
-          <div className="cyber-text text-sm mb-2">TOKENS</div>
-          <div className="cyber-text text-xl">{Math.floor(tokens)}</div>
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      {/* Фоновые эффекты */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,255,136,0.1)_0%,transparent_70%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent,rgba(0,0,0,0.8))]" />
+
+      {/* Основной контент */}
+      <div className="relative z-10 flex flex-col items-center gap-8 max-w-md w-full">
+        {/* Верхняя панель */}
+        <div className="cyber-panel w-full">
+          <div className="text-center">
+            <div className="cyber-text text-sm mb-2">РЕКОРД</div>
+            <div className="cyber-text text-2xl">{Math.floor(highScore)}</div>
+          </div>
         </div>
 
+        {/* Кнопка тапа */}
+        <TapButton />
+
+        {/* Нижняя панель */}
+        <div className="cyber-panel w-full">
+          <div className="text-center">
+            <div className="cyber-text text-sm mb-2">ТОКЕНЫ</div>
+            <div className="cyber-text text-2xl">{Math.floor(tokens)}</div>
+          </div>
+        </div>
+
+        {/* Кнопка профиля */}
         <button
           onClick={() => setIsProfileOpen(true)}
-          className="cyber-text text-xl border border-[var(--glow-color)] px-6 py-2 rounded hover:bg-[var(--glow-color)] hover:text-black transition-colors"
+          className="cyber-button w-full"
         >
           ПРОФИЛЬ
         </button>
       </div>
 
+      {/* Модальное окно профиля */}
       {isProfileOpen && <Profile onClose={() => setIsProfileOpen(false)} />}
     </div>
   )

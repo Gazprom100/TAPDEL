@@ -1,23 +1,24 @@
 import React, { useState } from 'react';
 import { useGameStore } from '../store/gameStore';
-import { useGameMechanics } from '../hooks/useGameMechanics';
 import { COMPONENTS } from '../types/game';
 
 export const Shop: React.FC = () => {
-  const { tokens, spendTokens } = useGameStore();
-  const [purchaseInProgress, setPurchaseInProgress] = useState(false);
-  const {
-    engine,
-    gearbox,
-    battery,
-    hyperdrive,
-    powerGrid,
+  const { 
+    tokens, 
+    spendTokens,
+    engineLevel,
+    gearboxLevel,
+    batteryLevel,
+    hyperdriveLevel,
+    powerGridLevel,
     upgradeEngine,
     upgradeGearbox,
     upgradeBattery,
     upgradeHyperdrive,
     upgradePowerGrid
-  } = useGameMechanics();
+  } = useGameStore();
+  
+  const [purchaseInProgress, setPurchaseInProgress] = useState(false);
 
   const handlePurchase = async (
     type: 'engine' | 'gearbox' | 'battery' | 'hyperdrive' | 'powerGrid',
@@ -74,7 +75,7 @@ export const Shop: React.FC = () => {
               <div
                 key={item.level}
                 className={`p-4 rounded-lg border transition-all ${
-                  item.level === engine.level
+                  item.level === engineLevel
                     ? 'border-[#00ff88] bg-[#00ff88]/20'
                     : 'border-gray-600 hover:border-[#00ff88]/50'
                 }`}
@@ -91,9 +92,9 @@ export const Shop: React.FC = () => {
                   </div>
                   <button
                     onClick={() => handlePurchase('engine', item.level, item.cost)}
-                    disabled={tokens < item.cost || item.level === engine.level || purchaseInProgress}
+                    disabled={tokens < item.cost || item.level === engineLevel || purchaseInProgress}
                     className={`px-4 py-2 rounded transition-all ${
-                      tokens < item.cost || item.level === engine.level || purchaseInProgress
+                      tokens < item.cost || item.level === engineLevel || purchaseInProgress
                         ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
                         : 'bg-[#00ff88] text-black hover:bg-[#00ff88]/80'
                     }`}
@@ -114,7 +115,7 @@ export const Shop: React.FC = () => {
               <div
                 key={item.level}
                 className={`p-4 rounded-lg border transition-all ${
-                  item.level === gearbox.level
+                  item.level === gearboxLevel
                     ? 'border-[#00ff88] bg-[#00ff88]/20'
                     : 'border-gray-600 hover:border-[#00ff88]/50'
                 }`}
@@ -131,9 +132,9 @@ export const Shop: React.FC = () => {
                   </div>
                   <button
                     onClick={() => handlePurchase('gearbox', item.level, item.cost)}
-                    disabled={tokens < item.cost || item.level === gearbox.level || purchaseInProgress}
+                    disabled={tokens < item.cost || item.level === gearboxLevel || purchaseInProgress}
                     className={`px-4 py-2 rounded transition-all ${
-                      tokens < item.cost || item.level === gearbox.level || purchaseInProgress
+                      tokens < item.cost || item.level === gearboxLevel || purchaseInProgress
                         ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
                         : 'bg-[#00ff88] text-black hover:bg-[#00ff88]/80'
                     }`}
@@ -154,7 +155,7 @@ export const Shop: React.FC = () => {
               <div
                 key={item.level}
                 className={`p-4 rounded-lg border transition-all ${
-                  item.level === battery.level
+                  item.level === batteryLevel
                     ? 'border-[#00ff88] bg-[#00ff88]/20'
                     : 'border-gray-600 hover:border-[#00ff88]/50'
                 }`}
@@ -171,9 +172,9 @@ export const Shop: React.FC = () => {
                   </div>
                   <button
                     onClick={() => handlePurchase('battery', item.level, item.cost)}
-                    disabled={tokens < item.cost || item.level === battery.level || purchaseInProgress}
+                    disabled={tokens < item.cost || item.level === batteryLevel || purchaseInProgress}
                     className={`px-4 py-2 rounded transition-all ${
-                      tokens < item.cost || item.level === battery.level || purchaseInProgress
+                      tokens < item.cost || item.level === batteryLevel || purchaseInProgress
                         ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
                         : 'bg-[#00ff88] text-black hover:bg-[#00ff88]/80'
                     }`}
@@ -194,7 +195,7 @@ export const Shop: React.FC = () => {
               <div
                 key={item.level}
                 className={`p-4 rounded-lg border transition-all ${
-                  item.level === hyperdrive.level
+                  item.level === hyperdriveLevel
                     ? 'border-[#00ff88] bg-[#00ff88]/20'
                     : 'border-gray-600 hover:border-[#00ff88]/50'
                 }`}
@@ -211,9 +212,9 @@ export const Shop: React.FC = () => {
                   </div>
                   <button
                     onClick={() => handlePurchase('hyperdrive', item.level, item.cost)}
-                    disabled={tokens < item.cost || item.level === hyperdrive.level || purchaseInProgress}
+                    disabled={tokens < item.cost || item.level === hyperdriveLevel || purchaseInProgress}
                     className={`px-4 py-2 rounded transition-all ${
-                      tokens < item.cost || item.level === hyperdrive.level || purchaseInProgress
+                      tokens < item.cost || item.level === hyperdriveLevel || purchaseInProgress
                         ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
                         : 'bg-[#00ff88] text-black hover:bg-[#00ff88]/80'
                     }`}
@@ -234,7 +235,7 @@ export const Shop: React.FC = () => {
               <div
                 key={item.level}
                 className={`p-4 rounded-lg border transition-all ${
-                  item.level === powerGrid.level
+                  item.level === powerGridLevel
                     ? 'border-[#00ff88] bg-[#00ff88]/20'
                     : 'border-gray-600 hover:border-[#00ff88]/50'
                 }`}
@@ -248,9 +249,9 @@ export const Shop: React.FC = () => {
                   </div>
                   <button
                     onClick={() => handlePurchase('powerGrid', item.level, item.cost)}
-                    disabled={tokens < item.cost || item.level === powerGrid.level || purchaseInProgress}
+                    disabled={tokens < item.cost || item.level === powerGridLevel || purchaseInProgress}
                     className={`px-4 py-2 rounded transition-all ${
-                      tokens < item.cost || item.level === powerGrid.level || purchaseInProgress
+                      tokens < item.cost || item.level === powerGridLevel || purchaseInProgress
                         ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
                         : 'bg-[#00ff88] text-black hover:bg-[#00ff88]/80'
                     }`}

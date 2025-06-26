@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { UserProfile, Transaction, Gear, LeaderboardEntry } from '../types';
+import { EngineMark, GearboxLevel, BatteryLevel, HyperdriveLevel, PowerGridLevel } from '../types/game';
 
 interface GameState {
   // Игровые параметры
@@ -8,6 +9,13 @@ interface GameState {
   tokens: number;
   highScore: number;
   currentGear: Gear;
+  
+  // Уровни компонентов
+  engineLevel: EngineMark;
+  gearboxLevel: GearboxLevel;
+  batteryLevel: BatteryLevel;
+  hyperdriveLevel: HyperdriveLevel;
+  powerGridLevel: PowerGridLevel;
   
   // Профиль пользователя
   profile: UserProfile | null;
@@ -19,6 +27,13 @@ interface GameState {
   spendTokens: (amount: number) => Promise<boolean>;
   withdrawTokens: (amount: number) => Promise<boolean>;
   depositTokens: (amount: number) => Promise<boolean>;
+  
+  // Действия с компонентами
+  upgradeEngine: (level: EngineMark) => void;
+  upgradeGearbox: (level: GearboxLevel) => void;
+  upgradeBattery: (level: BatteryLevel) => void;
+  upgradeHyperdrive: (level: HyperdriveLevel) => void;
+  upgradePowerGrid: (level: PowerGridLevel) => void;
   
   // Действия с энергией
   setEnergy: (energy: number) => void;
@@ -43,6 +58,11 @@ export const useGameStore = create<GameState>()(
       tokens: 0,
       highScore: 0,
       currentGear: 'N',
+      engineLevel: 'Mk I',
+      gearboxLevel: 'L1',
+      batteryLevel: 'B1',
+      hyperdriveLevel: 'H1',
+      powerGridLevel: 'P1',
       profile: null,
       transactions: [],
       leaderboard: [],
@@ -109,6 +129,13 @@ export const useGameStore = create<GameState>()(
         }));
         return true;
       },
+
+      // Действия с компонентами
+      upgradeEngine: (level) => set({ engineLevel: level }),
+      upgradeGearbox: (level) => set({ gearboxLevel: level }),
+      upgradeBattery: (level) => set({ batteryLevel: level }),
+      upgradeHyperdrive: (level) => set({ hyperdriveLevel: level }),
+      upgradePowerGrid: (level) => set({ powerGridLevel: level }),
 
       // Действия с энергией
       setEnergy: (energy) => set({ energy }),

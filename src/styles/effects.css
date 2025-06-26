@@ -461,4 +461,124 @@
 .intensity-100 .cyber-glitch {
   opacity: 0.1;
   animation: glitch 0.1s linear infinite;
+}
+
+:root {
+  --glow-color: #00ff88;
+}
+
+.cyber-text {
+  color: var(--glow-color);
+  text-shadow: 0 0 5px var(--glow-color);
+}
+
+.cyber-button {
+  position: relative;
+  background: black;
+  border: 2px solid var(--glow-color);
+  color: var(--glow-color);
+  padding: 0.5em 1em;
+  cursor: pointer;
+  transition: all 0.3s;
+  border-radius: 4px;
+  text-transform: uppercase;
+  font-weight: bold;
+  overflow: hidden;
+}
+
+.cyber-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    120deg,
+    transparent,
+    rgba(0, 255, 136, 0.4),
+    transparent
+  );
+  transition: all 0.6s;
+}
+
+.cyber-button:hover::before {
+  left: 100%;
+}
+
+.cyber-button:hover {
+  background: var(--glow-color);
+  color: black;
+  box-shadow: 0 0 5px var(--glow-color),
+              0 0 25px var(--glow-color),
+              0 0 50px var(--glow-color),
+              0 0 100px var(--glow-color);
+}
+
+.cyber-panel {
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid var(--glow-color);
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 0 10px var(--glow-color);
+}
+
+.cyber-input {
+  background: black;
+  border: 2px solid var(--glow-color);
+  color: var(--glow-color);
+  padding: 0.5em;
+  border-radius: 4px;
+  outline: none;
+}
+
+.cyber-input:focus {
+  box-shadow: 0 0 5px var(--glow-color);
+}
+
+.cyber-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+.cyber-card {
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid var(--glow-color);
+  border-radius: 8px;
+  padding: 1rem;
+  transition: all 0.3s;
+}
+
+.cyber-card:hover {
+  box-shadow: 0 0 15px var(--glow-color);
+  transform: translateY(-2px);
+}
+
+.cyber-progress {
+  width: 100%;
+  height: 20px;
+  background: black;
+  border: 2px solid var(--glow-color);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.cyber-progress-bar {
+  height: 100%;
+  background: var(--glow-color);
+  transition: width 0.3s ease;
+}
+
+.cyber-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
 } 

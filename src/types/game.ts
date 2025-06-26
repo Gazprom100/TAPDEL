@@ -54,6 +54,11 @@ export interface PowerGrid {
 export interface GameState {
   tokens: number;
   highScore: number;
+  engineLevel: EngineMark;
+  gearboxLevel: GearboxLevel;
+  batteryLevel: BatteryLevel;
+  hyperdriveLevel: HyperdriveLevel;
+  powerGridLevel: PowerGridLevel;
   enginePower: number;
   currentGear: number;
   temperature: number;
