@@ -50,6 +50,62 @@
   100% { transform: translateY(-20px) rotate(360deg); opacity: 0; }
 }
 
+@keyframes neonPulse {
+  0% { background-color: rgba(0, 255, 136, 0.3); }
+  25% { background-color: rgba(0, 136, 255, 0.3); }
+  50% { background-color: rgba(255, 0, 255, 0.3); }
+  75% { background-color: rgba(255, 136, 0, 0.3); }
+  100% { background-color: rgba(0, 255, 136, 0.3); }
+}
+
+@keyframes screenGlow {
+  0% { 
+    box-shadow: 
+      inset 0 0 150px rgba(0, 255, 136, 0.8),
+      0 0 50px rgba(0, 255, 136, 0.5),
+      0 0 100px rgba(0, 255, 136, 0.3);
+  }
+  25% { 
+    box-shadow: 
+      inset 0 0 150px rgba(0, 136, 255, 0.8),
+      0 0 50px rgba(0, 136, 255, 0.5),
+      0 0 100px rgba(0, 136, 255, 0.3);
+  }
+  50% { 
+    box-shadow: 
+      inset 0 0 150px rgba(255, 0, 255, 0.8),
+      0 0 50px rgba(255, 0, 255, 0.5),
+      0 0 100px rgba(255, 0, 255, 0.3);
+  }
+  75% { 
+    box-shadow: 
+      inset 0 0 150px rgba(255, 136, 0, 0.8),
+      0 0 50px rgba(255, 136, 0, 0.5),
+      0 0 100px rgba(255, 136, 0, 0.3);
+  }
+  100% { 
+    box-shadow: 
+      inset 0 0 150px rgba(0, 255, 136, 0.8),
+      0 0 50px rgba(0, 255, 136, 0.5),
+      0 0 100px rgba(0, 255, 136, 0.3);
+  }
+}
+
+@keyframes hyperdriveGlow {
+  0% { 
+    filter: brightness(1.5) contrast(1.2);
+    background-color: rgba(255, 0, 255, 0.4);
+  }
+  50% { 
+    filter: brightness(2) contrast(1.4);
+    background-color: rgba(136, 0, 255, 0.4);
+  }
+  100% { 
+    filter: brightness(1.5) contrast(1.2);
+    background-color: rgba(255, 0, 255, 0.4);
+  }
+}
+
 .cyber-container {
   position: fixed;
   top: 0;
@@ -67,11 +123,23 @@
   user-select: none;
 }
 
+.cyber-container::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, transparent 0%, rgba(0, 0, 0, 0.8) 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
 .cyber-background-effects {
   position: absolute;
   inset: 0;
   z-index: 0;
   pointer-events: none;
+  opacity: 0.95;
+  mix-blend-mode: screen;
+  filter: brightness(1.2) contrast(1.1);
 }
 
 .cyber-grid {
@@ -142,12 +210,12 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: min(70vh, 70vw);
-  height: min(70vh, 70vw);
+  width: min(60vh, 60vw);
+  height: min(60vh, 60vw);
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-top: 2rem;
+  margin-top: 1rem;
 }
 
 .power-ring {
@@ -257,21 +325,21 @@
 
 .status-indicators {
   position: fixed;
-  bottom: env(safe-area-inset-bottom, 24px);
+  bottom: calc(env(safe-area-inset-bottom, 24px) + 60px);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  gap: 2rem;
+  gap: 1.5rem;
   z-index: 2;
   background: rgba(0, 0, 0, 0.7);
-  padding: 0.75rem 1.5rem;
-  border-radius: 1rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
   border: 1px solid var(--glow-color);
   backdrop-filter: blur(5px);
 }
 
 .status-bar {
-  width: 30px;
+  width: 60px;
   height: 4px;
   background: var(--glow-color);
   margin-top: 4px;
@@ -309,15 +377,15 @@
 
 .intensity-meter {
   position: fixed;
-  bottom: env(safe-area-inset-bottom, 24px);
-  left: env(safe-area-inset-left, 24px);
+  bottom: calc(env(safe-area-inset-bottom, 24px) + 60px);
+  left: env(safe-area-inset-left, 16px);
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.2rem;
   z-index: 2;
   background: rgba(0, 0, 0, 0.7);
-  padding: 0.75rem;
-  border-radius: 0.75rem;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
   border: 1px solid var(--glow-color);
   backdrop-filter: blur(5px);
 }
@@ -366,10 +434,10 @@
 }
 
 .cyber-text {
-  font-size: 0.9rem;
-  line-height: 1.5;
+  font-size: 0.8rem;
+  line-height: 1.4;
   letter-spacing: 0.5px;
-  margin: 0.25rem 0;
+  margin: 0.2rem 0;
 }
 
 .tap-button {
@@ -590,33 +658,34 @@
   top: env(safe-area-inset-top, 16px);
   left: 0;
   right: 0;
-  padding: 1rem;
+  padding: 0.75rem;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   z-index: 2;
   pointer-events: none;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .stats-left, .stats-right {
   background: rgba(0, 0, 0, 0.7);
-  padding: 0.75rem;
-  border-radius: 0.75rem;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
   border: 1px solid var(--glow-color);
   backdrop-filter: blur(5px);
-  min-width: 200px;
+  min-width: 160px;
 }
 
 .hyperdrive-button {
   position: fixed;
-  bottom: env(safe-area-inset-bottom, 24px);
-  right: env(safe-area-inset-right, 24px);
+  bottom: calc(env(safe-area-inset-bottom, 24px) + 60px);
+  right: env(safe-area-inset-right, 16px);
   z-index: 2;
   pointer-events: auto;
-  padding: 0.75rem 1.5rem;
+  padding: 0.5rem 1rem;
   background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(5px);
+  font-size: 0.9rem;
 }
 
 .profile-button {
@@ -624,13 +693,14 @@
   bottom: env(safe-area-inset-bottom, 24px);
   left: 50%;
   transform: translateX(-50%);
-  width: 200px;
+  width: 160px;
   background: rgba(0, 0, 0, 0.7);
   border: 1px solid var(--glow-color);
   backdrop-filter: blur(5px);
-  padding: 0.75rem;
-  border-radius: 0.75rem;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
   z-index: 3;
+  font-size: 0.9rem;
 }
 
 .token-counter {
@@ -638,15 +708,30 @@
   top: env(safe-area-inset-top, 16px);
   right: env(safe-area-inset-right, 16px);
   background: rgba(0, 0, 0, 0.7);
-  padding: 0.75rem;
-  border-radius: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
   border: 1px solid var(--glow-color);
   backdrop-filter: blur(5px);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.2rem;
   z-index: 3;
+}
+
+.token-value {
+  font-family: 'Orbitron', monospace;
+  font-size: min(4vw, 1.5rem);
+  color: var(--glow-color);
+  text-shadow: 0 0 10px var(--glow-color);
+}
+
+.token-label {
+  font-family: 'Orbitron', monospace;
+  font-size: min(2vw, 0.8rem);
+  color: var(--glow-color);
+  text-shadow: 0 0 5px var(--glow-color);
+  text-transform: uppercase;
 }
 
 .fuel-display {
@@ -657,26 +742,124 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.25rem;
   z-index: 2;
 }
 
 .fuel-value {
   font-family: 'Orbitron', monospace;
-  font-size: min(8vw, 4rem);
+  font-size: min(6vw, 3rem);
   color: var(--glow-color);
   text-shadow: 0 0 10px var(--glow-color);
 }
 
 .gear-indicator {
-  font-size: min(4vw, 2rem);
-  margin-top: 0.5rem;
+  font-size: min(3vw, 1.5rem);
+  margin-top: 0.25rem;
 }
 
-.token-label {
-  font-family: 'Orbitron', monospace;
-  font-size: min(3vw, 1.5rem);
-  color: var(--glow-color);
-  text-shadow: 0 0 5px var(--glow-color);
-  text-transform: uppercase;
+/* Интенсивность свечения в зависимости от передачи */
+.gear-N .cyber-background-effects { 
+  animation: none;
+  background: linear-gradient(rgba(0, 255, 136, 0.1), rgba(0, 136, 255, 0.1));
+}
+.gear-1 .cyber-background-effects { 
+  animation: neonPulse 4s infinite;
+  filter: brightness(1.3) contrast(1.2);
+}
+.gear-2 .cyber-background-effects { 
+  animation: neonPulse 3s infinite;
+  filter: brightness(1.4) contrast(1.3);
+}
+.gear-3 .cyber-background-effects { 
+  animation: neonPulse 2s infinite;
+  filter: brightness(1.5) contrast(1.4);
+}
+.gear-4 .cyber-background-effects { 
+  animation: neonPulse 1s infinite;
+  filter: brightness(1.6) contrast(1.5);
+}
+.gear-M .cyber-background-effects { 
+  animation: neonPulse 0.5s infinite;
+  filter: brightness(1.8) contrast(1.6);
+}
+
+/* Добавляем свечение при разных интенсивностях */
+.intensity-20 .cyber-container { 
+  animation: screenGlow 4s infinite;
+  backdrop-filter: brightness(1.2);
+}
+.intensity-40 .cyber-container { 
+  animation: screenGlow 3s infinite;
+  backdrop-filter: brightness(1.4);
+}
+.intensity-60 .cyber-container { 
+  animation: screenGlow 2s infinite;
+  backdrop-filter: brightness(1.6);
+}
+.intensity-80 .cyber-container { 
+  animation: screenGlow 1s infinite;
+  backdrop-filter: brightness(1.8);
+}
+.intensity-100 .cyber-container { 
+  animation: screenGlow 0.5s infinite;
+  backdrop-filter: brightness(2);
+}
+
+/* Дополнительные эффекты для высокой интенсивности */
+.intensity-80 .cyber-background-effects,
+.intensity-100 .cyber-background-effects {
+  background: linear-gradient(
+    45deg,
+    rgba(0, 255, 136, 0.4),
+    rgba(0, 136, 255, 0.4),
+    rgba(255, 0, 255, 0.4),
+    rgba(255, 136, 0, 0.4)
+  );
+  animation: neonPulse 1s infinite;
+  filter: brightness(2) contrast(1.5);
+}
+
+/* Эффект при активации гипердвигателя */
+.hyperdrive-active .cyber-background-effects {
+  background: linear-gradient(
+    45deg,
+    rgba(255, 0, 255, 0.5),
+    rgba(255, 0, 136, 0.5),
+    rgba(136, 0, 255, 0.5)
+  );
+  animation: hyperdriveGlow 0.3s infinite;
+  filter: brightness(2.5) contrast(1.8);
+}
+
+/* Усиление свечения для всех элементов */
+.cyber-text,
+.token-value,
+.fuel-value,
+.gear-indicator {
+  text-shadow: 
+    0 0 10px var(--glow-color),
+    0 0 20px var(--glow-color),
+    0 0 30px var(--glow-color);
+  filter: brightness(1.5);
+}
+
+.power-ring,
+.power-ring-outer,
+.power-ring-inner {
+  box-shadow:
+    0 0 10px var(--glow-color),
+    0 0 20px var(--glow-color),
+    0 0 30px var(--glow-color),
+    inset 0 0 10px var(--glow-color),
+    inset 0 0 20px var(--glow-color);
+  filter: brightness(1.5) contrast(1.2);
+}
+
+.status-bar,
+.intensity-bar.active {
+  box-shadow: 
+    0 0 10px var(--glow-color),
+    0 0 20px var(--glow-color);
+  filter: brightness(1.5);
 } 

@@ -15,6 +15,17 @@ const ENERGY_CONSUMPTION_RATE = {
   'M': 0.33   // 0.33% в секунду (примерно 100% за 300 секунд при максимальной нагрузке)
 };
 
+const BASE_TOKEN_REWARD = 1; // Базовая награда за один тап
+
+const GEAR_MULTIPLIERS = {
+  'N': 0,    // Нейтраль не дает токенов
+  '1': 1,    // Базовый множитель
+  '2': 1.5,  // +50% токенов
+  '3': 2,    // в 2 раза больше токенов
+  '4': 3,    // в 3 раза больше токенов
+  'M': 5     // в 5 раз больше токенов
+};
+
 export const TapButton: React.FC = () => {
   useFullscreen();
 
@@ -77,6 +88,47 @@ export const TapButton: React.FC = () => {
     return last3Rates.every(rate => Math.abs(rate - average) <= 1);
   }, []);
 
+  const calculateTokenReward = useCallback((
+    gear: Gear,
+    touchCount: number,
+    engine: typeof currentEngine,
+    gearbox: typeof currentGearbox,
+    powerGrid: typeof currentPowerGrid,
+    hyperdrive: typeof currentHyperdrive,
+    isHyperActive: boolean
+  ) => {
+    // Базовая награда за тап
+    let reward = BASE_TOKEN_REWARD;
+
+    // Множитель от количества пальцев (линейный рост)
+    const touchMultiplier = touchCount;
+
+    // Множитель от текущей передачи
+    const gearMultiplier = GEAR_MULTIPLIERS[gear];
+
+    // Множитель от уровня двигателя (каждый уровень +20% к базовой награде)
+    const engineMultiplier = 1 + (Number(engine.level) * 0.2);
+
+    // Множитель от уровня коробки передач (каждый уровень +10% к базовой награде)
+    const gearboxMultiplier = 1 + (Number(gearbox.level) * 0.1);
+
+    // Множитель от эффективности энергосети
+    const gridMultiplier = powerGrid.efficiency / 100;
+
+    // Множитель от гипердвигателя
+    const hyperdriveMultiplier = isHyperActive ? hyperdrive.speedMultiplier : 1;
+
+    // Применяем все множители
+    reward = reward * touchMultiplier;  // Умножаем на количество пальцев
+    reward = reward * gearMultiplier;   // Умножаем на множитель передачи
+    reward = reward * engineMultiplier;  // Умножаем на множитель двигателя
+    reward = reward * gearboxMultiplier; // Умножаем на множитель коробки передач
+    reward = reward * gridMultiplier;    // Умножаем на эффективность сети
+    reward = reward * hyperdriveMultiplier; // Умножаем на множитель гипердвигателя
+
+    return Math.max(0, reward); // Не может быть меньше 0
+  }, []);
+
   // Обработка множественных касаний
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     e.preventDefault();
@@ -94,7 +146,6 @@ export const TapButton: React.FC = () => {
     setLastTapRate(tapRate);
     setTapRate(currentTapRate);
     
-    // Обновляем историю скорости тапания
     const newTapRateHistory = [...tapRateHistory.slice(-9), currentTapRate];
     setTapRateHistory(newTapRateHistory);
     
@@ -113,27 +164,37 @@ export const TapButton: React.FC = () => {
     }
     
     if (fuelLevel <= 0) return;
+
+    // Рассчитываем награду в токенах
+    const tokenReward = calculateTokenReward(
+      newGear,
+      newTouches.size,
+      currentEngine,
+      currentGearbox,
+      currentPowerGrid,
+      currentHyperdrive,
+      isHyperdriveActive
+    );
     
-    // Расчет множителей для токенов
-    const gearMultiplier = currentGearbox.gear;
-    const energyMultiplier = fuelLevel / 100;
-    const efficiencyMultiplier = currentPowerGrid.efficiency / 100;
-    const hyperdriveMultiplier = isHyperdriveActive ? currentHyperdrive.speedMultiplier : 1;
-    const touchMultiplier = Math.min(newTouches.size, 5);
-    
-    // Добавление токенов
-    const baseTokens = currentEngine.power * gearMultiplier * energyMultiplier * touchMultiplier;
-    const totalTokens = baseTokens * efficiencyMultiplier * hyperdriveMultiplier;
-    addTokens(totalTokens);
+    // Добавляем токены
+    if (tokenReward > 0) {
+      addTokens(tokenReward);
+    }
     
     // Расчет потребления энергии
     const baseCost = ENERGY_CONSUMPTION_RATE[newGear];
+    const touchMultiplier = Math.min(newTouches.size, 5);
     const hyperdriveCost = isHyperdriveActive ? currentHyperdrive.energyConsumption : 0;
     const totalCost = ((baseCost * touchMultiplier) / currentEngine.fuelEfficiency) + hyperdriveCost;
     
     setFuelLevel(Math.max(0, fuelLevel - totalCost));
     setIsCharging(false);
-  }, [taps, fuelLevel, temperature, tapRate, lastTapRate, activeTouches, tapRateHistory]);
+  }, [
+    taps, fuelLevel, temperature, tapRate, lastTapRate, 
+    activeTouches, tapRateHistory, calculateTokenReward,
+    currentEngine, currentGearbox, currentPowerGrid, 
+    currentHyperdrive, isHyperdriveActive, addTokens
+  ]);
 
   // Обработка окончания касания
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
@@ -205,7 +266,7 @@ export const TapButton: React.FC = () => {
 
   return (
     <div 
-      className={`cyber-container gear-${gear} intensity-${Math.floor(intensity / 10) * 10}`}
+      className={`cyber-container gear-${gear} intensity-${Math.floor(intensity / 10) * 10} ${isHyperdriveActive ? 'hyperdrive-active' : ''}`}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
