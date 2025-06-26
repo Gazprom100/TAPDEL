@@ -16,6 +16,7 @@ interface GameState {
   
   // Действия с токенами
   addTokens: (amount: number) => void;
+  spendTokens: (amount: number) => Promise<boolean>;
   withdrawTokens: (amount: number) => Promise<boolean>;
   depositTokens: (amount: number) => Promise<boolean>;
   
@@ -51,6 +52,26 @@ export const useGameStore = create<GameState>()(
         tokens: state.tokens + amount,
         highScore: Math.max(state.highScore, state.tokens + amount)
       })),
+
+      spendTokens: async (amount) => {
+        const state = get();
+        if (state.tokens < amount) return false;
+        
+        set((state) => ({
+          tokens: state.tokens - amount,
+          transactions: [
+            {
+              id: Date.now().toString(),
+              type: 'purchase',
+              amount: -amount,
+              timestamp: Date.now(),
+              status: 'completed'
+            },
+            ...state.transactions
+          ]
+        }));
+        return true;
+      },
 
       withdrawTokens: async (amount) => {
         const state = get();
