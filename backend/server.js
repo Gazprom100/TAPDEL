@@ -24,14 +24,45 @@ if (!token) {
   console.warn('Telegram Bot Token not provided. Bot functionality will be disabled.');
 }
 
-const bot = token ? new TelegramBot(token, {
-  polling: true,
-  webHook: false,
-  onlyFirstMatch: true
-}) : null;
+const isProduction = process.env.NODE_ENV === 'production';
+const WEBHOOK_URL = process.env.WEBHOOK_URL || `https://${process.env.RENDER_EXTERNAL_URL}/webhook/${token}`;
+
+let bot = null;
+if (token) {
+  const options = isProduction
+    ? {
+        webHook: {
+          port: process.env.PORT || 10000
+        }
+      }
+    : {
+        polling: true,
+        webHook: false,
+        onlyFirstMatch: true
+      };
+  
+  bot = new TelegramBot(token, options);
+  
+  if (isProduction) {
+    // Set webhook in production
+    bot.setWebHook(WEBHOOK_URL).then(() => {
+      console.log('Webhook set successfully');
+    }).catch(error => {
+      console.error('Failed to set webhook:', error);
+    });
+  }
+}
 
 // Хранилище чат ID пользователей
 const userChatIds = new Map();
+
+// Webhook endpoint
+if (isProduction && bot) {
+  app.post(`/webhook/${token}`, (req, res) => {
+    bot.handleUpdate(req.body);
+    res.sendStatus(200);
+  });
+}
 
 // API endpoints
 app.post('/api/telegram/register', (req, res) => {

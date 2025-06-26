@@ -118,6 +118,17 @@
   overflow: hidden;
   font-family: 'Orbitron', sans-serif;
   user-select: none;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000;
+  -webkit-transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  -webkit-perspective: 1000;
 }
 
 .cyber-container::before {
@@ -435,6 +446,10 @@
   line-height: 1.4;
   letter-spacing: 0.5px;
   margin: 0.2rem 0;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
 }
 
 .tap-button {
@@ -551,6 +566,12 @@
   text-transform: uppercase;
   font-weight: bold;
   overflow: hidden;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+  min-height: 44px;
+  padding: 12px 20px;
 }
 
 .cyber-button::before {
@@ -961,5 +982,59 @@
   }
   100% {
     filter: brightness(1.5) hue-rotate(360deg);
+  }
+}
+
+/* Mobile-specific optimizations */
+@supports (-webkit-touch-callout: none) {
+  .cyber-container {
+    height: -webkit-fill-available;
+  }
+}
+
+/* Prevent text selection */
+.cyber-container,
+.cyber-text,
+.cyber-button {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+/* Optimize touch targets */
+.cyber-button,
+.profile-button {
+  min-height: 44px; /* iOS minimum touch target size */
+  padding: 12px 20px;
+}
+
+/* Smooth animations */
+@media (prefers-reduced-motion: no-preference) {
+  .intensity-bar,
+  .hyperdrive-energy-fill,
+  .power-ring,
+  .charging-indicator {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: more) {
+  .cyber-text {
+    text-shadow: none;
+  }
+  .cyber-button {
+    border-width: 2px;
+  }
+}
+
+/* Battery optimization */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 } 
