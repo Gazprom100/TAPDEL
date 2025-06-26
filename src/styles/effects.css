@@ -138,13 +138,16 @@
 }
 
 .power-display {
-  position: relative;
-  z-index: 1;
-  width: min(80vh, 80vw);
-  height: min(80vh, 80vw);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(70vh, 70vw);
+  height: min(70vh, 70vw);
   display: flex;
   justify-content: center;
   align-items: center;
+  margin-top: 2rem;
 }
 
 .power-ring {
@@ -219,21 +222,13 @@
 }
 
 .power-value {
-  font-family: 'Orbitron', monospace;
-  font-size: 3.5rem;
-  color: var(--glow-color);
-  text-shadow: 0 0 10px var(--glow-color);
-  z-index: 2;
-  animation: glow 2s infinite;
+  font-size: min(8vw, 4rem);
+  margin-bottom: 0.5rem;
 }
 
 .gear-indicator {
-  font-family: 'Orbitron', monospace;
-  font-size: 2rem;
-  color: var(--glow-color);
-  margin-top: 20px;
-  text-shadow: 0 0 5px var(--glow-color);
-  animation: flicker 2s infinite;
+  font-size: min(6vw, 3rem);
+  margin-top: 1rem;
 }
 
 .gear-N {
@@ -262,12 +257,17 @@
 
 .status-indicators {
   position: fixed;
-  bottom: 1rem;
+  bottom: env(safe-area-inset-bottom, 24px);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   gap: 2rem;
   z-index: 2;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 0.75rem 1.5rem;
+  border-radius: 1rem;
+  border: 1px solid var(--glow-color);
+  backdrop-filter: blur(5px);
 }
 
 .status-bar {
@@ -309,12 +309,17 @@
 
 .intensity-meter {
   position: fixed;
-  bottom: 1rem;
-  left: 1rem;
+  bottom: env(safe-area-inset-bottom, 24px);
+  left: env(safe-area-inset-left, 24px);
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
   z-index: 2;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--glow-color);
+  backdrop-filter: blur(5px);
 }
 
 .intensity-bar {
@@ -361,10 +366,10 @@
 }
 
 .cyber-text {
-  font-family: 'Orbitron', monospace;
-  color: var(--glow-color);
-  text-shadow: 0 0 5px var(--glow-color);
-  animation: flicker 2s infinite;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  letter-spacing: 0.5px;
+  margin: 0.25rem 0;
 }
 
 .tap-button {
@@ -582,7 +587,7 @@
 
 .stats-container {
   position: fixed;
-  top: 0;
+  top: env(safe-area-inset-top, 16px);
   left: 0;
   right: 0;
   padding: 1rem;
@@ -591,20 +596,25 @@
   align-items: flex-start;
   z-index: 2;
   pointer-events: none;
+  gap: 1rem;
 }
 
 .stats-left, .stats-right {
   background: rgba(0, 0, 0, 0.7);
-  padding: 0.5rem;
-  border-radius: 0.5rem;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
   border: 1px solid var(--glow-color);
   backdrop-filter: blur(5px);
+  min-width: 200px;
 }
 
 .hyperdrive-button {
   position: fixed;
-  bottom: 1rem;
-  right: 1rem;
+  bottom: env(safe-area-inset-bottom, 24px);
+  right: env(safe-area-inset-right, 24px);
   z-index: 2;
   pointer-events: auto;
+  padding: 0.75rem 1.5rem;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(5px);
 } 
