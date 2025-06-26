@@ -23,14 +23,14 @@ export const TapButton: React.FC = () => {
   
   const [gear, setGear] = useState<Gear>('N');
   const [taps, setTaps] = useState<number[]>([]);
-  const [isCharging, setIsCharging] = useState(false);
-  const [intensity, setIntensity] = useState(0);
-  const [temperature, setTemperature] = useState(GAME_MECHANICS.TEMPERATURE.MIN);
-  const [hyperdriveEnergy, setHyperdriveEnergy] = useState(0);
-  const [hyperdriveCharging, setHyperdriveCharging] = useState(false);
-  const [hyperdriveReadiness, setHyperdriveReadiness] = useState(0);
-  const [isHyperdriveActive, setIsHyperdriveActive] = useState(false);
-  const [activeTouches, setActiveTouches] = useState(new Set<number>());
+  const [isCharging, setIsCharging] = useState<boolean>(false);
+  const [intensity, setIntensity] = useState<number>(0);
+  const [temperature, setTemperature] = useState<number>(GAME_MECHANICS.TEMPERATURE.MIN);
+  const [hyperdriveEnergy, setHyperdriveEnergy] = useState<number>(0);
+  const [hyperdriveCharging, setHyperdriveCharging] = useState<boolean>(false);
+  const [hyperdriveReadiness, setHyperdriveReadiness] = useState<number>(0);
+  const [isHyperdriveActive, setIsHyperdriveActive] = useState<boolean>(false);
+  const [activeTouches, setActiveTouches] = useState<Set<number>>(new Set());
 
   // Получаем текущие компоненты
   const currentEngine = COMPONENTS.ENGINES.find(e => e.level === engineLevel)!;
@@ -78,7 +78,8 @@ export const TapButton: React.FC = () => {
     // Накапливаем энергию для гипердвигателя
     if (!isHyperdriveActive && fuelLevel > 0) {
       const energyGain = touchCount * GAME_MECHANICS.GEAR.MULTIPLIERS[newGear] * (currentPowerGrid.efficiency / 100);
-      setHyperdriveEnergy(energyGain + hyperdriveEnergy);
+      const newEnergy = Math.min(GAME_MECHANICS.ENERGY.MAX_LEVEL, hyperdriveEnergy + energyGain);
+      setHyperdriveEnergy(newEnergy);
     }
     
     // Рассчитываем и добавляем награду в токенах
@@ -100,13 +101,15 @@ export const TapButton: React.FC = () => {
         const touchMultiplier = Math.min(touchCount, GAME_MECHANICS.TAP.MAX_FINGERS);
         const totalCost = (baseCost * touchMultiplier) / currentEngine.fuelEfficiency;
         
-        setFuelLevel(Math.max(GAME_MECHANICS.ENERGY.MIN_LEVEL, fuelLevel - totalCost));
+        const newFuelLevel = Math.max(GAME_MECHANICS.ENERGY.MIN_LEVEL, fuelLevel - totalCost);
+        setFuelLevel(newFuelLevel);
         setIsCharging(false);
       }
     }
     
     // Обновляем интенсивность
-    setIntensity(prev => Math.min(100, prev + 5 * touchCount));
+    const newIntensity = Math.min(100, intensity + 5 * touchCount);
+    setIntensity(newIntensity);
   }, [taps, calculateGear, currentEngine, currentGearbox, currentPowerGrid, currentHyperdrive, isHyperdriveActive, fuelLevel, addTokens, activeTouches]);
 
   // Обработка состояния гипердвигателя

@@ -45,6 +45,13 @@ interface GameActions {
   updateProfile: (profile: Partial<UserProfile>) => void;
   addTransaction: (transaction: Omit<Transaction, 'id' | 'timestamp'>) => void;
   updateLeaderboard: (entries: LeaderboardEntry[]) => void;
+
+  // Системные действия
+  setTemperature: (temp: number) => void;
+  setPowerLevel: (level: number) => void;
+  setIsOverheated: (state: boolean) => void;
+  setCoolingTimer: (time: number) => void;
+  setHyperdriveActive: (state: boolean) => void;
 }
 
 type GameStore = ExtendedGameState & GameActions;
@@ -200,11 +207,11 @@ export const useGameStore = create<GameStore>()(
       updateLeaderboard: (entries) => set({ leaderboard: entries }),
 
       // Новые действия
-      setTemperature: (temp) => set({ temperature: temp }),
-      setPowerLevel: (level) => set({ powerLevel: level }),
-      setIsOverheated: (state) => set({ isOverheated: state }),
-      setCoolingTimer: (time) => set({ coolingTimer: time }),
-      setHyperdriveActive: (state) => set({ hyperdriveActive: state })
+      setTemperature: (temp: number) => set({ temperature: temp }),
+      setPowerLevel: (level: number) => set({ powerLevel: level }),
+      setIsOverheated: (state: boolean) => set({ isOverheated: state }),
+      setCoolingTimer: (time: number) => set({ coolingTimer: time }),
+      setHyperdriveActive: (state: boolean) => set({ hyperdriveActive: state })
     }),
     {
       name: 'tapdel-storage',
