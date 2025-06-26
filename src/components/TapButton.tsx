@@ -20,6 +20,7 @@ export const TapButton: React.FC = () => {
 
   const { 
     addTokens, 
+    tokens,
     fuelLevel, 
     setFuelLevel,
     engineLevel,
@@ -37,12 +38,13 @@ export const TapButton: React.FC = () => {
   const [isHyperdriveActive, setIsHyperdriveActive] = useState(false);
   const [tapRate, setTapRate] = useState(0);
   const [lastTapRate, setLastTapRate] = useState(0);
+  const [tapRateHistory, setTapRateHistory] = useState<number[]>([]);
   const [activeTouches, setActiveTouches] = useState(new Set<number>());
 
   // Устанавливаем начальный уровень топлива при монтировании
   useEffect(() => {
     setFuelLevel(100);
-  }, []);
+  }, [setFuelLevel]);
 
   // Получаем текущие компоненты
   const currentEngine = COMPONENTS.ENGINES.find(e => e.level === engineLevel)!;
@@ -67,6 +69,14 @@ export const TapButton: React.FC = () => {
     return 'N';
   }, []);
 
+  // Проверка стабильности скорости тапания
+  const isTapRateStable = useCallback((history: number[]) => {
+    if (history.length < 3) return false;
+    const last3Rates = history.slice(-3);
+    const average = last3Rates.reduce((a, b) => a + b, 0) / 3;
+    return last3Rates.every(rate => Math.abs(rate - average) <= 1);
+  }, []);
+
   // Обработка множественных касаний
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     e.preventDefault();
@@ -84,15 +94,18 @@ export const TapButton: React.FC = () => {
     setLastTapRate(tapRate);
     setTapRate(currentTapRate);
     
+    // Обновляем историю скорости тапания
+    const newTapRateHistory = [...tapRateHistory.slice(-9), currentTapRate];
+    setTapRateHistory(newTapRateHistory);
+    
     const newGear = calculateGear(newTaps);
     setGear(newGear);
     
-    // Обновление интенсивности
     const newIntensity = calculateIntensity(newGear);
     setIntensity(newIntensity);
 
-    // Перегрев только если скорость тапания не растет
-    if (currentTapRate <= lastTapRate) {
+    // Перегрев только при стабильной скорости тапания
+    if (isTapRateStable(newTapRateHistory) && currentTapRate > 0) {
       setTemperature(prev => Math.min(
         currentEngine.maxTemp,
         prev + (newIntensity / 100) * currentEngine.power
@@ -101,15 +114,26 @@ export const TapButton: React.FC = () => {
     
     if (fuelLevel <= 0) return;
     
-    // Расчет потребления энергии с учетом количества пальцев
+    // Расчет множителей для токенов
+    const gearMultiplier = currentGearbox.gear;
+    const energyMultiplier = fuelLevel / 100;
+    const efficiencyMultiplier = currentPowerGrid.efficiency / 100;
+    const hyperdriveMultiplier = isHyperdriveActive ? currentHyperdrive.speedMultiplier : 1;
+    const touchMultiplier = Math.min(newTouches.size, 5);
+    
+    // Добавление токенов
+    const baseTokens = currentEngine.power * gearMultiplier * energyMultiplier * touchMultiplier;
+    const totalTokens = baseTokens * efficiencyMultiplier * hyperdriveMultiplier;
+    addTokens(totalTokens);
+    
+    // Расчет потребления энергии
     const baseCost = ENERGY_CONSUMPTION_RATE[newGear];
-    const touchMultiplier = Math.min(newTouches.size, 5); // До 5 пальцев
     const hyperdriveCost = isHyperdriveActive ? currentHyperdrive.energyConsumption : 0;
     const totalCost = ((baseCost * touchMultiplier) / currentEngine.fuelEfficiency) + hyperdriveCost;
     
     setFuelLevel(Math.max(0, fuelLevel - totalCost));
     setIsCharging(false);
-  }, [taps, fuelLevel, temperature, tapRate, lastTapRate, activeTouches]);
+  }, [taps, fuelLevel, temperature, tapRate, lastTapRate, activeTouches, tapRateHistory]);
 
   // Обработка окончания касания
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
@@ -192,6 +216,11 @@ export const TapButton: React.FC = () => {
         <div className="cyber-vignette" />
       </div>
 
+      <div className="token-counter">
+        <div className="token-value">{Math.floor(tokens)}</div>
+        <div className="token-label">Tokens</div>
+      </div>
+
       <div className="stats-container">
         <div className="stats-left">
           <div className="cyber-text">
@@ -219,14 +248,9 @@ export const TapButton: React.FC = () => {
         <div className="power-ring" />
         <div className="power-ring-outer" />
         <div className="power-ring-inner" />
-        <div className="power-value">{Math.round(fuelLevel)}</div>
-        <div className="gear-indicator">{gear}</div>
-        
-        <div className="power-indicators">
-          <div className="power-bar left" />
-          <div className="power-bar right" />
-          <div className="power-bar top" />
-          <div className="power-bar bottom" />
+        <div className="fuel-display">
+          <div className="fuel-value">{Math.round(fuelLevel)}</div>
+          <div className="gear-indicator">{gear}</div>
         </div>
       </div>
 
@@ -276,6 +300,10 @@ export const TapButton: React.FC = () => {
           HYPERDRIVE
         </button>
       )}
+
+      <button className="profile-button cyber-button">
+        ПРОФИЛЬ
+      </button>
 
       <div 
         className="absolute inset-0 cursor-pointer" 

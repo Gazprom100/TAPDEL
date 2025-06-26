@@ -227,8 +227,8 @@
 }
 
 .gear-indicator {
-  font-size: min(6vw, 3rem);
-  margin-top: 1rem;
+  font-size: min(4vw, 2rem);
+  margin-top: 0.5rem;
 }
 
 .gear-N {
@@ -617,4 +617,66 @@
   padding: 0.75rem 1.5rem;
   background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(5px);
+}
+
+.profile-button {
+  position: fixed;
+  bottom: env(safe-area-inset-bottom, 24px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid var(--glow-color);
+  backdrop-filter: blur(5px);
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  z-index: 3;
+}
+
+.token-counter {
+  position: fixed;
+  top: env(safe-area-inset-top, 16px);
+  right: env(safe-area-inset-right, 16px);
+  background: rgba(0, 0, 0, 0.7);
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--glow-color);
+  backdrop-filter: blur(5px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  z-index: 3;
+}
+
+.fuel-display {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  z-index: 2;
+}
+
+.fuel-value {
+  font-family: 'Orbitron', monospace;
+  font-size: min(8vw, 4rem);
+  color: var(--glow-color);
+  text-shadow: 0 0 10px var(--glow-color);
+}
+
+.gear-indicator {
+  font-size: min(4vw, 2rem);
+  margin-top: 0.5rem;
+}
+
+.token-label {
+  font-family: 'Orbitron', monospace;
+  font-size: min(3vw, 1.5rem);
+  color: var(--glow-color);
+  text-shadow: 0 0 5px var(--glow-color);
+  text-transform: uppercase;
 } 
