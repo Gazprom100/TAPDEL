@@ -31,7 +31,7 @@ interface GameActions {
   upgradePowerGrid: (level: PowerGridLevel) => void;
   
   // Действия с энергией
-  setEnergy: (energy: number) => void;
+  setFuelLevel: (level: number) => void;
   upgradeMaxEnergy: (amount: number) => void;
   upgradeEnergyRecovery: (amount: number) => void;
   
@@ -143,7 +143,7 @@ export const useGameStore = create<GameStore>()(
       upgradePowerGrid: (level) => set({ powerGridLevel: level }),
 
       // Действия с энергией
-      setEnergy: (energy) => set({ fuelLevel: energy }),
+      setFuelLevel: (level) => set({ fuelLevel: level }),
       
       upgradeMaxEnergy: (amount) => set((state) => ({
         profile: state.profile ? {

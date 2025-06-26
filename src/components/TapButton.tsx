@@ -17,8 +17,8 @@ const ENERGY_CONSUMPTION_RATE = {
 export const TapButton: React.FC = () => {
   const { 
     addTokens, 
-    energy, 
-    setEnergy,
+    fuelLevel, 
+    setFuelLevel,
     engineLevel,
     gearboxLevel,
     batteryLevel,
@@ -71,7 +71,7 @@ export const TapButton: React.FC = () => {
 
   // Обработка нажатия
   const handleTap = useCallback(() => {
-    if (energy <= 0) return;
+    if (fuelLevel <= 0) return;
     if (temperature >= currentEngine.maxTemp) return;
 
     const now = Date.now();
@@ -91,7 +91,7 @@ export const TapButton: React.FC = () => {
     
     // Расчет множителей
     const gearMultiplier = currentGearbox.gear;
-    const energyMultiplier = energy / 100;
+    const energyMultiplier = fuelLevel / 100;
     const efficiencyMultiplier = currentPowerGrid.efficiency / 100;
     const hyperdriveMultiplier = isHyperdriveActive ? currentHyperdrive.speedMultiplier : 1;
     
@@ -106,11 +106,11 @@ export const TapButton: React.FC = () => {
     const hyperdriveCost = isHyperdriveActive ? currentHyperdrive.energyConsumption : 0;
     const totalCost = (baseCost / currentEngine.fuelEfficiency) + hyperdriveCost;
     
-    setEnergy(Math.max(0, energy - totalCost));
+    setFuelLevel(Math.max(0, fuelLevel - totalCost));
     setIsCharging(false);
   }, [
     taps, 
-    energy, 
+    fuelLevel, 
     temperature,
     currentEngine,
     currentGearbox,
@@ -118,7 +118,7 @@ export const TapButton: React.FC = () => {
     currentHyperdrive,
     isHyperdriveActive,
     addTokens, 
-    setEnergy
+    setFuelLevel
   ]);
 
   // Восстановление энергии и охлаждение
@@ -130,13 +130,13 @@ export const TapButton: React.FC = () => {
       if (isIdle) {
         // Восстановление энергии
         const chargeRate = currentBattery.chargeRate * (currentPowerGrid.efficiency / 100);
-        setEnergy(Math.min(currentBattery.capacity, energy + chargeRate));
+        setFuelLevel(Math.min(currentBattery.capacity, fuelLevel + chargeRate));
         
         // Охлаждение
         setTemperature((prev: number) => Math.max(20, prev - 1));
         
         // Отключение гипердвигателя при низком заряде
-        if (energy < currentHyperdrive.activationThreshold && isHyperdriveActive) {
+        if (fuelLevel < currentHyperdrive.activationThreshold && isHyperdriveActive) {
           setIsHyperdriveActive(false);
         }
 
@@ -147,7 +147,7 @@ export const TapButton: React.FC = () => {
 
     return () => clearInterval(recoveryInterval);
   }, [
-    energy,
+    fuelLevel,
     taps,
     intensity,
     currentBattery,
@@ -185,7 +185,7 @@ export const TapButton: React.FC = () => {
         <div className="power-ring" />
         <div className="power-ring-outer" />
         <div className="power-ring-inner" />
-        <div className="power-value">{Math.round(energy)}</div>
+        <div className="power-value">{Math.round(fuelLevel)}</div>
         <div className="gear-indicator">{gear}</div>
         
         <div className="power-indicators">
@@ -257,7 +257,7 @@ export const TapButton: React.FC = () => {
       </div>
 
       {/* Кнопка гипердвигателя */}
-      {energy >= currentHyperdrive.activationThreshold && (
+      {fuelLevel >= currentHyperdrive.activationThreshold && (
         <button
           className={`absolute bottom-4 right-4 cyber-button ${isHyperdriveActive ? 'bg-[#ff00ff]' : ''}`}
           onClick={() => setIsHyperdriveActive(!isHyperdriveActive)}
