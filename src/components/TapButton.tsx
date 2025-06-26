@@ -119,13 +119,11 @@ export const TapButton: React.FC = () => {
     if (hyperdriveEnergy >= currentHyperdrive.activationThreshold && !isHyperdriveActive) {
       setHyperdriveCharging(true);
       chargeInterval = setInterval(() => {
-        setHyperdriveReadiness(prev => {
-          const next = Math.min(100, prev + GAME_MECHANICS.HYPERDRIVE.CHARGE_RATE);
-          if (next === 100) {
-            setHyperdriveCharging(false);
-          }
-          return next;
-        });
+        const nextReadiness = Math.min(100, hyperdriveReadiness + GAME_MECHANICS.HYPERDRIVE.CHARGE_RATE);
+        setHyperdriveReadiness(nextReadiness);
+        if (nextReadiness === 100) {
+          setHyperdriveCharging(false);
+        }
       }, GAME_MECHANICS.HYPERDRIVE.CHARGE_INTERVAL);
     } else {
       setHyperdriveCharging(false);
@@ -137,7 +135,7 @@ export const TapButton: React.FC = () => {
         clearInterval(chargeInterval);
       }
     };
-  }, [hyperdriveEnergy, currentHyperdrive.activationThreshold, isHyperdriveActive]);
+  }, [hyperdriveEnergy, currentHyperdrive.activationThreshold, isHyperdriveActive, hyperdriveReadiness]);
 
   // Потребление энергии гипердвигателем
   useEffect(() => {
@@ -145,14 +143,11 @@ export const TapButton: React.FC = () => {
     
     if (isHyperdriveActive) {
       consumptionInterval = setInterval(() => {
-        setHyperdriveEnergy(prev => {
-          const newEnergy = prev - currentHyperdrive.energyConsumption;
-          if (newEnergy <= GAME_MECHANICS.ENERGY.MIN_LEVEL) {
-            setIsHyperdriveActive(false);
-            return GAME_MECHANICS.ENERGY.MIN_LEVEL;
-          }
-          return newEnergy;
-        });
+        const newEnergy = Math.max(GAME_MECHANICS.ENERGY.MIN_LEVEL, hyperdriveEnergy - currentHyperdrive.energyConsumption);
+        setHyperdriveEnergy(newEnergy);
+        if (newEnergy <= GAME_MECHANICS.ENERGY.MIN_LEVEL) {
+          setIsHyperdriveActive(false);
+        }
       }, GAME_MECHANICS.HYPERDRIVE.CONSUMPTION_INTERVAL);
     }
 
@@ -161,7 +156,7 @@ export const TapButton: React.FC = () => {
         clearInterval(consumptionInterval);
       }
     };
-  }, [isHyperdriveActive, currentHyperdrive.energyConsumption]);
+  }, [isHyperdriveActive, currentHyperdrive.energyConsumption, hyperdriveEnergy]);
 
   // Восстановление энергии и охлаждение
   useEffect(() => {
@@ -172,20 +167,23 @@ export const TapButton: React.FC = () => {
       if (isIdle) {
         // Восстановление энергии
         const chargeRate = currentBattery.chargeRate * (currentPowerGrid.efficiency / 100);
-        setFuelLevel((prev: number) => Math.min(GAME_MECHANICS.ENERGY.MAX_LEVEL, prev + chargeRate));
+        const newFuelLevel = Math.min(GAME_MECHANICS.ENERGY.MAX_LEVEL, fuelLevel + chargeRate);
+        setFuelLevel(newFuelLevel);
         
         // Охлаждение
-        setTemperature(prev => Math.max(GAME_MECHANICS.TEMPERATURE.MIN, prev - GAME_MECHANICS.TEMPERATURE.COOLING_RATE));
+        const newTemp = Math.max(GAME_MECHANICS.TEMPERATURE.MIN, temperature - GAME_MECHANICS.TEMPERATURE.COOLING_RATE);
+        setTemperature(newTemp);
         
         setIsCharging(true);
-        setIntensity(prev => Math.max(0, prev - 5));
+        const newIntensity = Math.max(0, intensity - 5);
+        setIntensity(newIntensity);
       } else {
         setIsCharging(false);
       }
     }, GAME_MECHANICS.ENERGY.RECOVERY_INTERVAL);
 
     return () => clearInterval(recoveryInterval);
-  }, [taps, currentBattery.chargeRate, currentPowerGrid.efficiency]);
+  }, [taps, currentBattery.chargeRate, currentPowerGrid.efficiency, fuelLevel, temperature, intensity]);
 
   // Активация гипердвигателя
   const activateHyperdrive = useCallback(() => {
