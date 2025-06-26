@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { COMPONENTS } from '../types/game';
+import { useFullscreen } from '../hooks/useFullscreen';
 import '../styles/effects.css';
 
 type Gear = 'N' | '1' | '2' | '3' | '4' | 'M';
@@ -15,6 +16,8 @@ const ENERGY_CONSUMPTION_RATE = {
 };
 
 export const TapButton: React.FC = () => {
+  useFullscreen();
+
   const { 
     addTokens, 
     fuelLevel, 
@@ -181,6 +184,29 @@ export const TapButton: React.FC = () => {
         <div className="cyber-vignette" />
       </div>
 
+      <div className="stats-container">
+        <div className="stats-left">
+          <div className="cyber-text">
+            {currentEngine.level} • {currentEngine.power}W • {Math.round(temperature)}°C
+          </div>
+          <div className="cyber-text">
+            {currentGearbox.level} • {currentGearbox.gear}x • {currentGearbox.switchTime}ms
+          </div>
+          <div className="cyber-text">
+            {currentBattery.level} • {currentBattery.capacity}% • {currentBattery.chargeRate}%/s
+          </div>
+        </div>
+
+        <div className="stats-right">
+          <div className="cyber-text">
+            {currentPowerGrid.level} • {currentPowerGrid.efficiency}% • {currentPowerGrid.maxLoad}W
+          </div>
+          <div className={`cyber-text ${isHyperdriveActive ? 'text-[#ff00ff]' : ''}`}>
+            {currentHyperdrive.level} • {currentHyperdrive.speedMultiplier}x
+          </div>
+        </div>
+      </div>
+
       <div className="power-display">
         <div className="power-ring" />
         <div className="power-ring-outer" />
@@ -193,28 +219,6 @@ export const TapButton: React.FC = () => {
           <div className="power-bar right" />
           <div className="power-bar top" />
           <div className="power-bar bottom" />
-        </div>
-      </div>
-
-      {/* Статистика компонентов */}
-      <div className="absolute top-4 left-4 space-y-2 text-xs">
-        <div className="cyber-text">
-          {currentEngine.level} • {currentEngine.power}W • {Math.round(temperature)}°C
-        </div>
-        <div className="cyber-text">
-          {currentGearbox.level} • {currentGearbox.gear}x • {currentGearbox.switchTime}ms
-        </div>
-        <div className="cyber-text">
-          {currentBattery.level} • {currentBattery.capacity}% • {currentBattery.chargeRate}%/s
-        </div>
-      </div>
-
-      <div className="absolute top-4 right-4 space-y-2 text-xs">
-        <div className="cyber-text">
-          {currentPowerGrid.level} • {currentPowerGrid.efficiency}% • {currentPowerGrid.maxLoad}W
-        </div>
-        <div className={`cyber-text ${isHyperdriveActive ? 'text-[#ff00ff]' : ''}`}>
-          {currentHyperdrive.level} • {currentHyperdrive.speedMultiplier}x
         </div>
       </div>
 
@@ -256,10 +260,9 @@ export const TapButton: React.FC = () => {
         ))}
       </div>
 
-      {/* Кнопка гипердвигателя */}
       {fuelLevel >= currentHyperdrive.activationThreshold && (
         <button
-          className={`absolute bottom-4 right-4 cyber-button ${isHyperdriveActive ? 'bg-[#ff00ff]' : ''}`}
+          className={`hyperdrive-button cyber-button ${isHyperdriveActive ? 'bg-[#ff00ff]' : ''}`}
           onClick={() => setIsHyperdriveActive(!isHyperdriveActive)}
         >
           HYPERDRIVE

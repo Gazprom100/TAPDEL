@@ -51,27 +51,27 @@
 }
 
 .cyber-container {
-  --glow-color: #00ff00;
-  background: #000000;
-  border-radius: 30px;
-  padding: 20px;
-  position: relative;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: #000;
+  color: var(--glow-color);
   overflow: hidden;
-  box-shadow: 
-    0 0 0 2px #333,
-    0 0 0 4px #666,
-    inset 0 0 20px rgba(0, 0, 0, 0.8);
-  aspect-ratio: 9/16;
-  width: 300px;
-  border: 2px solid var(--glow-color);
-  transition: all 0.3s ease;
+  font-family: 'Orbitron', sans-serif;
+  user-select: none;
 }
 
 .cyber-background-effects {
   position: absolute;
   inset: 0;
-  pointer-events: none;
   z-index: 0;
+  pointer-events: none;
 }
 
 .cyber-grid {
@@ -139,13 +139,12 @@
 
 .power-display {
   position: relative;
-  width: 200px;
-  height: 200px;
-  margin: 40px auto;
+  z-index: 1;
+  width: min(80vh, 80vw);
+  height: min(80vh, 80vw);
   display: flex;
-  align-items: center;
   justify-content: center;
-  flex-direction: column;
+  align-items: center;
 }
 
 .power-ring {
@@ -262,15 +261,13 @@
 }
 
 .status-indicators {
-  position: absolute;
-  bottom: 20px;
-  left: 20px;
-  right: 20px;
+  position: fixed;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
-  justify-content: space-between;
-  font-family: 'Orbitron', monospace;
-  color: var(--glow-color);
-  font-size: 0.8rem;
+  gap: 2rem;
+  z-index: 2;
 }
 
 .status-bar {
@@ -311,13 +308,13 @@
 }
 
 .intensity-meter {
-  position: absolute;
-  left: 20px;
-  top: 50%;
-  transform: translateY(-50%);
+  position: fixed;
+  bottom: 1rem;
+  left: 1rem;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0.25rem;
+  z-index: 2;
 }
 
 .intensity-bar {
@@ -581,4 +578,33 @@
   justify-content: center;
   align-items: center;
   z-index: 1000;
+}
+
+.stats-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.stats-left, .stats-right {
+  background: rgba(0, 0, 0, 0.7);
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--glow-color);
+  backdrop-filter: blur(5px);
+}
+
+.hyperdrive-button {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  z-index: 2;
+  pointer-events: auto;
 } 
