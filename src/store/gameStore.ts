@@ -7,7 +7,9 @@ import {
   BatteryLevel, 
   HyperdriveLevel, 
   PowerGridLevel,
-  GameState as GameStateBase
+  GameState as GameStateBase,
+  COMPONENTS,
+  GAME_MECHANICS
 } from '../types/game';
 
 interface ExtendedGameState extends GameStateBase {
@@ -53,15 +55,15 @@ export const useGameStore = create<GameStore>()(
       // Начальные значения
       tokens: 0,
       highScore: 0,
-      engineLevel: 'Mk I',
-      gearboxLevel: 'L1',
-      batteryLevel: 'B1',
-      hyperdriveLevel: 'H1',
-      powerGridLevel: 'P1',
+      engineLevel: COMPONENTS.ENGINES[0].level as EngineMark,
+      gearboxLevel: COMPONENTS.GEARBOXES[0].level as GearboxLevel,
+      batteryLevel: COMPONENTS.BATTERIES[0].level as BatteryLevel,
+      hyperdriveLevel: COMPONENTS.HYPERDRIVES[0].level as HyperdriveLevel,
+      powerGridLevel: COMPONENTS.POWER_GRIDS[0].level as PowerGridLevel,
       enginePower: 0,
       currentGear: 'N',
-      temperature: 25,
-      fuelLevel: 100,
+      temperature: GAME_MECHANICS.TEMPERATURE.MIN,
+      fuelLevel: GAME_MECHANICS.ENERGY.MAX_LEVEL,
       powerLevel: 0,
       isOverheated: false,
       coolingTimer: 0,
@@ -196,6 +198,13 @@ export const useGameStore = create<GameStore>()(
       })),
 
       updateLeaderboard: (entries) => set({ leaderboard: entries }),
+
+      // Новые действия
+      setTemperature: (temp) => set({ temperature: temp }),
+      setPowerLevel: (level) => set({ powerLevel: level }),
+      setIsOverheated: (state) => set({ isOverheated: state }),
+      setCoolingTimer: (time) => set({ coolingTimer: time }),
+      setHyperdriveActive: (state) => set({ hyperdriveActive: state })
     }),
     {
       name: 'tapdel-storage',

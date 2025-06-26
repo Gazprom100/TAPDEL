@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Dispatch, SetStateAction } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { COMPONENTS, GAME_MECHANICS } from '../types/game';
 import { useFullscreen } from '../hooks/useFullscreen';
@@ -78,7 +78,7 @@ export const TapButton: React.FC = () => {
     // Накапливаем энергию для гипердвигателя
     if (!isHyperdriveActive && fuelLevel > 0) {
       const energyGain = touchCount * GAME_MECHANICS.GEAR.MULTIPLIERS[newGear] * (currentPowerGrid.efficiency / 100);
-      setHyperdriveEnergy((prev: number) => Math.min(GAME_MECHANICS.ENERGY.MAX_LEVEL, prev + energyGain));
+      setHyperdriveEnergy(energyGain + hyperdriveEnergy);
     }
     
     // Рассчитываем и добавляем награду в токенах
@@ -100,7 +100,7 @@ export const TapButton: React.FC = () => {
         const touchMultiplier = Math.min(touchCount, GAME_MECHANICS.TAP.MAX_FINGERS);
         const totalCost = (baseCost * touchMultiplier) / currentEngine.fuelEfficiency;
         
-        setFuelLevel((prev: number) => Math.max(GAME_MECHANICS.ENERGY.MIN_LEVEL, prev - totalCost));
+        setFuelLevel(Math.max(GAME_MECHANICS.ENERGY.MIN_LEVEL, fuelLevel - totalCost));
         setIsCharging(false);
       }
     }
