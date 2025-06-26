@@ -11,26 +11,35 @@ import {
   COMPONENTS,
   GAME_MECHANICS
 } from '../types/game';
+import { DatabaseService } from '../services/db';
+
+const db = new DatabaseService();
 
 interface ExtendedGameState extends GameStateBase {
   profile: UserProfile | null;
   transactions: Transaction[];
   leaderboard: LeaderboardEntry[];
+  isLoading: boolean;
+  error: string | null;
 }
 
 interface GameActions {
+  // Системные действия
+  initializeUser: (userId: string) => Promise<void>;
+  syncGameState: () => Promise<void>;
+  
   // Действия с токенами
-  addTokens: (amount: number) => void;
+  addTokens: (amount: number) => Promise<void>;
   spendTokens: (amount: number) => Promise<boolean>;
   withdrawTokens: (amount: number) => Promise<boolean>;
   depositTokens: (amount: number) => Promise<boolean>;
   
   // Действия с компонентами
-  upgradeEngine: (level: EngineMark) => void;
-  upgradeGearbox: (level: GearboxLevel) => void;
-  upgradeBattery: (level: BatteryLevel) => void;
-  upgradeHyperdrive: (level: HyperdriveLevel) => void;
-  upgradePowerGrid: (level: PowerGridLevel) => void;
+  upgradeEngine: (level: EngineMark) => Promise<void>;
+  upgradeGearbox: (level: GearboxLevel) => Promise<void>;
+  upgradeBattery: (level: BatteryLevel) => Promise<void>;
+  upgradeHyperdrive: (level: HyperdriveLevel) => Promise<void>;
+  upgradePowerGrid: (level: PowerGridLevel) => Promise<void>;
   
   // Действия с энергией
   setFuelLevel: (level: number) => void;
@@ -42,9 +51,9 @@ interface GameActions {
   upgradeMaxGear: (gear: Gear) => void;
   
   // Профиль и статистика
-  updateProfile: (profile: Partial<UserProfile>) => void;
-  addTransaction: (transaction: Omit<Transaction, 'id' | 'timestamp'>) => void;
-  updateLeaderboard: (entries: LeaderboardEntry[]) => void;
+  updateProfile: (profile: Partial<UserProfile>) => Promise<void>;
+  addTransaction: (transaction: Omit<Transaction, 'id' | 'timestamp'>) => Promise<void>;
+  updateLeaderboard: (entries: LeaderboardEntry[]) => Promise<void>;
 
   // Системные действия
   setTemperature: (temp: number) => void;
@@ -52,6 +61,7 @@ interface GameActions {
   setIsOverheated: (state: boolean) => void;
   setCoolingTimer: (time: number) => void;
   setHyperdriveActive: (state: boolean) => void;
+  setError: (error: string | null) => void;
 }
 
 type GameStore = ExtendedGameState & GameActions;
@@ -80,83 +90,199 @@ export const useGameStore = create<GameStore>()(
       profile: null,
       transactions: [],
       leaderboard: [],
+      isLoading: false,
+      error: null,
+
+      // Системные действия
+      setError: (error) => set({ error }),
+      
+      initializeUser: async (userId) => {
+        try {
+          set({ isLoading: true, error: null });
+          const user = await db.getUser(userId);
+          
+          if (user) {
+            const { gameState, profile, transactions } = user;
+            set({
+              tokens: gameState.tokens,
+              highScore: gameState.highScore,
+              engineLevel: gameState.engineLevel as EngineMark,
+              gearboxLevel: gameState.gearboxLevel as GearboxLevel,
+              batteryLevel: gameState.batteryLevel as BatteryLevel,
+              hyperdriveLevel: gameState.hyperdriveLevel as HyperdriveLevel,
+              powerGridLevel: gameState.powerGridLevel as PowerGridLevel,
+              profile,
+              transactions
+            });
+          }
+          
+          const dbLeaderboard = await db.getLeaderboard();
+          const leaderboard: LeaderboardEntry[] = dbLeaderboard.map(entry => ({
+            id: entry._id.toString(),
+            userId: entry.userId,
+            username: entry.username,
+            level: 1, // TODO: Calculate based on score
+            score: entry.score,
+            tokens: 0, // TODO: Get from user data
+            maxGear: 'M' as Gear, // TODO: Get from user data
+            rank: entry.rank,
+            updatedAt: entry.updatedAt
+          }));
+          set({ leaderboard });
+        } catch (error) {
+          set({ error: (error as Error).message });
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
+      syncGameState: async () => {
+        try {
+          const state = get();
+          if (!state.profile?.userId) return;
+
+          await db.updateGameState(state.profile.userId, {
+            tokens: state.tokens,
+            highScore: state.highScore,
+            engineLevel: state.engineLevel,
+            gearboxLevel: state.gearboxLevel,
+            batteryLevel: state.batteryLevel,
+            hyperdriveLevel: state.hyperdriveLevel,
+            powerGridLevel: state.powerGridLevel,
+            lastSaved: new Date()
+          });
+
+          await db.updateLeaderboard({
+            userId: state.profile.userId,
+            username: state.profile.username,
+            score: state.highScore
+          });
+        } catch (error) {
+          set({ error: (error as Error).message });
+        }
+      },
 
       // Действия с токенами
-      addTokens: (amount) => set((state) => {
-        console.log('Adding tokens:', {
-          currentTokens: state.tokens,
-          amountToAdd: amount,
-          newTotal: state.tokens + amount
-        });
-        return {
-          tokens: state.tokens + amount,
-          highScore: Math.max(state.highScore, state.tokens + amount)
-        };
-      }),
+      addTokens: async (amount) => {
+        try {
+          const state = get();
+          const newTokens = state.tokens + amount;
+          const newHighScore = Math.max(state.highScore, newTokens);
+          
+          set({
+            tokens: newTokens,
+            highScore: newHighScore
+          });
+
+          await get().syncGameState();
+        } catch (error) {
+          set({ error: (error as Error).message });
+        }
+      },
 
       spendTokens: async (amount) => {
-        const state = get();
-        if (state.tokens < amount) return false;
-        
-        set((state) => ({
-          tokens: state.tokens - amount,
-          transactions: [
-            {
+        try {
+          const state = get();
+          if (state.tokens < amount) return false;
+          
+          set((state) => ({
+            tokens: state.tokens - amount
+          }));
+
+          if (state.profile?.userId) {
+            await db.addTransaction(state.profile.userId, {
               id: Date.now().toString(),
               type: 'purchase',
               amount: -amount,
               timestamp: Date.now(),
               status: 'completed'
-            },
-            ...state.transactions
-          ]
-        }));
-        return true;
+            });
+          }
+
+          await get().syncGameState();
+          return true;
+        } catch (error) {
+          set({ error: (error as Error).message });
+          return false;
+        }
       },
 
       withdrawTokens: async (amount) => {
-        const state = get();
-        if (state.tokens < amount) return false;
-        
-        set((state) => ({
-          tokens: state.tokens - amount,
-          transactions: [
-            {
+        try {
+          const state = get();
+          if (state.tokens < amount) return false;
+          
+          set((state) => ({
+            tokens: state.tokens - amount
+          }));
+
+          if (state.profile?.userId) {
+            await db.addTransaction(state.profile.userId, {
               id: Date.now().toString(),
               type: 'withdraw',
               amount,
               timestamp: Date.now(),
               status: 'completed'
-            },
-            ...state.transactions
-          ]
-        }));
-        return true;
+            });
+          }
+
+          await get().syncGameState();
+          return true;
+        } catch (error) {
+          set({ error: (error as Error).message });
+          return false;
+        }
       },
 
       depositTokens: async (amount) => {
-        set((state) => ({
-          tokens: state.tokens + amount,
-          transactions: [
-            {
+        try {
+          set((state) => ({
+            tokens: state.tokens + amount
+          }));
+
+          if (get().profile?.userId) {
+            await db.addTransaction(get().profile!.userId, {
               id: Date.now().toString(),
               type: 'deposit',
               amount,
               timestamp: Date.now(),
               status: 'completed'
-            },
-            ...state.transactions
-          ]
-        }));
-        return true;
+            });
+          }
+
+          await get().syncGameState();
+          return true;
+        } catch (error) {
+          set({ error: (error as Error).message });
+          return false;
+        }
       },
 
       // Действия с компонентами
-      upgradeEngine: (level) => set({ engineLevel: level }),
-      upgradeGearbox: (level) => set({ gearboxLevel: level }),
-      upgradeBattery: (level) => set({ batteryLevel: level }),
-      upgradeHyperdrive: (level) => set({ hyperdriveLevel: level }),
-      upgradePowerGrid: (level) => set({ powerGridLevel: level }),
+      upgradeEngine: async (level) => {
+        set({ engineLevel: level });
+        await get().syncGameState();
+      },
+      
+      upgradeGearbox: async (level) => {
+        set({ gearboxLevel: level });
+        await get().syncGameState();
+      },
+      
+      upgradeBattery: async (level) => {
+        set({ batteryLevel: level });
+        await get().syncGameState();
+      },
+      
+      upgradeHyperdrive: async (level) => {
+        set({ hyperdriveLevel: level });
+        await get().syncGameState();
+      },
+      
+      upgradePowerGrid: async (level) => {
+        set({ powerGridLevel: level });
+        await get().syncGameState();
+      },
 
       // Действия с энергией
       setFuelLevel: (level) => set({ fuelLevel: level }),
@@ -186,27 +312,63 @@ export const useGameStore = create<GameStore>()(
       })),
 
       // Профиль и статистика
-      updateProfile: (profileUpdate) => set((state) => ({
-        profile: state.profile ? {
-          ...state.profile,
-          ...profileUpdate
-        } : null
-      })),
+      updateProfile: async (profileUpdate) => {
+        try {
+          const state = get();
+          const newProfile = state.profile ? {
+            ...state.profile,
+            ...profileUpdate
+          } : null;
 
-      addTransaction: (transaction) => set((state) => ({
-        transactions: [
-          {
+          set({ profile: newProfile });
+
+          if (newProfile?.userId) {
+            await db.updateUser(newProfile.userId, { profile: newProfile });
+          }
+        } catch (error) {
+          set({ error: (error as Error).message });
+        }
+      },
+
+      addTransaction: async (transaction) => {
+        try {
+          const state = get();
+          const newTransaction = {
             id: Date.now().toString(),
             timestamp: Date.now(),
             ...transaction
-          },
-          ...state.transactions
-        ]
-      })),
+          };
 
-      updateLeaderboard: (entries) => set({ leaderboard: entries }),
+          set((state) => ({
+            transactions: [newTransaction, ...state.transactions]
+          }));
 
-      // Новые действия
+          if (state.profile?.userId) {
+            await db.addTransaction(state.profile.userId, newTransaction);
+          }
+        } catch (error) {
+          set({ error: (error as Error).message });
+        }
+      },
+
+      updateLeaderboard: async (entries) => {
+        try {
+          set({ leaderboard: entries });
+          
+          const state = get();
+          if (state.profile?.userId) {
+            await db.updateLeaderboard({
+              userId: state.profile.userId,
+              username: state.profile.username,
+              score: state.highScore
+            });
+          }
+        } catch (error) {
+          set({ error: (error as Error).message });
+        }
+      },
+
+      // Системные действия
       setTemperature: (temp: number) => set({ temperature: temp }),
       setPowerLevel: (level: number) => set({ powerLevel: level }),
       setIsOverheated: (state: boolean) => set({ isOverheated: state }),
@@ -218,8 +380,7 @@ export const useGameStore = create<GameStore>()(
       partialize: (state) => ({
         tokens: state.tokens,
         highScore: state.highScore,
-        profile: state.profile,
-        transactions: state.transactions
+        profile: state.profile
       })
     }
   )

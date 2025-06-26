@@ -1,25 +1,27 @@
 export type Gear = 'N' | '1' | '2' | '3' | '4' | 'M';
 
 export interface UserProfile {
-  id: string;
+  userId: string;
   username: string;
-  level: number;
-  experience: number;
-  maxGear: Gear;
   maxEnergy: number;
   energyRecoveryRate: number;
-  balance: {
-    tokens: number;
-    credits: number; // Реальная валюта или крипта
-  };
+  maxGear: Gear;
+  level: number;
+  experience: number;
+  createdAt: Date;
+  lastLogin: Date;
 }
 
 export interface LeaderboardEntry {
   id: string;
+  userId: string;
   username: string;
   level: number;
+  score: number;
   tokens: number;
   maxGear: Gear;
+  rank: number;
+  updatedAt: Date;
 }
 
 export interface ShopItem {
@@ -33,7 +35,7 @@ export interface ShopItem {
 
 export interface Transaction {
   id: string;
-  type: 'deposit' | 'withdraw' | 'purchase';
+  type: 'purchase' | 'withdraw' | 'deposit';
   amount: number;
   timestamp: number;
   status: 'pending' | 'completed' | 'failed';

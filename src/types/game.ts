@@ -94,28 +94,29 @@ export const GAME_MECHANICS = {
   },
   ENERGY: {
     CONSUMPTION_RATE: {
-      'N': 0.01,  // % в секунду
-      '1': 0.02,
-      '2': 0.04,
-      '3': 0.08,
-      '4': 0.16,
-      'M': 0.33
+      'N': 0.05,  // % в секунду (увеличено в 5 раз для 1-минутного расхода)
+      '1': 0.1,   // было 0.02
+      '2': 0.2,   // было 0.04
+      '3': 0.4,   // было 0.08
+      '4': 0.8,   // было 0.16
+      'M': 1.65   // было 0.33
     },
     MIN_LEVEL: 0,
     MAX_LEVEL: 100,
-    RECOVERY_INTERVAL: 50 // мс
+    RECOVERY_INTERVAL: 50, // мс
+    HYPERDRIVE_CHARGE_RATIO: 0.5 // 10% топлива = 5% заряда (коэффициент 0.5)
   },
   TEMPERATURE: {
     MIN: 20,
     MAX: 100,
-    COOLING_RATE: 1, // градусов в секунду
+    COOLING_RATE: 1,
     WARNING_THRESHOLD: 80
   },
   HYPERDRIVE: {
-    CHARGE_RATE: 2, // % за тик
-    CHARGE_INTERVAL: 50, // мс
-    CONSUMPTION_INTERVAL: 100, // мс
-    WARNING_THRESHOLD: 1.5 // множитель от порога активации
+    CHARGE_RATE: 2,
+    CHARGE_INTERVAL: 50,
+    CONSUMPTION_INTERVAL: 100,
+    WARNING_THRESHOLD: 1.5
   }
 };
 
