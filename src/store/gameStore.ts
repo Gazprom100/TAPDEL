@@ -1,27 +1,22 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { UserProfile, Transaction, Gear, LeaderboardEntry } from '../types';
-import { EngineMark, GearboxLevel, BatteryLevel, HyperdriveLevel, PowerGridLevel } from '../types/game';
+import { UserProfile, Transaction, LeaderboardEntry, Gear } from '../types';
+import { 
+  EngineMark, 
+  GearboxLevel, 
+  BatteryLevel, 
+  HyperdriveLevel, 
+  PowerGridLevel,
+  GameState as GameStateBase
+} from '../types/game';
 
-interface GameState {
-  // Игровые параметры
-  energy: number;
-  tokens: number;
-  highScore: number;
-  currentGear: Gear;
-  
-  // Уровни компонентов
-  engineLevel: EngineMark;
-  gearboxLevel: GearboxLevel;
-  batteryLevel: BatteryLevel;
-  hyperdriveLevel: HyperdriveLevel;
-  powerGridLevel: PowerGridLevel;
-  
-  // Профиль пользователя
+interface ExtendedGameState extends GameStateBase {
   profile: UserProfile | null;
   transactions: Transaction[];
   leaderboard: LeaderboardEntry[];
-  
+}
+
+interface GameActions {
   // Действия с токенами
   addTokens: (amount: number) => void;
   spendTokens: (amount: number) => Promise<boolean>;
@@ -50,19 +45,29 @@ interface GameState {
   updateLeaderboard: (entries: LeaderboardEntry[]) => void;
 }
 
-export const useGameStore = create<GameState>()(
+type GameStore = ExtendedGameState & GameActions;
+
+export const useGameStore = create<GameStore>()(
   persist(
     (set, get) => ({
       // Начальные значения
-      energy: 100,
       tokens: 0,
       highScore: 0,
-      currentGear: 'N',
       engineLevel: 'Mk I',
       gearboxLevel: 'L1',
       batteryLevel: 'B1',
       hyperdriveLevel: 'H1',
       powerGridLevel: 'P1',
+      enginePower: 0,
+      currentGear: 'N',
+      temperature: 25,
+      fuelLevel: 100,
+      powerLevel: 0,
+      isOverheated: false,
+      coolingTimer: 0,
+      lastTapTimestamp: 0,
+      tapRate: 0,
+      hyperdriveActive: false,
       profile: null,
       transactions: [],
       leaderboard: [],
@@ -138,7 +143,7 @@ export const useGameStore = create<GameState>()(
       upgradePowerGrid: (level) => set({ powerGridLevel: level }),
 
       // Действия с энергией
-      setEnergy: (energy) => set({ energy }),
+      setEnergy: (energy) => set({ fuelLevel: energy }),
       
       upgradeMaxEnergy: (amount) => set((state) => ({
         profile: state.profile ? {
@@ -155,9 +160,9 @@ export const useGameStore = create<GameState>()(
       })),
 
       // Действия с передачами
-      setGear: (gear) => set({ currentGear: gear }),
+      setGear: (gear: Gear) => set({ currentGear: gear }),
       
-      upgradeMaxGear: (gear) => set((state) => ({
+      upgradeMaxGear: (gear: Gear) => set((state) => ({
         profile: state.profile ? {
           ...state.profile,
           maxGear: gear

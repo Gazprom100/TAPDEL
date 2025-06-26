@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useGameStore } from '../store/gameStore';
+import { Gear } from '../types';
 import {
   Engine,
   Gearbox,
@@ -15,6 +16,18 @@ import {
   HyperdriveLevel,
   PowerGridLevel
 } from '../types/game';
+
+const gearToNumber = (gear: Gear): number => {
+  if (gear === 'N') return 0;
+  if (gear === 'M') return 5;
+  return parseInt(gear);
+};
+
+const numberToGear = (num: number): Gear => {
+  if (num === 0) return 'N';
+  if (num === 5) return 'M';
+  return num.toString() as Gear;
+};
 
 export const useGameMechanics = () => {
   // Состояния компонентов
@@ -48,8 +61,13 @@ export const useGameMechanics = () => {
   const [gameState, setGameState] = useState<GameState>({
     tokens: 0,
     highScore: 0,
+    engineLevel: 'Mk I',
+    gearboxLevel: 'L1',
+    batteryLevel: 'B1',
+    hyperdriveLevel: 'H1',
+    powerGridLevel: 'P1',
     enginePower: 0,
-    currentGear: 1,
+    currentGear: 'N',
     temperature: 25,
     fuelLevel: 100,
     powerLevel: 0,
@@ -86,7 +104,7 @@ export const useGameMechanics = () => {
     const engineHeat = newEnginePower > 8 && newTapRate < 4 ? 
       GAME_MECHANICS.OVERHEAT.ENGINE_RATE : 0;
       
-    const gearboxHeat = Math.abs(gameState.currentGear - gearbox.gear) > 1 ? 
+    const gearboxHeat = Math.abs(gearToNumber(gameState.currentGear) - gearbox.gear) > 1 ? 
       GAME_MECHANICS.OVERHEAT.GEARBOX_INSTANT : 0;
       
     const batteryHeat = hyperdrive.isActive && newTapRate <= 2 ? 
@@ -104,7 +122,7 @@ export const useGameMechanics = () => {
       newBatteryTemp >= GAME_MECHANICS.TEMPERATURE.BATTERY_CRITICAL;
 
     // Расчет токенов
-    const baseTokens = newEnginePower * gearbox.gear;
+    const baseTokens = newEnginePower * gearToNumber(gameState.currentGear);
     const efficiencyMultiplier = powerGrid.efficiency / 100;
     const hyperdriveMultiplier = hyperdrive.isActive ? hyperdrive.speedMultiplier : 1;
     const tokensToAdd = baseTokens * efficiencyMultiplier * hyperdriveMultiplier;
@@ -124,6 +142,9 @@ export const useGameMechanics = () => {
       tapRate: newTapRate,
       lastTapTimestamp: now,
       enginePower: isOverheated ? 0 : newEnginePower,
+      temperature: Math.max(newEngineTemp, newGearboxTemp, newBatteryTemp),
+      fuelLevel: Math.max(0, prev.fuelLevel - GAME_MECHANICS.FUEL.CONSUMPTION),
+      currentGear: isOverheated ? 'N' : prev.currentGear,
       isOverheated,
       coolingTimer: isOverheated ? 
         GAME_MECHANICS.TEMPERATURE.COOLING_BASE + 

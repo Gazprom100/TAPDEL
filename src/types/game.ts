@@ -1,3 +1,5 @@
+import { Gear } from './index';
+
 export type EngineMark = 'Mk I' | 'Mk II' | 'Mk III' | 'Mk IV' | 'Mk V' | 'Mk VI' | 'Mk VII' | 'Mk VIII' | 'Mk IX' | 'Mk X';
 export type GearboxLevel = 'L1' | 'L2' | 'L3' | 'L4' | 'L5' | 'L6' | 'L7' | 'L8' | 'L9' | 'L10';
 export type BatteryLevel = 'B1' | 'B2' | 'B3' | 'B4' | 'B5' | 'B6' | 'B7' | 'B8' | 'B9' | 'B10';
@@ -60,7 +62,7 @@ export interface GameState {
   hyperdriveLevel: HyperdriveLevel;
   powerGridLevel: PowerGridLevel;
   enginePower: number;
-  currentGear: number;
+  currentGear: Gear;
   temperature: number;
   fuelLevel: number;
   powerLevel: number;
