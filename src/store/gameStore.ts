@@ -73,10 +73,17 @@ export const useGameStore = create<GameStore>()(
       leaderboard: [],
 
       // Действия с токенами
-      addTokens: (amount) => set((state) => ({
-        tokens: state.tokens + amount,
-        highScore: Math.max(state.highScore, state.tokens + amount)
-      })),
+      addTokens: (amount) => set((state) => {
+        console.log('Adding tokens:', {
+          currentTokens: state.tokens,
+          amountToAdd: amount,
+          newTotal: state.tokens + amount
+        });
+        return {
+          tokens: state.tokens + amount,
+          highScore: Math.max(state.highScore, state.tokens + amount)
+        };
+      }),
 
       spendTokens: async (amount) => {
         const state = get();

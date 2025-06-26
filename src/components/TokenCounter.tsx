@@ -9,6 +9,11 @@ export const TokenCounter = ({ tokens }: TokenCounterProps) => {
   const counterRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    console.log('TokenCounter update:', {
+      tokens,
+      formattedValue: tokens.toLocaleString()
+    });
+    
     if (counterRef.current) {
       gsap.from(counterRef.current, {
         scale: 1.2,

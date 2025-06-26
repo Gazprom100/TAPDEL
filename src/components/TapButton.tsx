@@ -1,30 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useGameStore } from '../store/gameStore';
-import { COMPONENTS } from '../types/game';
+import { COMPONENTS, GAME_MECHANICS } from '../types/game';
 import { useFullscreen } from '../hooks/useFullscreen';
 import '../styles/effects.css';
 
 type Gear = 'N' | '1' | '2' | '3' | '4' | 'M';
-
-const ENERGY_CONSUMPTION_RATE = {
-  'N': 0.01,  // 0.01% в секунду
-  '1': 0.02,  // 0.02% в секунду
-  '2': 0.04,  // 0.04% в секунду
-  '3': 0.08,  // 0.08% в секунду
-  '4': 0.16,  // 0.16% в секунду
-  'M': 0.33   // 0.33% в секунду (примерно 100% за 300 секунд при максимальной нагрузке)
-};
-
-const BASE_TOKEN_REWARD = 1; // Базовая награда за один тап
-
-const GEAR_MULTIPLIERS = {
-  'N': 0,    // Нейтраль не дает токенов
-  '1': 1,    // Базовый множитель
-  '2': 1.5,  // +50% токенов
-  '3': 2,    // в 2 раза больше токенов
-  '4': 3,    // в 3 раза больше токенов
-  'M': 5     // в 5 раз больше токенов
-};
 
 export const TapButton: React.FC = () => {
   useFullscreen();
@@ -45,17 +25,12 @@ export const TapButton: React.FC = () => {
   const [taps, setTaps] = useState<number[]>([]);
   const [isCharging, setIsCharging] = useState(false);
   const [intensity, setIntensity] = useState(0);
-  const [temperature, setTemperature] = useState(20);
+  const [temperature, setTemperature] = useState(GAME_MECHANICS.TEMPERATURE.MIN);
+  const [hyperdriveEnergy, setHyperdriveEnergy] = useState(0);
+  const [hyperdriveCharging, setHyperdriveCharging] = useState(false);
+  const [hyperdriveReadiness, setHyperdriveReadiness] = useState(0);
   const [isHyperdriveActive, setIsHyperdriveActive] = useState(false);
-  const [tapRate, setTapRate] = useState(0);
-  const [lastTapRate, setLastTapRate] = useState(0);
-  const [tapRateHistory, setTapRateHistory] = useState<number[]>([]);
   const [activeTouches, setActiveTouches] = useState(new Set<number>());
-
-  // Устанавливаем начальный уровень топлива при монтировании
-  useEffect(() => {
-    setFuelLevel(100);
-  }, [setFuelLevel]);
 
   // Получаем текущие компоненты
   const currentEngine = COMPONENTS.ENGINES.find(e => e.level === engineLevel)!;
@@ -65,75 +40,33 @@ export const TapButton: React.FC = () => {
   const currentPowerGrid = COMPONENTS.POWER_GRIDS.find(p => p.level === powerGridLevel)!;
 
   // Расчет передачи на основе частоты нажатий
-  const calculateGear = useCallback((tapHistory: number[]) => {
+  const calculateGear = useCallback((tapHistory: number[]): Gear => {
     if (tapHistory.length < 2) return 'N';
     
     const now = Date.now();
-    const recentTaps = tapHistory.filter(tap => now - tap < 1000);
+    const recentTaps = tapHistory.filter(tap => now - tap < GAME_MECHANICS.TAP.RATE_WINDOW);
     const tapFrequency = recentTaps.length;
     
-    if (tapFrequency >= 20) return 'M';  // Увеличили порог для максимальной передачи
-    if (tapFrequency >= 15) return '4';
-    if (tapFrequency >= 10) return '3';
-    if (tapFrequency >= 5) return '2';
-    if (tapFrequency >= 1) return '1';
+    if (tapFrequency >= GAME_MECHANICS.GEAR.THRESHOLDS.M) return 'M';
+    if (tapFrequency >= GAME_MECHANICS.GEAR.THRESHOLDS['4']) return '4';
+    if (tapFrequency >= GAME_MECHANICS.GEAR.THRESHOLDS['3']) return '3';
+    if (tapFrequency >= GAME_MECHANICS.GEAR.THRESHOLDS['2']) return '2';
+    if (tapFrequency >= GAME_MECHANICS.GEAR.THRESHOLDS['1']) return '1';
     return 'N';
   }, []);
 
-  // Проверка стабильности скорости тапания
-  const isTapRateStable = useCallback((history: number[]) => {
-    if (history.length < 3) return false;
-    const last3Rates = history.slice(-3);
-    const average = last3Rates.reduce((a, b) => a + b, 0) / 3;
-    return last3Rates.every(rate => Math.abs(rate - average) <= 1);
-  }, []);
-
-  const calculateTokenReward = useCallback((
-    gear: Gear,
-    touchCount: number,
-    engine: typeof currentEngine,
-    gearbox: typeof currentGearbox,
-    powerGrid: typeof currentPowerGrid,
-    hyperdrive: typeof currentHyperdrive,
-    isHyperActive: boolean
-  ) => {
-    // Базовая награда за тап
-    let reward = BASE_TOKEN_REWARD;
-
-    // Множитель от количества пальцев (линейный рост)
-    const touchMultiplier = touchCount;
-
-    // Множитель от текущей передачи
-    const gearMultiplier = GEAR_MULTIPLIERS[gear];
-
-    // Множитель от уровня двигателя (каждый уровень +20% к базовой награде)
-    const engineMultiplier = 1 + (Number(engine.level) * 0.2);
-
-    // Множитель от уровня коробки передач (каждый уровень +10% к базовой награде)
-    const gearboxMultiplier = 1 + (Number(gearbox.level) * 0.1);
-
-    // Множитель от эффективности энергосети
-    const gridMultiplier = powerGrid.efficiency / 100;
-
-    // Множитель от гипердвигателя
-    const hyperdriveMultiplier = isHyperActive ? hyperdrive.speedMultiplier : 1;
-
-    // Применяем все множители
-    reward = reward * touchMultiplier;  // Умножаем на количество пальцев
-    reward = reward * gearMultiplier;   // Умножаем на множитель передачи
-    reward = reward * engineMultiplier;  // Умножаем на множитель двигателя
-    reward = reward * gearboxMultiplier; // Умножаем на множитель коробки передач
-    reward = reward * gridMultiplier;    // Умножаем на эффективность сети
-    reward = reward * hyperdriveMultiplier; // Умножаем на множитель гипердвигателя
-
-    return Math.max(0, reward); // Не может быть меньше 0
-  }, []);
-
-  // Обработка множественных касаний
+  // Накопление энергии для гипердвигателя от тапов
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     e.preventDefault();
     const now = Date.now();
-    const touchCount = e.touches.length;
+    const touchCount = Math.min(e.touches.length, GAME_MECHANICS.TAP.MAX_FINGERS);
+    
+    // Обновляем активные касания
+    const newTouches = new Set(activeTouches);
+    Array.from(e.changedTouches).forEach(touch => {
+      newTouches.add(touch.identifier);
+    });
+    setActiveTouches(newTouches);
     
     // Добавляем все тапы
     setTaps(prev => [...prev, now]);
@@ -142,123 +75,134 @@ export const TapButton: React.FC = () => {
     const newGear = calculateGear([...taps, now]);
     setGear(newGear);
     
-    // Рассчитываем и добавляем награду в токенах
-    const reward = calculateTokenReward(
-      newGear,
-      touchCount,
-      currentEngine,
-      currentGearbox,
-      currentPowerGrid,
-      currentHyperdrive,
-      isHyperdriveActive
-    );
+    // Накапливаем энергию для гипердвигателя
+    if (!isHyperdriveActive && fuelLevel > 0) {
+      const energyGain = touchCount * GAME_MECHANICS.GEAR.MULTIPLIERS[newGear] * (currentPowerGrid.efficiency / 100);
+      setHyperdriveEnergy((prev: number) => Math.min(GAME_MECHANICS.ENERGY.MAX_LEVEL, prev + energyGain));
+    }
     
-    // Добавляем токены только если есть топливо
-    if (fuelLevel > 0) {
-      addTokens(reward);
+    // Рассчитываем и добавляем награду в токенах
+    if (touchCount !== activeTouches.size) {
+      const reward = GAME_MECHANICS.TAP.BASE_REWARD * 
+        touchCount * 
+        GAME_MECHANICS.GEAR.MULTIPLIERS[newGear] * 
+        (1 + (currentEngine.power / 100)) * 
+        (1 + (currentGearbox.gear / 10)) * 
+        (currentPowerGrid.efficiency / 100) * 
+        (isHyperdriveActive ? currentHyperdrive.speedMultiplier : 1);
       
-      // Расчет потребления топлива
-      const baseCost = ENERGY_CONSUMPTION_RATE[newGear];
-      const touchMultiplier = Math.min(touchCount, 5);
-      const hyperdriveCost = isHyperdriveActive ? currentHyperdrive.energyConsumption : 0;
-      const totalCost = ((baseCost * touchMultiplier) / currentEngine.fuelEfficiency) + hyperdriveCost;
-      
-      setFuelLevel(Math.max(0, fuelLevel - totalCost));
-      setIsCharging(false);
+      // Добавляем токены только если есть топливо
+      if (fuelLevel > 0) {
+        addTokens(reward);
+        
+        // Расчет потребления топлива
+        const baseCost = GAME_MECHANICS.ENERGY.CONSUMPTION_RATE[newGear];
+        const touchMultiplier = Math.min(touchCount, GAME_MECHANICS.TAP.MAX_FINGERS);
+        const totalCost = (baseCost * touchMultiplier) / currentEngine.fuelEfficiency;
+        
+        setFuelLevel((prev: number) => Math.max(GAME_MECHANICS.ENERGY.MIN_LEVEL, prev - totalCost));
+        setIsCharging(false);
+      }
     }
     
     // Обновляем интенсивность
     setIntensity(prev => Math.min(100, prev + 5 * touchCount));
-  }, [taps, calculateGear, currentEngine, currentGearbox, currentPowerGrid, currentHyperdrive, isHyperdriveActive, fuelLevel, addTokens]);
+  }, [taps, calculateGear, currentEngine, currentGearbox, currentPowerGrid, currentHyperdrive, isHyperdriveActive, fuelLevel, addTokens, activeTouches]);
 
-  // Обработка окончания касания
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    e.preventDefault();
-    const newTouches = new Set(activeTouches);
-    Array.from(e.changedTouches).forEach(touch => {
-      newTouches.delete(touch.identifier);
-    });
-    setActiveTouches(newTouches);
-  }, [activeTouches]);
+  // Обработка состояния гипердвигателя
+  useEffect(() => {
+    let chargeInterval: NodeJS.Timeout;
+    
+    if (hyperdriveEnergy >= currentHyperdrive.activationThreshold && !isHyperdriveActive) {
+      setHyperdriveCharging(true);
+      chargeInterval = setInterval(() => {
+        setHyperdriveReadiness(prev => {
+          const next = Math.min(100, prev + GAME_MECHANICS.HYPERDRIVE.CHARGE_RATE);
+          if (next === 100) {
+            setHyperdriveCharging(false);
+          }
+          return next;
+        });
+      }, GAME_MECHANICS.HYPERDRIVE.CHARGE_INTERVAL);
+    } else {
+      setHyperdriveCharging(false);
+      setHyperdriveReadiness(0);
+    }
 
-  // Расчет интенсивности для визуальных эффектов
-  const calculateIntensity = useCallback((currentGear: Gear) => {
-    const intensityMap = {
-      'N': 0,
-      '1': 20,
-      '2': 40,
-      '3': 60,
-      '4': 80,
-      'M': 100
+    return () => {
+      if (chargeInterval) {
+        clearInterval(chargeInterval);
+      }
     };
-    return intensityMap[currentGear];
-  }, []);
+  }, [hyperdriveEnergy, currentHyperdrive.activationThreshold, isHyperdriveActive]);
+
+  // Потребление энергии гипердвигателем
+  useEffect(() => {
+    let consumptionInterval: NodeJS.Timeout;
+    
+    if (isHyperdriveActive) {
+      consumptionInterval = setInterval(() => {
+        setHyperdriveEnergy(prev => {
+          const newEnergy = prev - currentHyperdrive.energyConsumption;
+          if (newEnergy <= GAME_MECHANICS.ENERGY.MIN_LEVEL) {
+            setIsHyperdriveActive(false);
+            return GAME_MECHANICS.ENERGY.MIN_LEVEL;
+          }
+          return newEnergy;
+        });
+      }, GAME_MECHANICS.HYPERDRIVE.CONSUMPTION_INTERVAL);
+    }
+
+    return () => {
+      if (consumptionInterval) {
+        clearInterval(consumptionInterval);
+      }
+    };
+  }, [isHyperdriveActive, currentHyperdrive.energyConsumption]);
 
   // Восстановление энергии и охлаждение
   useEffect(() => {
     const recoveryInterval = setInterval(() => {
       const now = Date.now();
-      const isIdle = taps.length === 0 || now - Math.max(...taps) > 1000;
+      const isIdle = taps.length === 0 || now - Math.max(...taps) > GAME_MECHANICS.TAP.RATE_WINDOW;
 
       if (isIdle) {
         // Восстановление энергии
         const chargeRate = currentBattery.chargeRate * (currentPowerGrid.efficiency / 100);
-        setFuelLevel(Math.min(currentBattery.capacity, fuelLevel + chargeRate));
+        setFuelLevel((prev: number) => Math.min(GAME_MECHANICS.ENERGY.MAX_LEVEL, prev + chargeRate));
         
         // Охлаждение
-        setTemperature(prev => Math.max(20, prev - 1));
+        setTemperature(prev => Math.max(GAME_MECHANICS.TEMPERATURE.MIN, prev - GAME_MECHANICS.TEMPERATURE.COOLING_RATE));
         
-        // Отключение гипердвигателя при низком заряде
-        if (fuelLevel < currentHyperdrive.activationThreshold && isHyperdriveActive) {
-          setIsHyperdriveActive(false);
-        }
-
         setIsCharging(true);
-        setIntensity(Math.max(0, intensity - 5));
-        setTapRate(0);
-        setLastTapRate(0);
+        setIntensity(prev => Math.max(0, prev - 5));
+      } else {
+        setIsCharging(false);
       }
-    }, 50);
+    }, GAME_MECHANICS.ENERGY.RECOVERY_INTERVAL);
 
     return () => clearInterval(recoveryInterval);
-  }, [fuelLevel, taps, intensity]);
+  }, [taps, currentBattery.chargeRate, currentPowerGrid.efficiency]);
 
-  // Восстановление топлива
-  useEffect(() => {
-    const recoveryInterval = setInterval(() => {
-      const now = Date.now();
-      const isIdle = taps.every(tap => now - tap > 1000);
-      
-      if (isIdle && fuelLevel < 100) {
-        setFuelLevel(Math.min(100, fuelLevel + currentBattery.chargeRate));
-        setIsCharging(true);
-      }
-    }, 1000);
+  // Активация гипердвигателя
+  const activateHyperdrive = useCallback(() => {
+    if (hyperdriveEnergy < currentHyperdrive.activationThreshold) {
+      return;
+    }
 
-    return () => clearInterval(recoveryInterval);
-  }, [taps, fuelLevel, currentBattery.chargeRate]);
-
-  // Очистка старых тапов
-  useEffect(() => {
-    const cleanupInterval = setInterval(() => {
-      const now = Date.now();
-      setTaps(prev => {
-        const newTaps = prev.filter(tap => now - tap < 1000);
-        if (newTaps.length === 0) {
-          setGear('N');
-        }
-        return newTaps;
-      });
-    }, 1000);
-
-    return () => clearInterval(cleanupInterval);
-  }, []);
+    if (!isHyperdriveActive && hyperdriveReadiness === 100) {
+      setIsHyperdriveActive(true);
+      setHyperdriveReadiness(0);
+    } else if (isHyperdriveActive) {
+      setIsHyperdriveActive(false);
+    }
+  }, [hyperdriveEnergy, currentHyperdrive.activationThreshold, isHyperdriveActive, hyperdriveReadiness]);
 
   return (
     <div 
       className={`cyber-container gear-${gear} intensity-${Math.floor(intensity / 10) * 10} ${isHyperdriveActive ? 'hyperdrive-active' : ''}`}
       onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
+      onTouchEnd={() => {}}
     >
       <div className="cyber-background-effects">
         <div className="cyber-grid" />
@@ -305,26 +249,59 @@ export const TapButton: React.FC = () => {
         </div>
       </div>
 
-      <div className="status-indicators">
-        <div>
-          <div className="cyber-text">TEMP</div>
+      <div className="hyperdrive-control">
+        <div className="hyperdrive-energy-bar">
           <div 
-            className="status-bar" 
-            style={{
-              background: `linear-gradient(to right, var(--glow-color) ${(temperature / currentEngine.maxTemp) * 100}%, transparent 0)`
-            }}
+            className={`
+              hyperdrive-energy-fill
+              ${hyperdriveEnergy < currentHyperdrive.activationThreshold ? 'low' :
+                hyperdriveEnergy < currentHyperdrive.activationThreshold * 2 ? 'medium' : 'high'}
+            `}
+            style={{ width: `${(hyperdriveEnergy / GAME_MECHANICS.ENERGY.MAX_LEVEL) * 100}%` }}
           />
+          <span className="hyperdrive-energy-label">
+            {Math.round(hyperdriveEnergy)}%
+          </span>
         </div>
-        <div>
-          <div className="cyber-text">LOAD</div>
-          <div 
-            className="status-bar"
-            style={{
-              background: `linear-gradient(to right, var(--glow-color) ${(intensity / 100) * 100}%, transparent 0)`
-            }}
-          />
-        </div>
+        
+        {hyperdriveEnergy >= currentHyperdrive.activationThreshold && (
+          <button
+            className={`
+              hyperdrive-button cyber-button
+              ${isHyperdriveActive ? 'bg-[#ff00ff]' : ''}
+              ${hyperdriveCharging ? 'charging' : ''}
+              ${hyperdriveReadiness === 100 ? 'ready' : ''}
+            `}
+            onClick={activateHyperdrive}
+            disabled={!isHyperdriveActive && hyperdriveReadiness < 100}
+          >
+            <div className="hyperdrive-status">
+              <div 
+                className="hyperdrive-charge-indicator"
+                style={{ width: `${hyperdriveReadiness}%` }}
+              />
+              <span className="hyperdrive-label">
+                {isHyperdriveActive ? 'DISENGAGE' : 
+                 hyperdriveReadiness === 100 ? 'READY' : 
+                 `CHARGING ${hyperdriveReadiness}%`}
+              </span>
+            </div>
+          </button>
+        )}
       </div>
+
+      {/* Предупреждение о низком заряде */}
+      {isHyperdriveActive && hyperdriveEnergy < currentHyperdrive.activationThreshold * GAME_MECHANICS.HYPERDRIVE.WARNING_THRESHOLD && (
+        <div className="hyperdrive-warning">
+          WARNING: Low Energy
+        </div>
+      )}
+
+      {temperature >= GAME_MECHANICS.TEMPERATURE.WARNING_THRESHOLD && (
+        <div className="temperature-warning">
+          WARNING: High Temperature
+        </div>
+      )}
 
       {isCharging && (
         <div className="charging-indicator">
@@ -342,23 +319,6 @@ export const TapButton: React.FC = () => {
           />
         ))}
       </div>
-
-      <div 
-        className="absolute inset-0 cursor-pointer" 
-      />
-
-      {fuelLevel >= currentHyperdrive.activationThreshold && (
-        <button
-          className={`hyperdrive-button cyber-button ${isHyperdriveActive ? 'bg-[#ff00ff]' : ''}`}
-          onClick={() => setIsHyperdriveActive(!isHyperdriveActive)}
-        >
-          HYPERDRIVE
-        </button>
-      )}
-
-      <div 
-        className="absolute inset-0 cursor-pointer" 
-      />
     </div>
   );
 };

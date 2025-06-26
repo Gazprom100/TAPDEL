@@ -12,16 +12,13 @@ export interface Engine {
   power: number;
   fuelEfficiency: number;
   maxTemp: number;
-  currentTemp: number;
   cost: number;
 }
 
 export interface Gearbox {
   level: GearboxLevel;
   gear: number;
-  overheatThreshold: number;
   switchTime: number;
-  currentTemp: number;
   cost: number;
 }
 
@@ -29,8 +26,6 @@ export interface Battery {
   level: BatteryLevel;
   capacity: number;
   chargeRate: number;
-  currentCharge: number;
-  currentTemp: number;
   maxTemp: number;
   cost: number;
 }
@@ -40,15 +35,15 @@ export interface Hyperdrive {
   speedMultiplier: number;
   energyConsumption: number;
   activationThreshold: number;
-  isActive: boolean;
+  capacity: number;  // Максимальная ёмкость энергии
+  chargeRate: number; // Скорость зарядки
   cost: number;
 }
 
 export interface PowerGrid {
   level: PowerGridLevel;
-  maxLoad: number;
   efficiency: number;
-  currentLoad: number;
+  maxLoad: number;
   cost: number;
 }
 
@@ -75,36 +70,52 @@ export interface GameState {
 
 // Константы механики
 export const GAME_MECHANICS = {
-  TAP_RATE: {
-    MIN: 1,
-    AVERAGE: 5,
-    PRO: 10
+  TAP: {
+    BASE_REWARD: 1,
+    MAX_FINGERS: 5,
+    RATE_WINDOW: 1000, // мс для подсчета частоты тапов
   },
-  FUEL: {
-    BASE_REGEN: 0.5, // 1% за 2 сек
-    MAX_REGEN: 5, // 5% в секунду
-    CONSUMPTION: 1 // 1% за тап
+  GEAR: {
+    MULTIPLIERS: {
+      'N': 0,    // Нейтраль не дает токенов
+      '1': 1,    // Базовый множитель
+      '2': 1.5,  // +50% токенов
+      '3': 2,    // в 2 раза больше токенов
+      '4': 3,    // в 3 раза больше токенов
+      'M': 5     // в 5 раз больше токенов
+    },
+    THRESHOLDS: {
+      '1': 1,  // тапов в секунду
+      '2': 5,
+      '3': 10,
+      '4': 15,
+      'M': 20
+    }
   },
-  POWER: {
-    INCREMENT: 0.1,
-    MAX_LEVEL: 10
-  },
-  CHARGE: {
-    NORMAL: 0.05,
-    HYPERDRIVE: 0.1,
-    ACTIVATION_THRESHOLD: 50
+  ENERGY: {
+    CONSUMPTION_RATE: {
+      'N': 0.01,  // % в секунду
+      '1': 0.02,
+      '2': 0.04,
+      '3': 0.08,
+      '4': 0.16,
+      'M': 0.33
+    },
+    MIN_LEVEL: 0,
+    MAX_LEVEL: 100,
+    RECOVERY_INTERVAL: 50 // мс
   },
   TEMPERATURE: {
-    ENGINE_CRITICAL: 120,
-    BATTERY_CRITICAL: 80,
-    GEARBOX_CRITICAL: 100,
-    COOLING_BASE: 15,
-    COOLING_PER_DEGREE: 1
+    MIN: 20,
+    MAX: 100,
+    COOLING_RATE: 1, // градусов в секунду
+    WARNING_THRESHOLD: 80
   },
-  OVERHEAT: {
-    ENGINE_RATE: 2,
-    GEARBOX_INSTANT: 5,
-    BATTERY_RATE: 3
+  HYPERDRIVE: {
+    CHARGE_RATE: 2, // % за тик
+    CHARGE_INTERVAL: 50, // мс
+    CONSUMPTION_INTERVAL: 100, // мс
+    WARNING_THRESHOLD: 1.5 // множитель от порога активации
   }
 };
 

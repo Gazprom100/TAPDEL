@@ -92,17 +92,14 @@
 }
 
 @keyframes hyperdriveGlow {
-  0% { 
-    filter: brightness(1.5) contrast(1.2);
-    background-color: rgba(255, 0, 255, 0.4);
+  0% {
+    filter: brightness(1.5) hue-rotate(0deg);
   }
-  50% { 
-    filter: brightness(2) contrast(1.4);
-    background-color: rgba(136, 0, 255, 0.4);
+  50% {
+    filter: brightness(2) hue-rotate(180deg);
   }
-  100% { 
-    filter: brightness(1.5) contrast(1.2);
-    background-color: rgba(255, 0, 255, 0.4);
+  100% {
+    filter: brightness(1.5) hue-rotate(360deg);
   }
 }
 
@@ -207,7 +204,7 @@
 
 .power-display {
   position: absolute;
-  top: 55%;
+  top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   width: min(60vh, 60vw);
@@ -215,7 +212,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-top: 1rem;
+  z-index: 2;
 }
 
 .power-ring {
@@ -866,4 +863,103 @@
     0 0 10px var(--glow-color),
     0 0 20px var(--glow-color);
   filter: brightness(1.5);
+}
+
+.hyperdrive-control {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom, 24px) + 60px);
+  right: env(safe-area-inset-right, 16px);
+  z-index: 2;
+}
+
+.hyperdrive-button {
+  position: relative;
+  padding: 0.75rem 1.5rem;
+  min-width: 160px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid var(--glow-color);
+  overflow: hidden;
+}
+
+.hyperdrive-button.charging {
+  animation: pulse 1s infinite;
+}
+
+.hyperdrive-button.ready {
+  border-color: #ff00ff;
+  box-shadow: 0 0 15px rgba(255, 0, 255, 0.5);
+}
+
+.hyperdrive-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.hyperdrive-status {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 24px;
+}
+
+.hyperdrive-charge-indicator {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 0, 255, 0.2),
+    rgba(255, 0, 255, 0.4)
+  );
+  transition: width 0.05s linear;
+}
+
+.hyperdrive-label {
+  position: relative;
+  z-index: 1;
+  font-size: 0.9rem;
+  font-weight: bold;
+  text-shadow: 0 0 5px currentColor;
+}
+
+.hyperdrive-warning {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #ff0000;
+  font-size: 1.2rem;
+  font-weight: bold;
+  text-shadow: 0 0 10px currentColor;
+  animation: pulse 0.5s infinite;
+  z-index: 10;
+}
+
+/* Анимация при активном гипердвигателе */
+.hyperdrive-active .cyber-background-effects {
+  animation: hyperdriveGlow 0.3s infinite;
+  filter: brightness(2) contrast(1.5);
+}
+
+.hyperdrive-active .power-ring,
+.hyperdrive-active .power-ring-outer,
+.hyperdrive-active .power-ring-inner {
+  border-color: #ff00ff;
+  box-shadow: 
+    0 0 20px rgba(255, 0, 255, 0.5),
+    inset 0 0 20px rgba(255, 0, 255, 0.5);
+}
+
+@keyframes hyperdriveGlow {
+  0% {
+    filter: brightness(1.5) hue-rotate(0deg);
+  }
+  50% {
+    filter: brightness(2) hue-rotate(180deg);
+  }
+  100% {
+    filter: brightness(1.5) hue-rotate(360deg);
+  }
 } 
