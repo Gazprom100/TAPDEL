@@ -132,43 +132,20 @@ export const TapButton: React.FC = () => {
   // Обработка множественных касаний
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     e.preventDefault();
-    const newTouches = new Set(activeTouches);
-    Array.from(e.changedTouches).forEach(touch => {
-      newTouches.add(touch.identifier);
-    });
-    setActiveTouches(newTouches);
-
     const now = Date.now();
-    const newTaps = [...taps.filter(tap => now - tap < 1000), now];
-    setTaps(newTaps);
+    const touchCount = e.touches.length;
     
-    const currentTapRate = newTaps.length;
-    setLastTapRate(tapRate);
-    setTapRate(currentTapRate);
+    // Добавляем все тапы
+    setTaps(prev => [...prev, now]);
     
-    const newTapRateHistory = [...tapRateHistory.slice(-9), currentTapRate];
-    setTapRateHistory(newTapRateHistory);
-    
-    const newGear = calculateGear(newTaps);
+    // Обновляем состояние
+    const newGear = calculateGear([...taps, now]);
     setGear(newGear);
     
-    const newIntensity = calculateIntensity(newGear);
-    setIntensity(newIntensity);
-
-    // Перегрев только при стабильной скорости тапания
-    if (isTapRateStable(newTapRateHistory) && currentTapRate > 0) {
-      setTemperature(prev => Math.min(
-        currentEngine.maxTemp,
-        prev + (newIntensity / 100) * currentEngine.power
-      ));
-    }
-    
-    if (fuelLevel <= 0) return;
-
-    // Рассчитываем награду в токенах
-    const tokenReward = calculateTokenReward(
+    // Рассчитываем и добавляем награду в токенах
+    const reward = calculateTokenReward(
       newGear,
-      newTouches.size,
+      touchCount,
       currentEngine,
       currentGearbox,
       currentPowerGrid,
@@ -176,25 +153,23 @@ export const TapButton: React.FC = () => {
       isHyperdriveActive
     );
     
-    // Добавляем токены
-    if (tokenReward > 0) {
-      addTokens(tokenReward);
+    // Добавляем токены только если есть топливо
+    if (fuelLevel > 0) {
+      addTokens(reward);
+      
+      // Расчет потребления топлива
+      const baseCost = ENERGY_CONSUMPTION_RATE[newGear];
+      const touchMultiplier = Math.min(touchCount, 5);
+      const hyperdriveCost = isHyperdriveActive ? currentHyperdrive.energyConsumption : 0;
+      const totalCost = ((baseCost * touchMultiplier) / currentEngine.fuelEfficiency) + hyperdriveCost;
+      
+      setFuelLevel(Math.max(0, fuelLevel - totalCost));
+      setIsCharging(false);
     }
     
-    // Расчет потребления энергии
-    const baseCost = ENERGY_CONSUMPTION_RATE[newGear];
-    const touchMultiplier = Math.min(newTouches.size, 5);
-    const hyperdriveCost = isHyperdriveActive ? currentHyperdrive.energyConsumption : 0;
-    const totalCost = ((baseCost * touchMultiplier) / currentEngine.fuelEfficiency) + hyperdriveCost;
-    
-    setFuelLevel(Math.max(0, fuelLevel - totalCost));
-    setIsCharging(false);
-  }, [
-    taps, fuelLevel, temperature, tapRate, lastTapRate, 
-    activeTouches, tapRateHistory, calculateTokenReward,
-    currentEngine, currentGearbox, currentPowerGrid, 
-    currentHyperdrive, isHyperdriveActive, addTokens
-  ]);
+    // Обновляем интенсивность
+    setIntensity(prev => Math.min(100, prev + 5 * touchCount));
+  }, [taps, calculateGear, currentEngine, currentGearbox, currentPowerGrid, currentHyperdrive, isHyperdriveActive, fuelLevel, addTokens]);
 
   // Обработка окончания касания
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
@@ -247,6 +222,21 @@ export const TapButton: React.FC = () => {
 
     return () => clearInterval(recoveryInterval);
   }, [fuelLevel, taps, intensity]);
+
+  // Восстановление топлива
+  useEffect(() => {
+    const recoveryInterval = setInterval(() => {
+      const now = Date.now();
+      const isIdle = taps.every(tap => now - tap > 1000);
+      
+      if (isIdle && fuelLevel < 100) {
+        setFuelLevel(Math.min(100, fuelLevel + currentBattery.chargeRate));
+        setIsCharging(true);
+      }
+    }, 1000);
+
+    return () => clearInterval(recoveryInterval);
+  }, [taps, fuelLevel, currentBattery.chargeRate]);
 
   // Очистка старых тапов
   useEffect(() => {
@@ -353,6 +343,10 @@ export const TapButton: React.FC = () => {
         ))}
       </div>
 
+      <div 
+        className="absolute inset-0 cursor-pointer" 
+      />
+
       {fuelLevel >= currentHyperdrive.activationThreshold && (
         <button
           className={`hyperdrive-button cyber-button ${isHyperdriveActive ? 'bg-[#ff00ff]' : ''}`}
@@ -361,10 +355,6 @@ export const TapButton: React.FC = () => {
           HYPERDRIVE
         </button>
       )}
-
-      <button className="profile-button cyber-button">
-        ПРОФИЛЬ
-      </button>
 
       <div 
         className="absolute inset-0 cursor-pointer" 

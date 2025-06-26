@@ -207,7 +207,7 @@
 
 .power-display {
   position: absolute;
-  top: 50%;
+  top: 55%;
   left: 50%;
   transform: translate(-50%, -50%);
   width: min(60vh, 60vw);
@@ -655,7 +655,7 @@
 
 .stats-container {
   position: fixed;
-  top: env(safe-area-inset-top, 16px);
+  top: calc(env(safe-area-inset-top, 16px) + 60px);
   left: 0;
   right: 0;
   padding: 0.75rem;
@@ -674,6 +674,8 @@
   border: 1px solid var(--glow-color);
   backdrop-filter: blur(5px);
   min-width: 160px;
+  flex: 1;
+  max-width: 45%;
 }
 
 .hyperdrive-button {
@@ -706,7 +708,8 @@
 .token-counter {
   position: fixed;
   top: env(safe-area-inset-top, 16px);
-  right: env(safe-area-inset-right, 16px);
+  left: 50%;
+  transform: translateX(-50%);
   background: rgba(0, 0, 0, 0.7);
   padding: 0.5rem 0.75rem;
   border-radius: 0.5rem;
@@ -717,6 +720,7 @@
   align-items: center;
   gap: 0.2rem;
   z-index: 3;
+  min-width: 120px;
 }
 
 .token-value {
