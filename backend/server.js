@@ -1,14 +1,8 @@
-import express from 'express';
-import cors from 'cors';
-import TelegramBot from 'node-telegram-bot-api';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-import * as dotenv from 'dotenv';
-
-dotenv.config();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const express = require('express');
+const cors = require('cors');
+const TelegramBot = require('node-telegram-bot-api');
+const path = require('path');
+require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -16,19 +10,20 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static(join(__dirname, '../dist')));
+app.use(express.static(path.join(__dirname, '../dist')));
 
-// Инициализация бота
+// Bot initialization
 const token = process.env.TELEGRAM_BOT_TOKEN;
 if (!token) {
-  console.warn('Telegram Bot Token not provided. Bot functionality will be disabled.');
+  console.error('TELEGRAM_BOT_TOKEN is required but not provided');
+  process.exit(1);
 }
 
 const isProduction = process.env.NODE_ENV === 'production';
 const url = process.env.APP_URL || 'https://tapdel.onrender.com';
 
 let bot = null;
-if (token) {
+try {
   const options = isProduction
     ? {
         webHook: {
@@ -36,15 +31,13 @@ if (token) {
         }
       }
     : {
-        polling: true,
-        webHook: false,
-        onlyFirstMatch: true
+        polling: true
       };
   
   bot = new TelegramBot(token, options);
+  console.log('Telegram bot initialized successfully');
   
   if (isProduction) {
-    // Set webhook in production
     const webhookPath = `/webhook/${token}`;
     const webhookUrl = `${url}${webhookPath}`;
     
@@ -54,17 +47,20 @@ if (token) {
       })
       .catch((error) => {
         console.error('Failed to set webhook:', error);
+        process.exit(1);
       });
 
-    // Webhook endpoint
     app.post(webhookPath, (req, res) => {
       bot.handleUpdate(req.body);
       res.sendStatus(200);
     });
   }
+} catch (error) {
+  console.error('Failed to initialize Telegram bot:', error);
+  process.exit(1);
 }
 
-// Хранилище чат ID пользователей
+// User chat IDs storage
 const userChatIds = new Map();
 
 // API endpoints
@@ -90,7 +86,7 @@ app.post('/api/telegram/notify', async (req, res) => {
   }
 });
 
-// Обработка команд бота
+// Bot commands
 if (bot) {
   bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
@@ -101,53 +97,54 @@ if (bot) {
 
 // Serve SPA
 app.get('*', (req, res) => {
-  res.sendFile(join(__dirname, '../dist/index.html'));
+  res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
-// Запуск сервера
+// Start server
 const server = app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
-  console.log('==> Your service is live 🎉');
+  console.log(`Environment: ${process.env.NODE_ENV}`);
+  console.log(`App URL: ${url}`);
 });
 
-// Обработка сигналов завершения
+// Graceful shutdown
 const gracefulShutdown = async () => {
   console.log('\nStarting graceful shutdown...');
   
-  if (process.env.NODE_ENV === 'production') {
-    try {
-      await bot.deleteWebHook();
-      console.log('Webhook removed');
-    } catch (error) {
-      console.error('Error removing webhook:', error);
-    }
-  } else {
-    try {
-      await bot.stopPolling();
-      console.log('Bot polling stopped');
-    } catch (error) {
-      console.error('Error stopping bot:', error);
+  if (bot) {
+    if (isProduction) {
+      try {
+        await bot.deleteWebHook();
+        console.log('Webhook removed');
+      } catch (error) {
+        console.error('Error removing webhook:', error);
+      }
+    } else {
+      try {
+        await bot.stopPolling();
+        console.log('Bot polling stopped');
+      } catch (error) {
+        console.error('Error stopping bot:', error);
+      }
     }
   }
   
-  // Закрываем HTTP сервер
   server.close(() => {
     console.log('HTTP server closed');
     process.exit(0);
   });
   
-  // Если сервер не закрылся через 5 секунд, выходим принудительно
   setTimeout(() => {
     console.error('Could not close connections in time, forcefully shutting down');
     process.exit(1);
   }, 5000);
 };
 
-// Обработчики сигналов
+// Signal handlers
 process.on('SIGTERM', gracefulShutdown);
 process.on('SIGINT', gracefulShutdown);
 
-// Обработка необработанных ошибок
+// Error handlers
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });

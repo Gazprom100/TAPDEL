@@ -3,7 +3,7 @@ services:
     name: tapdel
     env: node
     buildCommand: npm install && npm run build
-    startCommand: npm start
+    startCommand: NODE_ENV=production node backend/server.js
     envVars:
       - key: NODE_ENV
         value: production
@@ -11,6 +11,8 @@ services:
         sync: false
       - key: APP_URL
         value: https://tapdel.onrender.com
+      - key: PORT
+        value: 3000
     healthCheckPath: /
     autoDeploy: true
     staticPublishPath: ./dist
