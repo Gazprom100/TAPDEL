@@ -972,6 +972,7 @@
   padding: 8px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
 }
 
 .stats-container {
@@ -1514,4 +1515,47 @@
   background: rgba(255, 0, 255, 0.3);
   transition: width 0.3s ease;
   z-index: 1;
+}
+
+/* Стили для контента модального окна */
+.cyber-panel {
+  background: rgba(0, 0, 0, 0.9);
+  border: 1px solid var(--glow-color);
+  border-radius: 8px;
+  padding: var(--panel-padding);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 95vh;
+}
+
+/* Стили для области скролла внутри модального окна */
+.cyber-panel > div[style*="overflow-y: auto"] {
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  padding-right: 5px; /* Компенсация полосы прокрутки */
+}
+
+/* Стилизация полосы прокрутки */
+.cyber-panel > div[style*="overflow-y: auto"]::-webkit-scrollbar {
+  width: 4px;
+}
+
+.cyber-panel > div[style*="overflow-y: auto"]::-webkit-scrollbar-track {
+  background: rgba(0, 255, 136, 0.1);
+  border-radius: 2px;
+}
+
+.cyber-panel > div[style*="overflow-y: auto"]::-webkit-scrollbar-thumb {
+  background: rgba(0, 255, 136, 0.3);
+  border-radius: 2px;
+}
+
+.cyber-panel > div[style*="overflow-y: auto"]::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 255, 136, 0.5);
 } 

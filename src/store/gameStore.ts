@@ -119,9 +119,9 @@ export const useGameStore = create<GameStore>()(
             id: entry._id.toString(),
             userId: entry.userId,
             username: entry.username,
-            level: 1, // TODO: Calculate based on score
+            level: Math.floor(entry.score / 1000) + 1, // Уровень на основе очков: каждая 1000 очков = 1 уровень
             score: entry.score,
-            tokens: 0, // TODO: Get from user data
+            tokens: entry.score, // Используем score как tokens для отображения
             maxGear: 'M' as Gear, // TODO: Get from user data
             rank: entry.rank,
             updatedAt: entry.updatedAt
@@ -183,15 +183,24 @@ export const useGameStore = create<GameStore>()(
           const state = get();
           if (state.tokens < amount) return false;
           
+          const newTransaction = {
+            id: Date.now().toString(),
+            type: 'purchase' as const,
+            amount: -amount,
+            timestamp: Date.now(),
+            status: 'completed' as const
+          };
+          
           set((state) => ({
-            tokens: state.tokens - amount
+            tokens: state.tokens - amount,
+            transactions: [newTransaction, ...state.transactions]
           }));
 
           if (state.profile?.userId) {
             await apiService.addTransaction(state.profile.userId, {
-              type: 'purchase',
-              amount: -amount,
-              status: 'completed'
+              type: newTransaction.type,
+              amount: newTransaction.amount,
+              status: newTransaction.status
             });
           }
 
@@ -208,15 +217,24 @@ export const useGameStore = create<GameStore>()(
           const state = get();
           if (state.tokens < amount) return false;
           
+          const newTransaction = {
+            id: Date.now().toString(),
+            type: 'withdraw' as const,
+            amount: -amount,
+            timestamp: Date.now(),
+            status: 'completed' as const
+          };
+          
           set((state) => ({
-            tokens: state.tokens - amount
+            tokens: state.tokens - amount,
+            transactions: [newTransaction, ...state.transactions]
           }));
 
           if (state.profile?.userId) {
             await apiService.addTransaction(state.profile.userId, {
-              type: 'withdraw',
-              amount: -amount,
-              status: 'completed'
+              type: newTransaction.type,
+              amount: newTransaction.amount,
+              status: newTransaction.status
             });
           }
 
@@ -230,15 +248,24 @@ export const useGameStore = create<GameStore>()(
 
       depositTokens: async (amount) => {
         try {
+          const newTransaction = {
+            id: Date.now().toString(),
+            type: 'deposit' as const,
+            amount: amount,
+            timestamp: Date.now(),
+            status: 'completed' as const
+          };
+          
           set((state) => ({
-            tokens: state.tokens + amount
+            tokens: state.tokens + amount,
+            transactions: [newTransaction, ...state.transactions]
           }));
 
           if (get().profile?.userId) {
             await apiService.addTransaction(get().profile!.userId, {
-              type: 'deposit',
-              amount: amount,
-              status: 'completed'
+              type: newTransaction.type,
+              amount: newTransaction.amount,
+              status: newTransaction.status
             });
           }
 

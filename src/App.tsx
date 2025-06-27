@@ -18,7 +18,8 @@ const App: React.FC = () => {
     hyperdriveLevel,
     powerGridLevel,
     fuelLevel,
-    setFuelLevel
+    setFuelLevel,
+    initializeUser
   } = useGameStore();
 
   // Состояния для игровой механики
@@ -33,6 +34,17 @@ const App: React.FC = () => {
   const [hyperdriveReadiness, setHyperdriveReadiness] = useState<number>(0);
   const [isHyperdriveActive, setIsHyperdriveActive] = useState<boolean>(false);
   const [lastTapTime, setLastTapTime] = useState<number>(Date.now());
+
+  // Инициализация пользователя при загрузке приложения
+  useEffect(() => {
+    // Получаем сохраненный userId или создаем новый
+    let userId = localStorage.getItem('userId');
+    if (!userId) {
+      userId = 'demo-user-' + Math.random().toString(36).substr(2, 9);
+      localStorage.setItem('userId', userId);
+    }
+    initializeUser(userId);
+  }, [initializeUser]);
 
   // Получаем текущие компоненты
   const currentEngine = COMPONENTS.ENGINES.find(e => e.level === engineLevel)!;
@@ -342,7 +354,7 @@ const App: React.FC = () => {
 
       {/* 3. Два блока с информацией о компонентах - между счетчиком и центральной кнопкой */}
       <div className="absolute z-20" style={{
-        top: 'calc(12px + 30px + 120px)', // под счетчиком токенов (высота 30px) + 100px вниз
+        top: 'calc(12px + 30px + 80px)', // под счетчиком токенов (высота 30px) + 100px вниз
         left: '70px', // отступ от левой шкалы
         right: '70px' // отступ от правой шкалы
       }}>

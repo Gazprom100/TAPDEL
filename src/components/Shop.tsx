@@ -196,51 +196,57 @@ export const Shop: React.FC = () => {
   };
 
   return (
-    <div className="p-2 sm:p-4 space-y-4 sm:space-y-8">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0 mb-4 sm:mb-8">
-        <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#00ff88]">Магазин улучшений</h2>
-        <div className="text-base sm:text-lg md:text-xl">
-          Токены: <span className="text-[#00ff88]">{Math.floor(tokens)}</span>
+    <div className="h-full overflow-y-auto" style={{
+      WebkitOverflowScrolling: 'touch',
+      touchAction: 'pan-y',
+      overscrollBehavior: 'contain'
+    }}>
+      <div className="p-4 space-y-6 sm:space-y-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0">
+          <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#00ff88]">Магазин улучшений</h2>
+          <div className="text-base sm:text-lg md:text-xl">
+            Токены: <span className="text-[#00ff88]">{Math.floor(tokens)}</span>
+          </div>
         </div>
-      </div>
 
-      {/* Двигатели */}
-      <div className="space-y-3 sm:space-y-4">
-        <h3 className="text-base sm:text-lg md:text-xl font-bold text-[#ffcc00]">🔧 Двигатели</h3>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4">
-          {COMPONENTS.ENGINES.map((engine) => renderItem('engine', engine, engineLevel))}
+        {/* Двигатели */}
+        <div className="space-y-3 sm:space-y-4">
+          <h3 className="text-base sm:text-lg md:text-xl font-bold text-[#ffcc00]">🔧 Двигатели</h3>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4">
+            {COMPONENTS.ENGINES.map((engine) => renderItem('engine', engine, engineLevel))}
+          </div>
         </div>
-      </div>
 
-      {/* КПП */}
-      <div className="space-y-3 sm:space-y-4">
-        <h3 className="text-base sm:text-lg md:text-xl font-bold text-[#ffcc00]">⚙️ Коробки передач</h3>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4">
-          {COMPONENTS.GEARBOXES.map((gearbox) => renderItem('gearbox', gearbox, gearboxLevel))}
+        {/* КПП */}
+        <div className="space-y-3 sm:space-y-4">
+          <h3 className="text-base sm:text-lg md:text-xl font-bold text-[#ffcc00]">⚙️ Коробки передач</h3>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4">
+            {COMPONENTS.GEARBOXES.map((gearbox) => renderItem('gearbox', gearbox, gearboxLevel))}
+          </div>
         </div>
-      </div>
 
-      {/* Батареи */}
-      <div className="space-y-3 sm:space-y-4">
-        <h3 className="text-base sm:text-lg md:text-xl font-bold text-[#ffcc00]">🔋 Батареи</h3>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4">
-          {COMPONENTS.BATTERIES.map((battery) => renderItem('battery', battery, batteryLevel))}
+        {/* Батареи */}
+        <div className="space-y-3 sm:space-y-4">
+          <h3 className="text-base sm:text-lg md:text-xl font-bold text-[#ffcc00]">🔋 Батареи</h3>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4">
+            {COMPONENTS.BATTERIES.map((battery) => renderItem('battery', battery, batteryLevel))}
+          </div>
         </div>
-      </div>
 
-      {/* Гипердвигатели */}
-      <div className="space-y-3 sm:space-y-4">
-        <h3 className="text-base sm:text-lg md:text-xl font-bold text-[#ffcc00]">🚀 Гипердвигатели</h3>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4">
-          {COMPONENTS.HYPERDRIVES.map((hyperdrive) => renderItem('hyperdrive', hyperdrive, hyperdriveLevel))}
+        {/* Гипердвигатели */}
+        <div className="space-y-3 sm:space-y-4">
+          <h3 className="text-base sm:text-lg md:text-xl font-bold text-[#ffcc00]">🚀 Гипердвигатели</h3>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4">
+            {COMPONENTS.HYPERDRIVES.map((hyperdrive) => renderItem('hyperdrive', hyperdrive, hyperdriveLevel))}
+          </div>
         </div>
-      </div>
 
-      {/* Энергосети */}
-      <div className="space-y-3 sm:space-y-4">
-        <h3 className="text-base sm:text-lg md:text-xl font-bold text-[#ffcc00]">⚡ Энергосети</h3>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4">
-          {COMPONENTS.POWER_GRIDS.map((powerGrid) => renderItem('powerGrid', powerGrid, powerGridLevel))}
+        {/* Энергосети */}
+        <div className="space-y-3 sm:space-y-4">
+          <h3 className="text-base sm:text-lg md:text-xl font-bold text-[#ffcc00]">⚡ Энергосети</h3>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4">
+            {COMPONENTS.POWER_GRIDS.map((powerGrid) => renderItem('powerGrid', powerGrid, powerGridLevel))}
+          </div>
         </div>
       </div>
     </div>
