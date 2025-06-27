@@ -1,8 +1,10 @@
 const express = require('express');
 const cors = require('cors');
-const TelegramBot = require('node-telegram-bot-api');
 const path = require('path');
 require('dotenv').config();
+
+const telegramRoutes = require('./routes/telegram');
+const botService = require('./services/botService');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -12,93 +14,8 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../dist')));
 
-// Bot initialization
-const token = process.env.TELEGRAM_BOT_TOKEN;
-const isProduction = process.env.NODE_ENV === 'production';
-const url = process.env.APP_URL || 'https://tapdel.onrender.com';
-
-let bot = null;
-try {
-  if (token) {
-    const options = isProduction
-      ? {
-          webHook: {
-            port: PORT
-          }
-        }
-      : {
-          polling: true
-        };
-    
-    bot = new TelegramBot(token, options);
-    console.log('Telegram bot initialized successfully');
-    
-    if (isProduction) {
-      const webhookPath = `/webhook/${token}`;
-      const webhookUrl = `${url}${webhookPath}`;
-      
-      // Сначала удалим старый вебхук
-      bot.deleteWebHook()
-        .then(() => {
-          console.log('Old webhook removed');
-          return bot.setWebHook(webhookUrl);
-        })
-        .then(() => {
-          console.log('Webhook set successfully:', webhookUrl);
-        })
-        .catch((error) => {
-          console.error('Failed to set webhook:', error);
-        });
-
-      app.post(webhookPath, (req, res) => {
-        bot.handleUpdate(req.body);
-        res.sendStatus(200);
-      });
-    }
-  } else {
-    console.warn('TELEGRAM_BOT_TOKEN not provided. Bot functionality will be disabled.');
-  }
-} catch (error) {
-  console.error('Failed to initialize Telegram bot:', error);
-  if (isProduction) {
-    console.warn('Running in production without bot functionality');
-  }
-}
-
-// User chat IDs storage
-const userChatIds = new Map();
-
-// API endpoints
-app.post('/api/telegram/register', (req, res) => {
-  const { chatId } = req.body;
-  if (!bot) {
-    return res.status(503).json({ error: 'Telegram bot is not available' });
-  }
-  userChatIds.set(chatId, true);
-  res.json({ success: true });
-});
-
-app.post('/api/telegram/notify', async (req, res) => {
-  const { chatId, message } = req.body;
-  if (!bot) {
-    return res.status(503).json({ error: 'Telegram bot is not available' });
-  }
-  try {
-    await bot.sendMessage(chatId, message);
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Bot commands
-if (bot) {
-  bot.onText(/\/start/, (msg) => {
-    const chatId = msg.chat.id;
-    userChatIds.set(chatId, true);
-    bot.sendMessage(chatId, 'Привет! Я бот игры TAPDEL. Ваш ID чата: ' + chatId);
-  });
-}
+// Routes
+app.use('/api/telegram', telegramRoutes);
 
 // Serve SPA
 app.get('*', (req, res) => {
@@ -107,24 +24,31 @@ app.get('*', (req, res) => {
 
 // Start server
 const startServer = () => {
-  return new Promise((resolve, reject) => {
-    const server = app.listen(PORT, () => {
-      console.log('==> Server Configuration:');
-      console.log(`Port: ${PORT}`);
-      console.log(`Environment: ${process.env.NODE_ENV}`);
-      console.log(`App URL: ${url}`);
-      console.log(`Bot Status: ${bot ? 'Active' : 'Disabled'}`);
-      console.log('==> Server is ready to handle requests');
-      resolve(server);
-    }).on('error', (error) => {
-      if (error.code === 'EADDRINUSE') {
-        console.error(`Port ${PORT} is already in use. Trying another port...`);
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Initialize bot before starting server
+      await botService.initialize();
+
+      const server = app.listen(PORT, () => {
+        console.log('==> Server Configuration:');
+        console.log(`Express Port: ${PORT}`);
+        console.log(`Environment: ${process.env.NODE_ENV}`);
+        console.log(`App URL: ${process.env.APP_URL}`);
+        console.log(`Bot Status: ${botService.bot ? 'Active' : 'Disabled'}`);
+        console.log('==> Server is ready to handle requests');
+        resolve(server);
+      }).on('error', (error) => {
+        if (error.code === 'EADDRINUSE') {
+          console.error(`Port ${PORT} is already in use`);
+        } else {
+          console.error('Server error:', error);
+        }
         reject(error);
-      } else {
-        console.error('Server error:', error);
-        reject(error);
-      }
-    });
+      });
+    } catch (error) {
+      console.error('Failed to initialize services:', error);
+      reject(error);
+    }
   });
 };
 
@@ -132,23 +56,7 @@ const startServer = () => {
 const gracefulShutdown = async (server) => {
   console.log('\nStarting graceful shutdown...');
   
-  if (bot) {
-    if (isProduction) {
-      try {
-        await bot.deleteWebHook();
-        console.log('Webhook removed');
-      } catch (error) {
-        console.error('Error removing webhook:', error);
-      }
-    } else {
-      try {
-        await bot.stopPolling();
-        console.log('Bot polling stopped');
-      } catch (error) {
-        console.error('Error stopping bot:', error);
-      }
-    }
-  }
+  await botService.shutdown();
   
   if (server) {
     server.close(() => {
@@ -165,30 +73,17 @@ const gracefulShutdown = async (server) => {
   }
 };
 
-// Start server with retry logic
-let retries = 5;
+// Start server
 let server = null;
 
-const tryStart = async () => {
-  try {
-    server = await startServer();
-  } catch (error) {
-    if (error.code === 'EADDRINUSE' && retries > 0) {
-      retries--;
-      // Увеличиваем порт и пробуем снова
-      process.env.PORT = Number(PORT) + 1;
-      await tryStart();
-    } else {
-      console.error('Failed to start server:', error);
-      process.exit(1);
-    }
-  }
-};
-
-tryStart().catch((error) => {
-  console.error('Server startup failed:', error);
-  process.exit(1);
-});
+startServer()
+  .then((s) => {
+    server = s;
+  })
+  .catch((error) => {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  });
 
 // Signal handlers
 process.on('SIGTERM', () => gracefulShutdown(server));
