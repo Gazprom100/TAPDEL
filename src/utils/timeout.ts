@@ -2,6 +2,19 @@
  * Утилиты для работы с таймаутами и асинхронными операциями
  */
 
+import { promisify } from './promisify';
+
+/**
+ * Создает Promise, который разрешается через указанное время
+ * @param ms Время задержки в миллисекундах
+ * @returns Promise
+ */
+export const timeout = (ms: number): Promise<void> => {
+  return new Promise(resolve => setTimeout(resolve, ms));
+};
+
+export default timeout;
+
 /**
  * Создает Promise с таймаутом
  * @param ms Время ожидания в миллисекундах

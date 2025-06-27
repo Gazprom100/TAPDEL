@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000,
+    host: true,
     proxy: {
       '/api': {
         target: 'http://localhost:3000',
@@ -31,4 +32,11 @@ export default defineConfig({
       }
     }
   },
+  define: {
+    // Fixes potential issues with some dependencies
+    global: 'globalThis',
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'gsap', 'zustand']
+  }
 }) 
