@@ -103,6 +103,18 @@
   }
 }
 
+/* Основные responsive стили для всех устройств */
+:root {
+  --base-size: clamp(12px, 2.5vw, 16px);
+  --title-size: clamp(20px, 6vw, 40px);
+  --button-size: clamp(14px, 3vw, 18px);
+  --panel-padding: clamp(8px, 2vw, 16px);
+  --gap-size: clamp(8px, 2vw, 16px);
+  --central-button-size: clamp(160px, 30vw, 280px);
+  --glow-color: #00ff88;
+}
+
+/* Базовые стили контейнера с улучшенной адаптивностью */
 .cyber-container {
   position: fixed;
   top: 0;
@@ -118,9 +130,10 @@
   overflow: hidden;
   font-family: 'Orbitron', sans-serif;
   user-select: none;
-  position: fixed;
   width: 100%;
   height: 100%;
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
   overflow: hidden;
   overscroll-behavior: none;
   transform: translateZ(0);
@@ -129,6 +142,9 @@
   -webkit-transform: translateZ(0);
   -webkit-backface-visibility: hidden;
   -webkit-perspective: 1000;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  touch-action: none;
 }
 
 .cyber-container::before {
@@ -213,46 +229,364 @@
   animation: pulse 2s infinite;
 }
 
+/* Адаптивные стили для центральной кнопки */
 .power-display {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: min(60vh, 60vw);
-  height: min(60vh, 60vw);
+  position: relative;
+  width: var(--central-button-size);
+  height: var(--central-button-size);
+  border-radius: 50%;
+  cursor: pointer;
   display: flex;
-  justify-content: center;
   align-items: center;
-  z-index: 2;
+  justify-content: center;
+  background: radial-gradient(circle, rgba(0, 0, 0, 0.8) 0%, rgba(0, 255, 136, 0.1) 100%);
+  border: 2px solid var(--glow-color);
+  box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+  transition: all 0.3s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
+/* Адаптивные кольца */
 .power-ring {
   position: absolute;
-  width: 100%;
-  height: 100%;
+  inset: 10%;
   border-radius: 50%;
-  border: 2px solid var(--glow-color);
-  animation: pulse 2s infinite;
+  border: 1px solid rgba(0, 255, 136, 0.6);
+  box-shadow: inset 0 0 10px rgba(0, 255, 136, 0.4);
 }
 
 .power-ring-outer {
   position: absolute;
-  width: 110%;
-  height: 110%;
+  inset: 0;
   border-radius: 50%;
-  border: 1px solid var(--glow-color);
-  opacity: 0.5;
-  animation: rotate 10s linear infinite;
+  border: 1px solid rgba(0, 255, 136, 0.3);
+  box-shadow: 0 0 30px rgba(0, 255, 136, 0.3);
 }
 
 .power-ring-inner {
   position: absolute;
-  width: 90%;
-  height: 90%;
+  inset: 20%;
   border-radius: 50%;
+  background: radial-gradient(circle, rgba(0, 255, 136, 0.2) 0%, rgba(0, 0, 0, 0.9) 100%);
+}
+
+/* Адаптивный дисплей топлива */
+.fuel-display {
+  text-align: center;
+  z-index: 10;
+  position: relative;
+  padding: var(--panel-padding);
+}
+
+/* Адаптивные шкалы интенсивности и гипердвигателя - теперь на всю высоту */
+.intensity-meter,
+.hyperdrive-meter {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: clamp(16px, 4vw, 24px);
+  padding: 4px;
+  background: rgba(0, 0, 0, 0.8);
   border: 1px solid var(--glow-color);
-  opacity: 0.7;
-  animation: rotate 8s linear infinite reverse;
+  border-radius: 8px;
+  position: relative;
+}
+
+.intensity-meter.vertical {
+  justify-content: flex-end;
+  height: calc(100vh - 40px);
+  min-height: 200px;
+  max-height: calc(100vh - 40px);
+}
+
+.hyperdrive-meter.vertical {
+  position: relative;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(255, 0, 255, 0.6);
+  border-radius: 8px;
+  overflow: hidden;
+  height: calc(100vh - 40px);
+  min-height: 200px;
+  max-height: calc(100vh - 40px);
+}
+
+.intensity-bar {
+  flex: 1;
+  background: rgba(0, 255, 136, 0.2);
+  border-radius: 2px;
+  transition: all 0.3s ease;
+  min-height: 8px;
+}
+
+.intensity-bar.active {
+  background: var(--glow-color);
+  box-shadow: 0 0 5px var(--glow-color);
+}
+
+.hyperdrive-energy-fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  border-radius: 0 0 6px 6px;
+  transition: height 0.3s ease;
+}
+
+/* Адаптивные панели */
+.cyber-panel {
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid var(--glow-color);
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+  backdrop-filter: blur(5px);
+}
+
+/* Адаптивный текст */
+.cyber-text {
+  font-family: 'Orbitron', monospace;
+  color: var(--glow-color);
+  text-shadow: 0 0 5px var(--glow-color);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+/* Адаптивные кнопки */
+.hyperdrive-button,
+.profile-button {
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid var(--glow-color);
+  border-radius: 6px;
+  color: var(--glow-color);
+  font-family: 'Orbitron', monospace;
+  font-size: var(--button-size);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.hyperdrive-button {
+  min-width: clamp(120px, 25vw, 200px);
+  padding: clamp(8px, 2vw, 12px) clamp(12px, 3vw, 20px);
+}
+
+.profile-button {
+  min-width: clamp(80px, 20vw, 120px);
+  padding: clamp(6px, 1.5vw, 10px) clamp(10px, 2.5vw, 16px);
+}
+
+.hyperdrive-status {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hyperdrive-charge-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(255, 0, 255, 0.6), rgba(255, 100, 255, 0.8));
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.hyperdrive-label {
+  position: relative;
+  z-index: 1;
+  text-shadow: 0 0 5px rgba(255, 0, 255, 0.8);
+}
+
+/* Предупреждения */
+.hyperdrive-warning,
+.temperature-warning {
+  background: rgba(255, 0, 0, 0.2);
+  border: 1px solid #ff4444;
+  border-radius: 6px;
+  padding: clamp(4px, 1vw, 8px) clamp(8px, 2vw, 12px);
+  color: #ff4444;
+  text-shadow: 0 0 5px #ff4444;
+  animation: flicker 1s infinite;
+  backdrop-filter: blur(5px);
+  max-width: 90vw;
+  text-align: center;
+}
+
+/* Индикатор зарядки */
+.charging-indicator {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.8);
+  padding: clamp(6px, 1.5vw, 10px) clamp(10px, 2.5vw, 16px);
+  border-radius: 8px;
+  border: 1px solid var(--glow-color);
+}
+
+.charging-dot {
+  width: clamp(6px, 1.5vw, 10px);
+  height: clamp(6px, 1.5vw, 10px);
+  background: var(--glow-color);
+  border-radius: 50%;
+  animation: pulse 1.5s infinite;
+}
+
+.charging-dot:nth-child(2) {
+  animation-delay: 0.5s;
+}
+
+.charging-dot:nth-child(3) {
+  animation-delay: 1s;
+}
+
+/* Медиа-запросы для различных устройств */
+
+/* Мобильные устройства (портретная ориентация) */
+@media (max-width: 480px) and (orientation: portrait) {
+  :root {
+    --central-button-size: clamp(140px, 35vw, 180px);
+    --base-size: 12px;
+    --title-size: 24px;
+    --button-size: 12px;
+  }
+  
+  .cyber-container {
+    padding: 8px;
+  }
+  
+  .intensity-meter,
+  .hyperdrive-meter {
+    width: 16px;
+  }
+  
+  .intensity-meter.vertical,
+  .hyperdrive-meter.vertical {
+    height: calc(100vh - 20px);
+    min-height: 300px;
+  }
+}
+
+/* Мобильные устройства (альбомная ориентация) */
+@media (max-width: 768px) and (orientation: landscape) {
+  :root {
+    --central-button-size: clamp(120px, 25vh, 160px);
+    --base-size: 11px;
+    --title-size: 20px;
+    --button-size: 11px;
+  }
+  
+  .intensity-meter,
+  .hyperdrive-meter {
+    width: 14px;
+  }
+  
+  .intensity-meter.vertical,
+  .hyperdrive-meter.vertical {
+    height: calc(100vh - 20px);
+    min-height: 200px;
+  }
+}
+
+/* Планшеты */
+@media (min-width: 481px) and (max-width: 1024px) {
+  :root {
+    --central-button-size: clamp(180px, 28vw, 240px);
+    --base-size: 14px;
+    --title-size: 32px;
+    --button-size: 14px;
+  }
+  
+  .intensity-meter.vertical,
+  .hyperdrive-meter.vertical {
+    height: calc(100vh - 30px);
+    min-height: 400px;
+  }
+}
+
+/* Десктопы */
+@media (min-width: 1025px) {
+  :root {
+    --central-button-size: clamp(220px, 25vw, 280px);
+    --base-size: 16px;
+    --title-size: 40px;
+    --button-size: 16px;
+  }
+  
+  .intensity-meter.vertical,
+  .hyperdrive-meter.vertical {
+    height: calc(100vh - 40px);
+    min-height: 500px;
+  }
+}
+
+/* Очень маленькие экраны */
+@media (max-width: 320px) {
+  :root {
+    --central-button-size: 120px;
+    --base-size: 10px;
+    --title-size: 18px;
+    --button-size: 10px;
+    --panel-padding: 6px;
+    --gap-size: 6px;
+  }
+  
+  .cyber-text {
+    letter-spacing: 0.02em;
+  }
+  
+  .intensity-meter.vertical,
+  .hyperdrive-meter.vertical {
+    height: calc(100vh - 20px);
+    min-height: 250px;
+  }
+}
+
+/* Очень большие экраны */
+@media (min-width: 1920px) {
+  :root {
+    --central-button-size: 300px;
+    --base-size: 18px;
+    --title-size: 48px;
+    --button-size: 18px;
+  }
+  
+  .intensity-meter.vertical,
+  .hyperdrive-meter.vertical {
+    height: calc(100vh - 60px);
+    min-height: 600px;
+  }
+}
+
+/* Высокие экраны */
+@media (min-height: 800px) {
+  .intensity-meter.vertical,
+  .hyperdrive-meter.vertical {
+    height: calc(100vh - 40px);
+    min-height: 600px;
+  }
+}
+
+/* Короткие экраны */
+@media (max-height: 600px) {
+  .intensity-meter.vertical,
+  .hyperdrive-meter.vertical {
+    height: calc(100vh - 20px);
+    min-height: 150px;
+  }
+  
+  :root {
+    --central-button-size: clamp(100px, 20vh, 140px);
+  }
 }
 
 .power-indicators {
@@ -545,10 +879,6 @@
   animation: glitch 0.1s linear infinite;
 }
 
-:root {
-  --glow-color: #00ff88;
-}
-
 .cyber-text {
   color: var(--glow-color);
   text-shadow: 0 0 5px var(--glow-color);
@@ -660,15 +990,16 @@
 
 .cyber-modal {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.85);
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(5px);
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
   z-index: 1000;
+  padding: 8px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .stats-container {
@@ -754,18 +1085,6 @@
   color: var(--glow-color);
   text-shadow: 0 0 5px var(--glow-color);
   text-transform: uppercase;
-}
-
-.fuel-display {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-  z-index: 2;
 }
 
 .fuel-value {
@@ -924,27 +1243,6 @@
   height: 24px;
 }
 
-.hyperdrive-charge-indicator {
-  position: absolute;
-  left: 0;
-  top: 0;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    rgba(255, 0, 255, 0.2),
-    rgba(255, 0, 255, 0.4)
-  );
-  transition: width 0.05s linear;
-}
-
-.hyperdrive-label {
-  position: relative;
-  z-index: 1;
-  font-size: 0.9rem;
-  font-weight: bold;
-  text-shadow: 0 0 5px currentColor;
-}
-
 .hyperdrive-warning {
   position: fixed;
   top: 50%;
@@ -1036,5 +1334,151 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* Адаптивное модальное окно */
+.cyber-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 8px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Адаптивные входные поля */
+.cyber-input {
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid var(--glow-color);
+  border-radius: 4px;
+  color: var(--glow-color);
+  padding: clamp(8px, 2vw, 12px);
+  font-family: 'Orbitron', monospace;
+  font-size: var(--base-size);
+  transition: all 0.3s ease;
+  backdrop-filter: blur(5px);
+  width: 100%;
+}
+
+.cyber-input:focus {
+  outline: none;
+  border-color: rgba(0, 255, 136, 0.8);
+  box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+}
+
+/* Адаптивные карточки */
+.cyber-card {
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--glow-color);
+  border-radius: 6px;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(5px);
+}
+
+.cyber-card:hover {
+  border-color: var(--glow-color);
+  box-shadow: 0 0 15px var(--glow-color);
+}
+
+/* Адаптивные кнопки */
+.cyber-button {
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid var(--glow-color);
+  border-radius: 4px;
+  color: var(--glow-color);
+  font-family: 'Orbitron', monospace;
+  font-size: var(--button-size);
+  padding: clamp(6px, 1.5vw, 10px) clamp(12px, 3vw, 16px);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(5px);
+  text-transform: uppercase;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.cyber-button:hover:not(:disabled) {
+  background: rgba(0, 255, 136, 0.1);
+  border-color: var(--glow-color);
+  box-shadow: 0 0 15px var(--glow-color);
+}
+
+.cyber-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Дополнительные медиа-запросы для touch устройств */
+@media (hover: none) and (pointer: coarse) {
+  .cyber-button:hover:not(:disabled) {
+    background: rgba(0, 0, 0, 0.8);
+    border-color: var(--glow-color);
+    box-shadow: none;
+  }
+  
+  .cyber-button:active:not(:disabled) {
+    background: rgba(0, 255, 136, 0.2);
+    transform: scale(0.95);
+  }
+  
+  .cyber-card:hover {
+    border-color: var(--glow-color);
+    box-shadow: none;
+  }
+}
+
+/* Улучшение читаемости на маленьких экранах */
+@media (max-width: 480px) {
+  .cyber-modal {
+    padding: 4px;
+    align-items: flex-start;
+    padding-top: 20px;
+  }
+  
+  .cyber-text {
+    line-height: 1.3;
+  }
+  
+  .cyber-button {
+    min-height: 40px;
+    touch-action: manipulation;
+  }
+  
+  .cyber-input {
+    min-height: 40px;
+    touch-action: manipulation;
+  }
+}
+
+/* Улучшения для планшетов в портретной ориентации */
+@media (max-width: 768px) and (orientation: portrait) {
+  .cyber-modal .cyber-panel {
+    max-height: 85vh;
+  }
+}
+
+/* Улучшения для альбомной ориентации на мобильных */
+@media (max-height: 500px) and (orientation: landscape) {
+  .cyber-modal {
+    padding: 2px;
+    align-items: flex-start;
+    padding-top: 10px;
+  }
+  
+  .cyber-modal .cyber-panel {
+    max-height: 95vh;
+    min-height: auto;
   }
 } 

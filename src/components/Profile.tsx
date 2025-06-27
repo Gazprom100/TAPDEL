@@ -40,73 +40,94 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   return (
     <div className="cyber-modal" onClick={onClose}>
       <div 
-        className="cyber-panel w-[90vw] max-w-4xl max-h-[90vh] overflow-auto"
+        className="cyber-panel w-[95vw] sm:w-[90vw] md:w-[85vw] lg:w-[80vw] xl:w-[70vw] max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-auto m-2"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="cyber-text text-2xl">Профиль</h2>
+        <div className="flex justify-between items-center mb-4 sm:mb-6 p-2 sm:p-0">
+          <h2 className="cyber-text text-lg sm:text-xl md:text-2xl">Профиль</h2>
           <button 
             onClick={onClose}
-            className="cyber-button"
+            className="cyber-button text-lg sm:text-xl p-2"
+            style={{
+              minWidth: '40px',
+              minHeight: '40px'
+            }}
           >
             ✕
           </button>
         </div>
 
-        <div className="flex gap-4 mb-6">
+        <div className="grid grid-cols-2 sm:flex gap-2 sm:gap-4 mb-4 sm:mb-6 overflow-x-auto">
           {(['balance', 'shop', 'transactions', 'leaderboard'] as Tab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`cyber-button ${
+              className={`cyber-button text-xs sm:text-sm whitespace-nowrap px-2 sm:px-4 py-2 ${
                 activeTab === tab ? 'bg-[var(--glow-color)] text-black' : ''
               }`}
+              style={{
+                minHeight: '36px'
+              }}
             >
               {tab === 'balance' && 'Баланс'}
               {tab === 'shop' && 'Магазин'}
               {tab === 'transactions' && 'Транзакции'}
-              {tab === 'leaderboard' && 'Таблица лидеров'}
+              {tab === 'leaderboard' && 'Лидеры'}
             </button>
           ))}
         </div>
 
-        <div className="mt-6">
+        <div className="mt-4 sm:mt-6 px-2 sm:px-0">
           {activeTab === 'balance' && (
-            <div className="space-y-6">
-              <div className="cyber-text text-xl">Баланс: {tokens} токенов</div>
+            <div className="space-y-4 sm:space-y-6">
+              <div className="cyber-text text-lg sm:text-xl">Баланс: {Math.floor(tokens)} токенов</div>
               
-              <div className="cyber-panel space-y-4">
-                <div className="cyber-text">Вывод токенов</div>
-                <div className="flex gap-2">
+              <div className="cyber-panel space-y-3 sm:space-y-4 p-3 sm:p-4">
+                <div className="cyber-text text-sm sm:text-base">Вывод токенов</div>
+                <div className="flex flex-col sm:flex-row gap-2">
                   <input
                     type="number"
                     value={withdrawAmount}
                     onChange={(e) => setWithdrawAmount(e.target.value)}
-                    className="cyber-input flex-1"
+                    className="cyber-input flex-1 text-sm sm:text-base"
                     placeholder="Количество"
+                    style={{
+                      minHeight: '40px'
+                    }}
                   />
                   <button
                     onClick={handleWithdraw}
-                    className="cyber-button"
+                    className="cyber-button text-sm sm:text-base px-4 py-2"
+                    style={{
+                      minHeight: '40px',
+                      minWidth: '80px'
+                    }}
                   >
                     Вывести
                   </button>
                 </div>
               </div>
 
-              <div className="cyber-panel space-y-4">
-                <div className="cyber-text">Ввод токенов</div>
-                <div className="flex gap-2">
+              <div className="cyber-panel space-y-3 sm:space-y-4 p-3 sm:p-4">
+                <div className="cyber-text text-sm sm:text-base">Ввод токенов</div>
+                <div className="flex flex-col sm:flex-row gap-2">
                   <input
                     type="number"
                     value={depositAmount}
                     onChange={(e) => setDepositAmount(e.target.value)}
-                    className="cyber-input flex-1"
+                    className="cyber-input flex-1 text-sm sm:text-base"
                     placeholder="Количество"
+                    style={{
+                      minHeight: '40px'
+                    }}
                   />
                   <button
                     onClick={handleDeposit}
-                    className="cyber-button"
+                    className="cyber-button text-sm sm:text-base px-4 py-2"
+                    style={{
+                      minHeight: '40px',
+                      minWidth: '80px'
+                    }}
                   >
                     Внести
                   </button>
@@ -118,29 +139,29 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           {activeTab === 'shop' && <Shop />}
 
           {activeTab === 'transactions' && (
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {transactions.map((tx) => (
                 <div
                   key={tx.id}
-                  className="cyber-card flex justify-between items-center"
+                  className="cyber-card flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 p-3 sm:p-4"
                 >
-                  <div>
-                    <div className="cyber-text">
+                  <div className="flex-1">
+                    <div className="cyber-text text-sm sm:text-base">
                       {tx.type === 'withdraw' ? 'Вывод' : 
                        tx.type === 'deposit' ? 'Ввод' : 
                        tx.type === 'purchase' ? 'Покупка' : 'Операция'}
                     </div>
-                    <div className="text-sm opacity-70">
+                    <div className="text-xs sm:text-sm opacity-70">
                       {new Date(tx.timestamp).toLocaleString()}
                     </div>
                   </div>
-                  <div className="cyber-text">
+                  <div className="cyber-text text-sm sm:text-base font-bold">
                     {tx.amount > 0 ? '+' : ''}{tx.amount}
                   </div>
                 </div>
               ))}
               {transactions.length === 0 && (
-                <div className="text-center opacity-50">
+                <div className="text-center opacity-50 py-8 text-sm sm:text-base">
                   Нет транзакций
                 </div>
               )}
@@ -148,24 +169,30 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           )}
 
           {activeTab === 'leaderboard' && (
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {leaderboard.map((entry, index) => (
                 <div
                   key={entry.id}
-                  className="cyber-card flex justify-between items-center"
+                  className="cyber-card flex justify-between items-center p-3 sm:p-4"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="cyber-text text-xl">#{index + 1}</div>
-                    <div>
-                      <div className="cyber-text">{entry.username}</div>
-                      <div className="text-sm opacity-70">Уровень: {entry.level}</div>
+                  <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
+                    <div className="cyber-text text-lg sm:text-xl font-bold" style={{
+                      minWidth: '32px'
+                    }}>
+                      #{index + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="cyber-text text-sm sm:text-base truncate">{entry.username}</div>
+                      <div className="text-xs sm:text-sm opacity-70">Уровень: {entry.level}</div>
                     </div>
                   </div>
-                  <div className="cyber-text">{entry.tokens} токенов</div>
+                  <div className="cyber-text text-sm sm:text-base font-bold whitespace-nowrap ml-2">
+                    {Math.floor(entry.tokens)} токенов
+                  </div>
                 </div>
               ))}
               {leaderboard.length === 0 && (
-                <div className="text-center opacity-50">
+                <div className="text-center opacity-50 py-8 text-sm sm:text-base">
                   Таблица лидеров пуста
                 </div>
               )}

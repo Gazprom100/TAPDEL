@@ -105,7 +105,7 @@ export const Shop: React.FC = () => {
     return (
       <div
         key={item.level}
-        className={`p-4 rounded-lg border transition-all ${
+        className={`p-3 sm:p-4 rounded-lg border transition-all ${
           isOwned 
             ? 'border-[#00ff88] bg-[#00ff88]/20 shadow-[0_0_15px_rgba(0,255,136,0.5)]'
             : !isAvailable
@@ -115,58 +115,58 @@ export const Shop: React.FC = () => {
             : 'border-gray-700 opacity-75'
         } ${isAnimating ? 'animate-pulse shadow-[0_0_30px_rgba(0,255,136,0.8)]' : ''}`}
       >
-        <div className="flex justify-between items-center">
-          <div>
-            <div className="font-bold flex items-center gap-2">
-              {item.level}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
+          <div className="flex-1 min-w-0">
+            <div className="font-bold flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-2">
+              <span className="text-sm sm:text-base">{item.level}</span>
               {isOwned && (
-                <span className="text-[#00ff88] text-sm">
+                <span className="text-[#00ff88] text-xs sm:text-sm">
                   ✓ Установлено
                 </span>
               )}
             </div>
             {type === 'engine' && (
-              <>
-                <div className="text-sm opacity-70">
+              <div className="space-y-1">
+                <div className="text-xs sm:text-sm opacity-70">
                   Мощность: {item.power} | КПД: {item.fuelEfficiency}%
                 </div>
-                <div className="text-sm opacity-70">
+                <div className="text-xs sm:text-sm opacity-70">
                   Макс. температура: {item.maxTemp}°C
                 </div>
-              </>
+              </div>
             )}
             {type === 'gearbox' && (
-              <>
-                <div className="text-sm opacity-70">
-                  Передача: {item.gear} | Время переключения: {item.switchTime}мс
+              <div className="space-y-1">
+                <div className="text-xs sm:text-sm opacity-70">
+                  Передача: {item.gear} | Время: {item.switchTime}мс
                 </div>
-                <div className="text-sm opacity-70">
+                <div className="text-xs sm:text-sm opacity-70">
                   Порог перегрева: {item.overheatThreshold}°C
                 </div>
-              </>
+              </div>
             )}
             {type === 'battery' && (
-              <>
-                <div className="text-sm opacity-70">
-                  Емкость: {item.capacity}% | Скорость заряда: {item.chargeRate}%/сек
+              <div className="space-y-1">
+                <div className="text-xs sm:text-sm opacity-70">
+                  Емкость: {item.capacity}% | Заряд: {item.chargeRate}%/сек
                 </div>
-                <div className="text-sm opacity-70">
+                <div className="text-xs sm:text-sm opacity-70">
                   Макс. температура: {item.maxTemp}°C
                 </div>
-              </>
+              </div>
             )}
             {type === 'hyperdrive' && (
-              <>
-                <div className="text-sm opacity-70">
+              <div className="space-y-1">
+                <div className="text-xs sm:text-sm opacity-70">
                   Множитель: ×{item.speedMultiplier} | Расход: {item.energyConsumption}%/сек
                 </div>
-                <div className="text-sm opacity-70">
+                <div className="text-xs sm:text-sm opacity-70">
                   Порог активации: {item.activationThreshold}%
                 </div>
-              </>
+              </div>
             )}
             {type === 'powerGrid' && (
-              <div className="text-sm opacity-70">
+              <div className="text-xs sm:text-sm opacity-70">
                 Макс. нагрузка: {item.maxLoad}% | КПД: {item.efficiency}%
               </div>
             )}
@@ -174,7 +174,7 @@ export const Shop: React.FC = () => {
           <button
             onClick={() => handlePurchase(type, item.level, item.cost)}
             disabled={!canBuy || isOwned || purchaseInProgress}
-            className={`px-4 py-2 rounded transition-all ${
+            className={`px-3 sm:px-4 py-2 rounded transition-all text-xs sm:text-sm whitespace-nowrap ${
               isOwned
                 ? 'bg-[#00ff88]/20 text-[#00ff88] cursor-not-allowed'
                 : !isAvailable
@@ -183,6 +183,10 @@ export const Shop: React.FC = () => {
                 ? 'bg-[#00ff88] text-black hover:bg-[#00ff88]/80'
                 : 'bg-gray-700 text-gray-400 cursor-not-allowed'
             }`}
+            style={{
+              minHeight: '36px',
+              minWidth: '80px'
+            }}
           >
             {isOwned ? 'Установлено' : `${item.cost} токенов`}
           </button>
@@ -192,48 +196,51 @@ export const Shop: React.FC = () => {
   };
 
   return (
-    <div className="p-4 space-y-8">
-      <div className="flex justify-between items-center mb-8">
-        <h2 className="text-2xl font-bold text-[#00ff88]">Магазин улучшений</h2>
-        <div className="text-xl">
-          Токены: <span className="text-[#00ff88]">{tokens}</span>
+    <div className="p-2 sm:p-4 space-y-4 sm:space-y-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0 mb-4 sm:mb-8">
+        <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#00ff88]">Магазин улучшений</h2>
+        <div className="text-base sm:text-lg md:text-xl">
+          Токены: <span className="text-[#00ff88]">{Math.floor(tokens)}</span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-4">
-          <h3 className="text-xl font-bold text-[#00ff88]">Двигатели</h3>
-          <div className="space-y-2">
-            {COMPONENTS.ENGINES.map((item) => renderItem('engine', item, engineLevel))}
-          </div>
+      {/* Двигатели */}
+      <div className="space-y-3 sm:space-y-4">
+        <h3 className="text-base sm:text-lg md:text-xl font-bold text-[#ffcc00]">🔧 Двигатели</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4">
+          {COMPONENTS.ENGINES.map((engine) => renderItem('engine', engine, engineLevel))}
         </div>
+      </div>
 
-        <div className="space-y-4">
-          <h3 className="text-xl font-bold text-[#00ff88]">Коробки передач</h3>
-          <div className="space-y-2">
-            {COMPONENTS.GEARBOXES.map((item) => renderItem('gearbox', item, gearboxLevel))}
-          </div>
+      {/* КПП */}
+      <div className="space-y-3 sm:space-y-4">
+        <h3 className="text-base sm:text-lg md:text-xl font-bold text-[#ffcc00]">⚙️ Коробки передач</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4">
+          {COMPONENTS.GEARBOXES.map((gearbox) => renderItem('gearbox', gearbox, gearboxLevel))}
         </div>
+      </div>
 
-        <div className="space-y-4">
-          <h3 className="text-xl font-bold text-[#00ff88]">Аккумуляторы</h3>
-          <div className="space-y-2">
-            {COMPONENTS.BATTERIES.map((item) => renderItem('battery', item, batteryLevel))}
-          </div>
+      {/* Батареи */}
+      <div className="space-y-3 sm:space-y-4">
+        <h3 className="text-base sm:text-lg md:text-xl font-bold text-[#ffcc00]">🔋 Батареи</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4">
+          {COMPONENTS.BATTERIES.map((battery) => renderItem('battery', battery, batteryLevel))}
         </div>
+      </div>
 
-        <div className="space-y-4">
-          <h3 className="text-xl font-bold text-[#00ff88]">Гипердвигатели</h3>
-          <div className="space-y-2">
-            {COMPONENTS.HYPERDRIVES.map((item) => renderItem('hyperdrive', item, hyperdriveLevel))}
-          </div>
+      {/* Гипердвигатели */}
+      <div className="space-y-3 sm:space-y-4">
+        <h3 className="text-base sm:text-lg md:text-xl font-bold text-[#ffcc00]">🚀 Гипердвигатели</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4">
+          {COMPONENTS.HYPERDRIVES.map((hyperdrive) => renderItem('hyperdrive', hyperdrive, hyperdriveLevel))}
         </div>
+      </div>
 
-        <div className="space-y-4">
-          <h3 className="text-xl font-bold text-[#00ff88]">Электросеть</h3>
-          <div className="space-y-2">
-            {COMPONENTS.POWER_GRIDS.map((item) => renderItem('powerGrid', item, powerGridLevel))}
-          </div>
+      {/* Энергосети */}
+      <div className="space-y-3 sm:space-y-4">
+        <h3 className="text-base sm:text-lg md:text-xl font-bold text-[#ffcc00]">⚡ Энергосети</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4">
+          {COMPONENTS.POWER_GRIDS.map((powerGrid) => renderItem('powerGrid', powerGrid, powerGridLevel))}
         </div>
       </div>
     </div>
