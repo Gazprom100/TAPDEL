@@ -38,19 +38,36 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   };
 
   return (
-    <div className="cyber-modal" onClick={onClose}>
+    <div 
+      className="cyber-modal" 
+      onClick={(e) => {
+        e.stopPropagation();
+        onClose();
+      }}
+      onTouchStart={(e) => {
+        e.stopPropagation();
+      }}
+    >
       <div 
         className="cyber-panel w-[95vw] sm:w-[90vw] md:w-[85vw] lg:w-[80vw] xl:w-[70vw] max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-auto m-2"
         onClick={e => e.stopPropagation()}
+        onTouchStart={e => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-4 sm:mb-6 p-2 sm:p-0">
           <h2 className="cyber-text text-lg sm:text-xl md:text-2xl">Профиль</h2>
           <button 
-            onClick={onClose}
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            onTouchStart={(e) => {
+              e.stopPropagation();
+            }}
             className="cyber-button text-lg sm:text-xl p-2"
             style={{
               minWidth: '40px',
-              minHeight: '40px'
+              minHeight: '40px',
+              pointerEvents: 'auto'
             }}
           >
             ✕
@@ -61,12 +78,19 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           {(['balance', 'shop', 'transactions', 'leaderboard'] as Tab[]).map((tab) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveTab(tab);
+              }}
+              onTouchStart={(e) => {
+                e.stopPropagation();
+              }}
               className={`cyber-button text-xs sm:text-sm whitespace-nowrap px-2 sm:px-4 py-2 ${
                 activeTab === tab ? 'bg-[var(--glow-color)] text-black' : ''
               }`}
               style={{
-                minHeight: '36px'
+                minHeight: '36px',
+                pointerEvents: 'auto'
               }}
             >
               {tab === 'balance' && 'Баланс'}
@@ -89,18 +113,26 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     type="number"
                     value={withdrawAmount}
                     onChange={(e) => setWithdrawAmount(e.target.value)}
+                    onTouchStart={(e) => {
+                      e.stopPropagation();
+                    }}
                     className="cyber-input flex-1 text-sm sm:text-base"
                     placeholder="Количество"
                     style={{
-                      minHeight: '40px'
+                      minHeight: '40px',
+                      pointerEvents: 'auto'
                     }}
                   />
                   <button
                     onClick={handleWithdraw}
+                    onTouchStart={(e) => {
+                      e.stopPropagation();
+                    }}
                     className="cyber-button text-sm sm:text-base px-4 py-2"
                     style={{
                       minHeight: '40px',
-                      minWidth: '80px'
+                      minWidth: '80px',
+                      pointerEvents: 'auto'
                     }}
                   >
                     Вывести
@@ -115,18 +147,26 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     type="number"
                     value={depositAmount}
                     onChange={(e) => setDepositAmount(e.target.value)}
+                    onTouchStart={(e) => {
+                      e.stopPropagation();
+                    }}
                     className="cyber-input flex-1 text-sm sm:text-base"
                     placeholder="Количество"
                     style={{
-                      minHeight: '40px'
+                      minHeight: '40px',
+                      pointerEvents: 'auto'
                     }}
                   />
                   <button
                     onClick={handleDeposit}
+                    onTouchStart={(e) => {
+                      e.stopPropagation();
+                    }}
                     className="cyber-button text-sm sm:text-base px-4 py-2"
                     style={{
                       minHeight: '40px',
-                      minWidth: '80px'
+                      minWidth: '80px',
+                      pointerEvents: 'auto'
                     }}
                   >
                     Внести

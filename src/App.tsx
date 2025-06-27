@@ -275,7 +275,7 @@ const App: React.FC = () => {
         <div className="cyber-panel" style={{
           boxShadow: `0 0 ${10 + intensity / 2}px rgba(0, 255, 136, ${0.3 + intensity / 200})`
         }}>
-          <div className="text-center p-2 sm:p-3 md:p-4">
+          <div className="text-center" style={{ padding: '8px 12px' }}>
             <div className="cyber-text text-xl sm:text-2xl md:text-3xl font-bold" style={{
               filter: `brightness(${1 + intensity / 100})`,
               textShadow: `0 0 ${5 + intensity / 10}px rgba(0, 255, 136, 0.8)`
@@ -288,7 +288,7 @@ const App: React.FC = () => {
 
       {/* 3. Два блока с информацией о компонентах - между счетчиком и центральной кнопкой */}
       <div className="absolute z-20" style={{
-        top: 'calc(12px + 70px + 20px)', // под счетчиком токенов
+        top: 'calc(12px + 50px + 20px)', // под счетчиком токенов (уменьшенная высота)
         left: '70px', // отступ от левой шкалы
         right: '70px' // отступ от правой шкалы
       }}>
@@ -297,11 +297,11 @@ const App: React.FC = () => {
           <div className="flex-1 cyber-panel p-2 sm:p-2.5 md:p-3" style={{
             boxShadow: `0 0 ${5 + intensity / 4}px rgba(0, 255, 136, ${0.2 + intensity / 300})`
           }}>
-            <div className="cyber-text text-xs mb-1 sm:mb-2">ДВИГАТЕЛЬ & КПП</div>
-            <div className="cyber-text text-xs sm:text-sm">
+            <div className="cyber-text mb-1 sm:mb-2" style={{ fontSize: '6px' }}>ДВИГАТЕЛЬ & КПП</div>
+            <div className="cyber-text" style={{ fontSize: '5px' }}>
               {currentEngine.level} • {currentEngine.power}W • {currentEngine.fuelEfficiency}%
             </div>
-            <div className="cyber-text text-xs sm:text-sm">
+            <div className="cyber-text" style={{ fontSize: '5px' }}>
               {currentGearbox.level} • {currentGearbox.gear}x • {currentGearbox.switchTime}ms
             </div>
           </div>
@@ -310,11 +310,11 @@ const App: React.FC = () => {
           <div className="flex-1 cyber-panel p-2 sm:p-2.5 md:p-3" style={{
             boxShadow: `0 0 ${5 + intensity / 4}px rgba(0, 255, 136, ${0.2 + intensity / 300})`
           }}>
-            <div className="cyber-text text-xs mb-1 sm:mb-2">БАТАРЕЯ & СЕТЬ</div>
-            <div className="cyber-text text-xs sm:text-sm">
+            <div className="cyber-text mb-1 sm:mb-2" style={{ fontSize: '6px' }}>БАТАРЕЯ & СЕТЬ</div>
+            <div className="cyber-text" style={{ fontSize: '5px' }}>
               {currentBattery.level} • {currentBattery.capacity}% • {currentBattery.chargeRate}%/s
             </div>
-            <div className="cyber-text text-xs sm:text-sm">
+            <div className="cyber-text" style={{ fontSize: '5px' }}>
               {currentPowerGrid.level} • {currentPowerGrid.efficiency}% • {currentPowerGrid.maxLoad}W
             </div>
           </div>
@@ -465,9 +465,9 @@ const App: React.FC = () => {
           }}
           style={{
             filter: `brightness(${1 + intensity / 50})`,
-            transform: `scale(${1 + intensity / 500})`,
-            width: 'clamp(180px, 25vw, 280px)',
-            height: 'clamp(180px, 25vw, 280px)'
+            transform: `scale(${1.3 + intensity / 500})`,
+            width: 'clamp(234px, 32.5vw, 364px)',
+            height: 'clamp(234px, 32.5vw, 364px)'
           }}
         >
           {/* Внешние кольца */}
@@ -485,7 +485,6 @@ const App: React.FC = () => {
           
           {/* Индикатор топлива */}
           <div className="fuel-display">
-            <div className="cyber-text text-sm sm:text-base md:text-lg mb-1 sm:mb-2">ТОПЛИВО</div>
             <div className="cyber-text text-lg sm:text-xl md:text-2xl font-bold" style={{
               color: fuelLevel > 50 ? '#00ff88' : fuelLevel > 20 ? '#ffaa00' : '#ff4444',
               textShadow: `0 0 ${5 + intensity / 10}px currentColor`
@@ -504,10 +503,10 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* 7. Кнопка гипердвигателя - между центральной кнопкой и кнопкой профиля */}
+      {/* 7. Кнопка гипердвигателя - между краем центральной кнопки и кнопкой профиля */}
       {hyperdriveEnergy >= currentHyperdrive.activationThreshold && (
         <div className="absolute left-1/2 transform -translate-x-1/2 z-30 px-2" style={{
-          bottom: 'calc(50% - 120px)' // между центральной кнопкой и нижней частью экрана
+          top: 'calc(50% + 140px)' // центр экрана + половина размера центральной кнопки + отступ
         }}>
           <button
             className={`hyperdrive-button ${isHyperdriveActive ? 'active' : ''} ${hyperdriveCharging ? 'charging' : ''} ${hyperdriveReadiness === 100 ? 'ready' : ''}`}
