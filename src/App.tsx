@@ -574,17 +574,17 @@ const App: React.FC = () => {
             filter: 'drop-shadow(0 0 15px rgba(0, 200, 255, 0.6))'
           }} />
 
-          {/* Внутренние деления */}
+          {/* Внутренние деления для топлива */}
           {Array.from({ length: 24 }).map((_, i) => (
             <div
               key={i}
               style={{
                 position: 'absolute',
                 width: '2px',
-                height: i % 6 === 0 ? '25px' : '15px',
+                height: i % 6 === 0 ? '30px' : '20px',  // увеличиваем длину делений
                 background: `rgba(0, 255, 136, ${i * 4 <= fuelLevel * 0.24 ? 0.8 : 0.2})`,
-                transform: `rotate(${i * 15}deg) translateY(-120px)`,
-                transformOrigin: 'center 120px',
+                transform: `rotate(${i * 15}deg) translateY(-140px)`,  // увеличиваем расстояние
+                transformOrigin: 'center 140px',
                 boxShadow: i * 4 <= fuelLevel * 0.24 ? '0 0 8px rgba(0, 255, 136, 0.8)' : 'none'
               }}
             />
@@ -596,11 +596,11 @@ const App: React.FC = () => {
               key={i}
               style={{
                 position: 'absolute',
-                width: '1px',
-                height: '12px',
+                width: '2px',  // увеличиваем ширину
+                height: '15px',  // увеличиваем длину
                 background: `rgba(0, 200, 255, ${i * 6.25 <= hyperdriveEnergy ? 0.8 : 0.2})`,
-                transform: `rotate(${i * 22.5}deg) translateY(-100px)`,
-                transformOrigin: 'center 100px',
+                transform: `rotate(${i * 22.5}deg) translateY(-110px)`,  // корректируем расстояние
+                transformOrigin: 'center 110px',
                 boxShadow: i * 6.25 <= hyperdriveEnergy ? '0 0 6px rgba(0, 200, 255, 0.8)' : 'none'
               }}
             />
@@ -706,6 +706,20 @@ const App: React.FC = () => {
         <button
           onClick={activateHyperdrive}
           className={`cyber-button-small ${isHyperdriveActive ? 'active' : ''}`}
+          style={{
+            background: hyperdriveReadiness === 100 ? 'rgba(0, 255, 136, 0.2)' : 'rgba(0, 0, 0, 0.8)',
+            border: `1px solid ${hyperdriveReadiness === 100 ? '#00ff88' : 'var(--glow-color)'}`,
+            borderRadius: '4px',
+            padding: '8px 16px',
+            color: hyperdriveReadiness === 100 ? '#00ff88' : 'var(--glow-color)',
+            boxShadow: hyperdriveReadiness === 100 ? '0 0 15px rgba(0, 255, 136, 0.5)' : '0 0 10px rgba(0, 255, 136, 0.3)',
+            minWidth: '120px',
+            backdropFilter: 'blur(5px)',
+            transition: 'all 0.3s ease',
+            cursor: 'pointer',
+            pointerEvents: 'auto'
+          }}
+          disabled={!isHyperdriveActive && hyperdriveReadiness < 100}
         >
           Hyper
         </button>
@@ -714,6 +728,19 @@ const App: React.FC = () => {
         <button
           onClick={() => setIsProfileOpen(true)}
           className="cyber-button-small"
+          style={{
+            background: 'rgba(0, 0, 0, 0.8)',
+            border: '1px solid var(--glow-color)',
+            borderRadius: '4px',
+            padding: '8px 16px',
+            color: 'var(--glow-color)',
+            boxShadow: '0 0 10px rgba(0, 255, 136, 0.3)',
+            minWidth: '120px',
+            backdropFilter: 'blur(5px)',
+            transition: 'all 0.3s ease',
+            cursor: 'pointer',
+            pointerEvents: 'auto'
+          }}
         >
           Профиль
         </button>
