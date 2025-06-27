@@ -37,7 +37,12 @@ try {
       const webhookPath = `/webhook/${token}`;
       const webhookUrl = `${url}${webhookPath}`;
       
-      bot.setWebHook(webhookUrl)
+      // Сначала удалим старый вебхук
+      bot.deleteWebHook()
+        .then(() => {
+          console.log('Old webhook removed');
+          return bot.setWebHook(webhookUrl);
+        })
         .then(() => {
           console.log('Webhook set successfully:', webhookUrl);
         })
@@ -101,20 +106,30 @@ app.get('*', (req, res) => {
 });
 
 // Start server
-const server = app.listen(PORT, () => {
-  console.log('==> Server Configuration:');
-  console.log(`Port: ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV}`);
-  console.log(`App URL: ${url}`);
-  console.log(`Bot Status: ${bot ? 'Active' : 'Disabled'}`);
-  if (!bot) {
-    console.log('Note: Running without Telegram bot functionality');
-  }
-  console.log('==> Server is ready to handle requests');
-});
+const startServer = () => {
+  return new Promise((resolve, reject) => {
+    const server = app.listen(PORT, () => {
+      console.log('==> Server Configuration:');
+      console.log(`Port: ${PORT}`);
+      console.log(`Environment: ${process.env.NODE_ENV}`);
+      console.log(`App URL: ${url}`);
+      console.log(`Bot Status: ${bot ? 'Active' : 'Disabled'}`);
+      console.log('==> Server is ready to handle requests');
+      resolve(server);
+    }).on('error', (error) => {
+      if (error.code === 'EADDRINUSE') {
+        console.error(`Port ${PORT} is already in use. Trying another port...`);
+        reject(error);
+      } else {
+        console.error('Server error:', error);
+        reject(error);
+      }
+    });
+  });
+};
 
 // Graceful shutdown
-const gracefulShutdown = async () => {
+const gracefulShutdown = async (server) => {
   console.log('\nStarting graceful shutdown...');
   
   if (bot) {
@@ -135,20 +150,49 @@ const gracefulShutdown = async () => {
     }
   }
   
-  server.close(() => {
-    console.log('HTTP server closed');
+  if (server) {
+    server.close(() => {
+      console.log('HTTP server closed');
+      process.exit(0);
+    });
+    
+    setTimeout(() => {
+      console.error('Could not close connections in time, forcefully shutting down');
+      process.exit(1);
+    }, 5000);
+  } else {
     process.exit(0);
-  });
-  
-  setTimeout(() => {
-    console.error('Could not close connections in time, forcefully shutting down');
-    process.exit(1);
-  }, 5000);
+  }
 };
 
+// Start server with retry logic
+let retries = 5;
+let server = null;
+
+const tryStart = async () => {
+  try {
+    server = await startServer();
+  } catch (error) {
+    if (error.code === 'EADDRINUSE' && retries > 0) {
+      retries--;
+      // Увеличиваем порт и пробуем снова
+      process.env.PORT = Number(PORT) + 1;
+      await tryStart();
+    } else {
+      console.error('Failed to start server:', error);
+      process.exit(1);
+    }
+  }
+};
+
+tryStart().catch((error) => {
+  console.error('Server startup failed:', error);
+  process.exit(1);
+});
+
 // Signal handlers
-process.on('SIGTERM', gracefulShutdown);
-process.on('SIGINT', gracefulShutdown);
+process.on('SIGTERM', () => gracefulShutdown(server));
+process.on('SIGINT', () => gracefulShutdown(server));
 
 // Error handlers
 process.on('unhandledRejection', (reason, promise) => {
@@ -157,5 +201,5 @@ process.on('unhandledRejection', (reason, promise) => {
 
 process.on('uncaughtException', (error) => {
   console.error('Uncaught Exception:', error);
-  gracefulShutdown();
+  gracefulShutdown(server);
 }); 

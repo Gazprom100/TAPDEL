@@ -1,8 +1,4 @@
 /**
- * Утилиты для работы с таймаутами и асинхронными операциями
- */
-
-/**
  * Создает Promise с таймаутом
  * @param ms Время ожидания в миллисекундах
  * @returns Promise, который разрешается после указанного времени
@@ -27,7 +23,6 @@ export const withTimeout = <T>(
   
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => {
-      clearTimeout(timeoutId);
       reject(new Error(errorMessage));
     }, ms);
   });
