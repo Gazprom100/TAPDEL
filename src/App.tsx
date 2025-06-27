@@ -326,12 +326,13 @@ const App: React.FC = () => {
       {/* 2. Счетчик натапанных DEL - растянут на всю ширину с отступами от шкал */}
       <div className="absolute top-12 sm:top-16 md:top-20 z-20" style={{
         left: '70px', // отступ от левой шкалы (48px + 22px)
-        right: '70px' // отступ от правой шкалы (48px + 22px)
+        right: '70px', // отступ от правой шкалы (48px + 22px)
+        height: '150px'
       }}>
-        <div className="cyber-panel" style={{
+        <div className="cyber-panel h-full flex items-center justify-center" style={{
           boxShadow: '0 0 10px rgba(0, 255, 136, 0.3)'
         }}>
-          <div className="text-center" style={{ padding: '4px 6px' }}>
+          <div className="text-center">
             <div className="cyber-text text-xl sm:text-2xl md:text-3xl font-bold" style={{
               textShadow: '0 0 5px rgba(0, 255, 136, 0.8)'
             }}>
@@ -343,7 +344,7 @@ const App: React.FC = () => {
 
       {/* 3. Два блока с информацией о компонентах - между счетчиком и центральной кнопкой */}
       <div className="absolute z-20" style={{
-        top: 'calc(12px + 25px + 120px)', // под счетчиком токенов (уменьшенная высота) + 100px вниз
+        top: 'calc(12px + 150px + 120px)', // под счетчиком токенов (новая высота 150px) + 100px вниз
         left: '70px', // отступ от левой шкалы
         right: '70px' // отступ от правой шкалы
       }}>

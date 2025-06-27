@@ -101,9 +101,9 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           ))}
         </div>
 
-        <div className="mt-4 sm:mt-6 px-2 sm:px-0 overflow-y-auto" style={{ maxHeight: 'calc(95vh - 180px)' }}>
+        <div className="mt-4 sm:mt-6 px-2 sm:px-0">
           {activeTab === 'balance' && (
-            <div className="space-y-4 sm:space-y-6">
+            <div className="space-y-4 sm:space-y-6 overflow-y-auto" style={{ maxHeight: 'calc(95vh - 180px)' }}>
               <div className="cyber-text text-lg sm:text-xl">Баланс: {Math.floor(tokens)} токенов</div>
               
               <div className="cyber-panel space-y-3 sm:space-y-4 p-3 sm:p-4">
@@ -176,10 +176,14 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             </div>
           )}
 
-          {activeTab === 'shop' && <Shop />}
+          {activeTab === 'shop' && (
+            <div className="overflow-y-auto" style={{ maxHeight: 'calc(95vh - 180px)' }}>
+              <Shop />
+            </div>
+          )}
 
           {activeTab === 'transactions' && (
-            <div className="space-y-3 sm:space-y-4">
+            <div className="space-y-3 sm:space-y-4 overflow-y-auto" style={{ maxHeight: 'calc(95vh - 180px)' }}>
               {transactions.map((tx) => (
                 <div
                   key={tx.id}
@@ -209,7 +213,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           )}
 
           {activeTab === 'leaderboard' && (
-            <div className="space-y-3 sm:space-y-4">
+            <div className="space-y-3 sm:space-y-4 overflow-y-auto" style={{ maxHeight: 'calc(95vh - 180px)' }}>
               {leaderboard.map((entry, index) => (
                 <div
                   key={entry.id}
