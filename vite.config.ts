@@ -8,7 +8,7 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://localhost:10000',
+        target: 'http://localhost:3000',
         changeOrigin: true,
       },
     },
@@ -16,5 +16,19 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    chunkSizeWarningLimit: 1600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: [
+            'react',
+            'react-dom',
+            'mongodb',
+            'gsap',
+            'zustand'
+          ]
+        }
+      }
+    }
   },
 }) 

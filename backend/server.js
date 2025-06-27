@@ -102,12 +102,15 @@ app.get('*', (req, res) => {
 
 // Start server
 const server = app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log('==> Server Configuration:');
+  console.log(`Port: ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV}`);
   console.log(`App URL: ${url}`);
+  console.log(`Bot Status: ${bot ? 'Active' : 'Disabled'}`);
   if (!bot) {
     console.log('Note: Running without Telegram bot functionality');
   }
+  console.log('==> Server is ready to handle requests');
 });
 
 // Graceful shutdown
