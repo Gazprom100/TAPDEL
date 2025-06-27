@@ -11,9 +11,7 @@ import {
   COMPONENTS,
   GAME_MECHANICS
 } from '../types/game';
-import { DatabaseService } from '../services/db';
-
-const db = new DatabaseService();
+import { apiService } from '../services/api';
 
 interface ExtendedGameState extends GameStateBase {
   profile: UserProfile | null;
@@ -99,7 +97,7 @@ export const useGameStore = create<GameStore>()(
       initializeUser: async (userId) => {
         try {
           set({ isLoading: true, error: null });
-          const user = await db.getUser(userId);
+          const user = await apiService.getUser(userId);
           
           if (user) {
             const { gameState, profile, transactions } = user;
@@ -116,7 +114,7 @@ export const useGameStore = create<GameStore>()(
             });
           }
           
-          const dbLeaderboard = await db.getLeaderboard();
+          const dbLeaderboard = await apiService.getLeaderboard();
           const leaderboard: LeaderboardEntry[] = dbLeaderboard.map(entry => ({
             id: entry._id.toString(),
             userId: entry.userId,
@@ -141,7 +139,7 @@ export const useGameStore = create<GameStore>()(
           const state = get();
           if (!state.profile?.userId) return;
 
-          await db.updateGameState(state.profile.userId, {
+          await apiService.updateGameState(state.profile.userId, {
             tokens: state.tokens,
             highScore: state.highScore,
             engineLevel: state.engineLevel,
@@ -152,7 +150,7 @@ export const useGameStore = create<GameStore>()(
             lastSaved: new Date()
           });
 
-          await db.updateLeaderboard({
+          await apiService.updateLeaderboard({
             userId: state.profile.userId,
             username: state.profile.username,
             score: state.highScore
@@ -190,11 +188,9 @@ export const useGameStore = create<GameStore>()(
           }));
 
           if (state.profile?.userId) {
-            await db.addTransaction(state.profile.userId, {
-              id: Date.now().toString(),
+            await apiService.addTransaction(state.profile.userId, {
               type: 'purchase',
               amount: -amount,
-              timestamp: Date.now(),
               status: 'completed'
             });
           }
@@ -217,11 +213,9 @@ export const useGameStore = create<GameStore>()(
           }));
 
           if (state.profile?.userId) {
-            await db.addTransaction(state.profile.userId, {
-              id: Date.now().toString(),
+            await apiService.addTransaction(state.profile.userId, {
               type: 'withdraw',
-              amount,
-              timestamp: Date.now(),
+              amount: -amount,
               status: 'completed'
             });
           }
@@ -241,11 +235,9 @@ export const useGameStore = create<GameStore>()(
           }));
 
           if (get().profile?.userId) {
-            await db.addTransaction(get().profile!.userId, {
-              id: Date.now().toString(),
+            await apiService.addTransaction(get().profile!.userId, {
               type: 'deposit',
-              amount,
-              timestamp: Date.now(),
+              amount: amount,
               status: 'completed'
             });
           }
@@ -323,7 +315,7 @@ export const useGameStore = create<GameStore>()(
           set({ profile: newProfile });
 
           if (newProfile?.userId) {
-            await db.updateUser(newProfile.userId, { profile: newProfile });
+            await apiService.updateUser(newProfile.userId, { profile: newProfile });
           }
         } catch (error) {
           set({ error: (error as Error).message });
@@ -344,7 +336,11 @@ export const useGameStore = create<GameStore>()(
           }));
 
           if (state.profile?.userId) {
-            await db.addTransaction(state.profile.userId, newTransaction);
+            await apiService.addTransaction(state.profile.userId, {
+              type: newTransaction.type,
+              amount: newTransaction.amount,
+              status: newTransaction.status
+            });
           }
         } catch (error) {
           set({ error: (error as Error).message });
@@ -357,7 +353,7 @@ export const useGameStore = create<GameStore>()(
           
           const state = get();
           if (state.profile?.userId) {
-            await db.updateLeaderboard({
+            await apiService.updateLeaderboard({
               userId: state.profile.userId,
               username: state.profile.username,
               score: state.highScore

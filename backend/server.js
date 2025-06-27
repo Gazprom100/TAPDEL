@@ -4,6 +4,7 @@ const path = require('path');
 require('dotenv').config();
 
 const telegramRoutes = require('./routes/telegram');
+const apiRoutes = require('./routes/api');
 const botService = require('./services/botService');
 
 const app = express();
@@ -16,6 +17,7 @@ app.use(express.static(path.join(__dirname, '../dist')));
 
 // Routes
 app.use('/api/telegram', telegramRoutes);
+app.use('/api', apiRoutes);
 
 // Serve SPA
 app.get('*', (req, res) => {
