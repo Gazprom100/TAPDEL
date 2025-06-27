@@ -17,6 +17,9 @@ export function promisify<T>(fn: Function): (...args: any[]) => Promise<T> {
   };
 }
 
+// Экспорт по умолчанию для обратной совместимости
+export default promisify;
+
 /**
  * Создает Promise с таймаутом
  * @param ms Время таймаута в миллисекундах

@@ -2,13 +2,16 @@
  * Утилиты для работы с таймаутами и асинхронными операциями
  */
 
+import { promisify } from 'util';
+
 /**
  * Создает Promise с таймаутом
  * @param ms Время ожидания в миллисекундах
  * @returns Promise, который разрешается после указанного времени
  */
-export const wait = (ms: number): Promise<void> => 
-  new Promise(resolve => setTimeout(resolve, ms));
+export const wait = (ms: number): Promise<void> => {
+  return new Promise(resolve => setTimeout(resolve, ms));
+};
 
 /**
  * Оборачивает Promise с таймаутом
@@ -22,10 +25,19 @@ export const withTimeout = <T>(
   ms: number, 
   errorMessage: string = 'Operation timed out'
 ): Promise<T> => {
+  let timeoutId: NodeJS.Timeout;
+  
   const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error(errorMessage)), ms);
+    timeoutId = setTimeout(() => {
+      clearTimeout(timeoutId);
+      reject(new Error(errorMessage));
+    }, ms);
   });
-  return Promise.race([promise, timeoutPromise]);
+  
+  return Promise.race([
+    promise.finally(() => clearTimeout(timeoutId)),
+    timeoutPromise
+  ]);
 };
 
 /**
