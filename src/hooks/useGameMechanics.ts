@@ -8,8 +8,8 @@ const FUEL_MECHANICS = {
   MIN_LEVEL: 0,
   // За 3 минуты активного тапания 5 пальцами (максимальная скорость) тратится все топливо
   CONSUMPTION_RATE: 100 / (3 * 60), // ~0.56% в секунду при активном тапании
-  // За 5 минут бездействия восстанавливается все топливо
-  RECOVERY_RATE: 100 / (5 * 60), // ~0.33% в секунду при бездействии
+  // За 3 минуты бездействия восстанавливается все топливо (было 5 минут)
+  RECOVERY_RATE: 100 / (3 * 60), // ~0.56% в секунду при бездействии
   INACTIVITY_THRESHOLD: 2000 // 2 секунды без активности для начала восстановления
 };
 
@@ -20,7 +20,7 @@ const HYPERDRIVE_MECHANICS = {
   CHARGE_RATE: 0.5, // % за тап
   // При активации тратится и топливо, и заряд
   FUEL_CONSUMPTION_MULTIPLIER: 2, // Удваивает расход топлива
-  CHARGE_CONSUMPTION_RATE: 2, // % заряда в секунду при активности
+  CHARGE_CONSUMPTION_RATE: 100 / 60, // % заряда в секунду при активности (100% за 60 секунд = ~1.67%/сек)
 };
 
 export const useGameMechanics = () => {
@@ -79,10 +79,12 @@ export const useGameMechanics = () => {
       return; // Не обрабатываем тап без топлива
     }
     
-    // Заряжаем аккумулятор гипердвигателя
-    setHyperdriveCharge(prev => 
-      Math.min(HYPERDRIVE_MECHANICS.MAX_CHARGE, prev + HYPERDRIVE_MECHANICS.CHARGE_RATE)
-    );
+    // Заряжаем аккумулятор гипердвигателя (только если гипердвигатель НЕ активен)
+    if (!isHyperdriveActive) {
+      setHyperdriveCharge(prev => 
+        Math.min(HYPERDRIVE_MECHANICS.MAX_CHARGE, prev + HYPERDRIVE_MECHANICS.CHARGE_RATE)
+      );
+    }
     
     // Рассчитываем награду
     const baseReward = 1;
@@ -129,7 +131,7 @@ export const useGameMechanics = () => {
         if (isHyperdriveActive) {
           setHyperdriveCharge(prev => {
             const newCharge = Math.max(HYPERDRIVE_MECHANICS.MIN_CHARGE, 
-              prev - currentHyperdrive.energyConsumption);
+              prev - HYPERDRIVE_MECHANICS.CHARGE_CONSUMPTION_RATE);
             
             // Автоматически выключаем гипердвигатель при разрядке ниже порога активации
             if (newCharge < currentHyperdrive.activationThreshold) {
@@ -146,7 +148,7 @@ export const useGameMechanics = () => {
     }, 1000); // Обновляем каждую секунду
 
     return () => clearInterval(interval);
-  }, [lastTapTime, isHyperdriveActive, currentHyperdrive.energyConsumption, currentHyperdrive.activationThreshold]);
+  }, [lastTapTime, isHyperdriveActive, currentHyperdrive.activationThreshold]);
 
   return {
     fuelLevel,

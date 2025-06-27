@@ -61,6 +61,18 @@ const App: React.FC = () => {
     return 'rgba(100, 100, 100, 0.2)';
   };
 
+  // Функция для определения цвета аккумулятора (инвертированная логика)
+  const getBatteryColor = (chargeLevel: number, activationThreshold: number) => {
+    // Зеленый когда заряд достаточен для активации
+    if (chargeLevel >= activationThreshold) return 'rgba(0, 255, 136, 0.8)';
+    // Градиент от красного к желтому в зависимости от уровня заряда
+    if (chargeLevel >= 80) return 'rgba(0, 255, 136, 0.8)'; // Зеленый
+    if (chargeLevel >= 60) return 'rgba(255, 255, 0, 0.8)'; // Желтый
+    if (chargeLevel >= 40) return 'rgba(255, 165, 0, 0.8)'; // Оранжевый
+    if (chargeLevel >= 20) return 'rgba(255, 100, 0, 0.8)'; // Красно-оранжевый
+    return 'rgba(255, 0, 0, 0.8)'; // Красный
+  };
+
   // Рассчитываем активность тапов для отображения на шкале
   const tapActivity = gear === 'N' ? 0 : 
                      gear === '1' ? 20 :
@@ -232,13 +244,13 @@ const App: React.FC = () => {
           height: 'calc(100vh - 40px)',
           marginTop: '20px',
           marginBottom: '20px',
-          background: 'linear-gradient(to bottom, rgba(0, 100, 255, 0.1), rgba(0, 50, 150, 0.1))',
-          border: '2px solid rgba(0, 100, 255, 0.3)',
+          background: 'linear-gradient(to bottom, rgba(0, 255, 136, 0.1), rgba(255, 0, 0, 0.1))',
+          border: '2px solid rgba(0, 255, 136, 0.3)',
           borderRadius: '16px',
           position: 'relative',
           boxShadow: `
-            0 0 ${15 + fuelLevel / 5}px rgba(0, 100, 255, ${0.3 + fuelLevel / 200}),
-            inset 0 0 15px rgba(0, 100, 255, 0.1)
+            0 0 ${15 + hyperdriveCharge / 5}px ${getBatteryColor(hyperdriveCharge, currentHyperdrive.activationThreshold).replace('0.8', '0.4')},
+            inset 0 0 15px rgba(0, 255, 136, 0.1)
           `,
           overflow: 'hidden'
         }}>
@@ -248,12 +260,12 @@ const App: React.FC = () => {
             bottom: 0,
             left: 0,
             right: 0,
-            height: `${fuelLevel}%`,
+            height: `${hyperdriveCharge}%`,
             background: `linear-gradient(to top, 
-              rgba(0, 100, 255, ${0.6 + fuelLevel / 200}), 
-              rgba(100, 150, 255, ${0.3 + fuelLevel / 300}))`,
+              ${getBatteryColor(hyperdriveCharge, currentHyperdrive.activationThreshold)}, 
+              ${getBatteryColor(hyperdriveCharge, currentHyperdrive.activationThreshold)})`,
             transition: 'height 0.3s ease-out',
-            boxShadow: `0 0 ${8 + fuelLevel / 10}px rgba(0, 100, 255, 0.8)`
+            boxShadow: `0 0 ${8 + hyperdriveCharge / 10}px ${getBatteryColor(hyperdriveCharge, currentHyperdrive.activationThreshold)}`
           }} />
           
           {/* 100 градаций шкалы */}
@@ -266,11 +278,11 @@ const App: React.FC = () => {
                 left: i % 10 === 0 ? '3px' : '6px',
                 right: '3px',
                 height: i % 10 === 0 ? '2px' : '1px',
-                background: fuelLevel >= (100 - i) ? 
-                  `rgba(0, 100, 255, ${0.8 + fuelLevel / 500})` : 
-                  'rgba(0, 100, 255, 0.2)',
-                boxShadow: fuelLevel >= (100 - i) ? 
-                  `0 0 3px rgba(0, 100, 255, 0.8)` : 'none'
+                background: hyperdriveCharge >= (100 - i) ? 
+                  getBatteryColor(100 - i, currentHyperdrive.activationThreshold) : 
+                  'rgba(100, 100, 100, 0.2)',
+                boxShadow: hyperdriveCharge >= (100 - i) ? 
+                  `0 0 3px ${getBatteryColor(100 - i, currentHyperdrive.activationThreshold)}` : 'none'
               }}
             />
           ))}
@@ -278,49 +290,15 @@ const App: React.FC = () => {
           {/* Индикатор текущего уровня */}
           <div style={{
             position: 'absolute',
-            bottom: `${fuelLevel}%`,
+            bottom: `${hyperdriveCharge}%`,
             left: '-2px',
             right: '-2px',
             height: '3px',
-            background: `rgba(0, 100, 255, ${0.9 + fuelLevel / 200})`,
-            boxShadow: `0 0 12px rgba(0, 100, 255, 0.9)`,
+            background: getBatteryColor(hyperdriveCharge, currentHyperdrive.activationThreshold),
+            boxShadow: `0 0 12px ${getBatteryColor(hyperdriveCharge, currentHyperdrive.activationThreshold)}`,
             transition: 'bottom 0.3s ease-out',
             borderRadius: '2px'
           }} />
-        </div>
-      </div>
-
-      {/* Индикатор заряда аккумулятора гипердвигателя справа (между шкалой и краем) */}
-      <div className="absolute z-20" style={{
-        right: '50px', // между шкалой и краем
-        top: '80px'
-      }}>
-        <div className="cyber-panel p-3 sm:p-4">
-          <div className="text-center">
-            <div className="text-xs sm:text-sm opacity-70 mb-1">
-              {currentHyperdrive.level} HYPERDRIVE
-            </div>
-            <div className="text-sm sm:text-base opacity-70 mb-1">
-              Заряд аккумулятора
-            </div>
-            <div 
-              className="text-xl sm:text-2xl font-bold"
-              style={{ color: getHyperdriveChargeColor(hyperdriveCharge) }}
-            >
-              {Math.floor(hyperdriveCharge)}%
-            </div>
-            <div className="text-xs opacity-60 mt-1">
-              Активация: {currentHyperdrive.activationThreshold}%
-            </div>
-            <div className="text-xs opacity-60">
-              Множитель: x{currentHyperdrive.speedMultiplier}
-            </div>
-            {isHyperdriveActive && (
-              <div className="text-xs sm:text-sm text-[#ffcc00] mt-1">
-                АКТИВЕН (x{currentHyperdrive.speedMultiplier})
-              </div>
-            )}
-          </div>
         </div>
       </div>
 
