@@ -1,18 +1,26 @@
+type Callback<T> = (error: Error | null, result?: T) => void;
+type AsyncFunction<T> = (...args: any[]) => Promise<T>;
+type NodeStyleFunction<T> = (...args: [...any[], Callback<T>]) => void;
+
 /**
  * Преобразует функцию с колбэком в Promise
  * @param fn Функция для промисификации
  * @returns Promise версия функции
  */
-export function promisify<T>(fn: Function): (...args: any[]) => Promise<T> {
+export function promisify<T>(fn: NodeStyleFunction<T>): AsyncFunction<T> {
   return (...args: any[]): Promise<T> => {
     return new Promise((resolve, reject) => {
-      fn(...args, (error: Error | null, result?: T) => {
-        if (error) {
-          reject(error);
-        } else {
-          resolve(result as T);
-        }
-      });
+      try {
+        fn(...args, (error: Error | null, result?: T) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve(result as T);
+          }
+        });
+      } catch (error) {
+        reject(error);
+      }
     });
   };
 }
@@ -26,7 +34,9 @@ export default promisify;
  * @returns Promise который разрешается после указанного времени
  */
 export function timeout(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise(resolve => {
+    setTimeout(resolve, ms);
+  });
 }
 
 /**
@@ -36,8 +46,9 @@ export function timeout(ms: number): Promise<void> {
  * @returns Promise с таймаутом
  */
 export function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  const timeoutPromise = new Promise<T>((_, reject) => {
-    setTimeout(() => reject(new Error(`Operation timed out after ${ms}ms`)), ms);
-  });
-  return Promise.race([promise, timeoutPromise]);
+  const timeoutId = setTimeout(() => {
+    throw new Error(`Operation timed out after ${ms}ms`);
+  }, ms);
+
+  return promise.finally(() => clearTimeout(timeoutId));
 } 
