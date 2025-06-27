@@ -14,50 +14,50 @@ app.use(express.static(path.join(__dirname, '../dist')));
 
 // Bot initialization
 const token = process.env.TELEGRAM_BOT_TOKEN;
-if (!token) {
-  console.error('TELEGRAM_BOT_TOKEN is required but not provided');
-  process.exit(1);
-}
-
 const isProduction = process.env.NODE_ENV === 'production';
 const url = process.env.APP_URL || 'https://tapdel.onrender.com';
 
 let bot = null;
 try {
-  const options = isProduction
-    ? {
-        webHook: {
-          port: PORT
+  if (token) {
+    const options = isProduction
+      ? {
+          webHook: {
+            port: PORT
+          }
         }
-      }
-    : {
-        polling: true
-      };
-  
-  bot = new TelegramBot(token, options);
-  console.log('Telegram bot initialized successfully');
-  
-  if (isProduction) {
-    const webhookPath = `/webhook/${token}`;
-    const webhookUrl = `${url}${webhookPath}`;
+      : {
+          polling: true
+        };
     
-    bot.setWebHook(webhookUrl)
-      .then(() => {
-        console.log('Webhook set successfully:', webhookUrl);
-      })
-      .catch((error) => {
-        console.error('Failed to set webhook:', error);
-        process.exit(1);
-      });
+    bot = new TelegramBot(token, options);
+    console.log('Telegram bot initialized successfully');
+    
+    if (isProduction) {
+      const webhookPath = `/webhook/${token}`;
+      const webhookUrl = `${url}${webhookPath}`;
+      
+      bot.setWebHook(webhookUrl)
+        .then(() => {
+          console.log('Webhook set successfully:', webhookUrl);
+        })
+        .catch((error) => {
+          console.error('Failed to set webhook:', error);
+        });
 
-    app.post(webhookPath, (req, res) => {
-      bot.handleUpdate(req.body);
-      res.sendStatus(200);
-    });
+      app.post(webhookPath, (req, res) => {
+        bot.handleUpdate(req.body);
+        res.sendStatus(200);
+      });
+    }
+  } else {
+    console.warn('TELEGRAM_BOT_TOKEN not provided. Bot functionality will be disabled.');
   }
 } catch (error) {
   console.error('Failed to initialize Telegram bot:', error);
-  process.exit(1);
+  if (isProduction) {
+    console.warn('Running in production without bot functionality');
+  }
 }
 
 // User chat IDs storage
@@ -105,6 +105,9 @@ const server = app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV}`);
   console.log(`App URL: ${url}`);
+  if (!bot) {
+    console.log('Note: Running without Telegram bot functionality');
+  }
 });
 
 // Graceful shutdown
