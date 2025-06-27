@@ -6,9 +6,11 @@ import { useGameStore } from '../store/gameStore';
 const FUEL_MECHANICS = {
   MAX_LEVEL: 100,
   MIN_LEVEL: 0,
-  // За 3 минуты активного тапания 5 пальцами (максимальная скорость) тратится все топливо
-  CONSUMPTION_RATE: 100 / (3 * 60), // ~0.56% в секунду при активном тапании
-  // За 3 минуты бездействия восстанавливается все топливо (было 5 минут)
+  // За 3 минуты активного тапания 5 пальцами (максимальная скорость ~15 тапов/сек) тратится все топливо
+  // При максимальной скорости: 15 тапов/сек * 180 сек = 2700 тапов
+  // 100% / 2700 тапов = ~0.037% за тап
+  CONSUMPTION_PER_TAP: 100 / (15 * 3 * 60), // ~0.037% за тап при максимальной скорости
+  // За 3 минуты бездействия восстанавливается все топливо
   RECOVERY_RATE: 100 / (3 * 60), // ~0.56% в секунду при бездействии
   INACTIVITY_THRESHOLD: 2000 // 2 секунды без активности для начала восстановления
 };
@@ -19,8 +21,10 @@ const HYPERDRIVE_MECHANICS = {
   // Заряжается от активности тапания
   CHARGE_RATE: 0.5, // % за тап
   // При активации тратится и топливо, и заряд
-  FUEL_CONSUMPTION_MULTIPLIER: 2, // Удваивает расход топлива
-  CHARGE_CONSUMPTION_RATE: 100 / 10, // % заряда в секунду при активности (100% за 10 секунд = 10%/сек)
+  FUEL_CONSUMPTION_MULTIPLIER: 2, // Удваивает расход топлива при тапах
+  // Базовая разрядка по времени + дополнительная от тапов
+  BASE_CONSUMPTION_RATE: 100 / 20, // 5% в секунду базовая разрядка (20 секунд на полную)
+  CONSUMPTION_PER_TAP: 100 / 100, // 1% за тап при активном гипердвигателе
 };
 
 export const useGameMechanics = () => {
@@ -79,8 +83,29 @@ export const useGameMechanics = () => {
       return; // Не обрабатываем тап без топлива
     }
     
-    // Заряжаем аккумулятор гипердвигателя (только если гипердвигатель НЕ активен)
-    if (!isHyperdriveActive) {
+    // Тратим топливо при каждом тапе
+    const fuelConsumption = isHyperdriveActive 
+      ? FUEL_MECHANICS.CONSUMPTION_PER_TAP * HYPERDRIVE_MECHANICS.FUEL_CONSUMPTION_MULTIPLIER
+      : FUEL_MECHANICS.CONSUMPTION_PER_TAP;
+    
+    setFuelLevel(prev => Math.max(FUEL_MECHANICS.MIN_LEVEL, prev - fuelConsumption));
+    
+    // Логика аккумулятора зависит от состояния гипердвигателя
+    if (isHyperdriveActive) {
+      // При активном гипердвигателе - тратим заряд от тапа
+      setHyperdriveCharge(prev => {
+        const newCharge = Math.max(HYPERDRIVE_MECHANICS.MIN_CHARGE, 
+          prev - HYPERDRIVE_MECHANICS.CONSUMPTION_PER_TAP);
+        
+        // Автоматически выключаем гипердвигатель при разрядке ниже порога активации
+        if (newCharge < currentHyperdrive.activationThreshold) {
+          setIsHyperdriveActive(false);
+        }
+        
+        return newCharge;
+      });
+    } else {
+      // При выключенном гипердвигателе - заряжаем аккумулятор
       setHyperdriveCharge(prev => 
         Math.min(HYPERDRIVE_MECHANICS.MAX_CHARGE, prev + HYPERDRIVE_MECHANICS.CHARGE_RATE)
       );
@@ -117,33 +142,26 @@ export const useGameMechanics = () => {
     const interval = setInterval(() => {
       const now = Date.now();
       const timeSinceLastTap = now - lastTapTime;
-      const isActive = timeSinceLastTap < FUEL_MECHANICS.INACTIVITY_THRESHOLD;
+      const isInactive = timeSinceLastTap >= FUEL_MECHANICS.INACTIVITY_THRESHOLD;
       
-      if (isActive) {
-        // Активность - тратим топливо
-        const fuelConsumption = isHyperdriveActive 
-          ? FUEL_MECHANICS.CONSUMPTION_RATE * HYPERDRIVE_MECHANICS.FUEL_CONSUMPTION_MULTIPLIER
-          : FUEL_MECHANICS.CONSUMPTION_RATE;
-          
-        setFuelLevel(prev => Math.max(FUEL_MECHANICS.MIN_LEVEL, prev - fuelConsumption));
-        
-        // Если гипердвигатель активен, тратим заряд (используем параметр energyConsumption из модели)
-        if (isHyperdriveActive) {
-          setHyperdriveCharge(prev => {
-            const newCharge = Math.max(HYPERDRIVE_MECHANICS.MIN_CHARGE, 
-              prev - HYPERDRIVE_MECHANICS.CHARGE_CONSUMPTION_RATE);
-            
-            // Автоматически выключаем гипердвигатель при разрядке ниже порога активации
-            if (newCharge < currentHyperdrive.activationThreshold) {
-              setIsHyperdriveActive(false);
-            }
-            
-            return newCharge;
-          });
-        }
-      } else {
-        // Бездействие - восстанавливаем топливо
+      // Восстанавливаем топливо только при бездействии
+      if (isInactive) {
         setFuelLevel(prev => Math.min(FUEL_MECHANICS.MAX_LEVEL, prev + FUEL_MECHANICS.RECOVERY_RATE));
+      }
+      
+      // Базовая разрядка аккумулятора при активном гипердвигателе (независимо от тапов)
+      if (isHyperdriveActive) {
+        setHyperdriveCharge(prev => {
+          const newCharge = Math.max(HYPERDRIVE_MECHANICS.MIN_CHARGE, 
+            prev - HYPERDRIVE_MECHANICS.BASE_CONSUMPTION_RATE);
+          
+          // Автоматически выключаем гипердвигатель при разрядке ниже порога активации
+          if (newCharge < currentHyperdrive.activationThreshold) {
+            setIsHyperdriveActive(false);
+          }
+          
+          return newCharge;
+        });
       }
     }, 1000); // Обновляем каждую секунду
 
