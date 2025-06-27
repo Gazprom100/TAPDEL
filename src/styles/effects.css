@@ -148,12 +148,11 @@
 }
 
 .cyber-container::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at center, transparent 0%, rgba(0, 0, 0, 0.8) 100%);
-  pointer-events: none;
-  z-index: 1;
+  display: none;
+}
+
+.cyber-container::after {
+  display: none;
 }
 
 .cyber-background-effects {
@@ -198,35 +197,6 @@
   inset: 0;
   background: radial-gradient(circle, transparent 50%, black 150%);
   mix-blend-mode: multiply;
-}
-
-.cyber-container::before {
-  content: 'CYBER FLEX';
-  position: absolute;
-  top: 10px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-family: 'Orbitron', monospace;
-  font-size: 0.8rem;
-  color: #ffcc00;
-  text-shadow: 0 0 5px #ffcc00;
-  opacity: 0.8;
-}
-
-.cyber-container::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    var(--glow-color),
-    transparent
-  );
-  animation: pulse 2s infinite;
 }
 
 /* Адаптивные стили для центральной кнопки */

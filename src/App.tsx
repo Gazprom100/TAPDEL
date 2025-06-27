@@ -245,8 +245,8 @@ const App: React.FC = () => {
         WebkitUserSelect: 'none',
         touchAction: 'none'
       }}
-      onClick={handleTap}
-      onTouchStart={handleTap}
+      onClick={!isProfileOpen ? handleTap : undefined}
+      onTouchStart={!isProfileOpen ? handleTap : undefined}
     >
       {/* Фоновые эффекты */}
       <div className="cyber-background-effects">
@@ -267,8 +267,11 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. Счетчик натапанных DEL - растянут на всю ширину */}
-      <div className="absolute top-12 sm:top-16 md:top-20 left-2 right-2 sm:left-4 sm:right-4 md:left-6 md:right-6 z-20">
+      {/* 2. Счетчик натапанных DEL - растянут на всю ширину с отступами от шкал */}
+      <div className="absolute top-12 sm:top-16 md:top-20 z-20" style={{
+        left: '70px', // отступ от левой шкалы (48px + 22px)
+        right: '70px' // отступ от правой шкалы (48px + 22px)
+      }}>
         <div className="cyber-panel" style={{
           boxShadow: `0 0 ${10 + intensity / 2}px rgba(0, 255, 136, ${0.3 + intensity / 200})`
         }}>
@@ -283,9 +286,11 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* 3. Два блока с информацией о компонентах - опущены на 25% (10% + 15%) */}
-      <div className="absolute left-2 sm:left-3 md:left-4 right-2 sm:right-3 md:right-4 z-20" style={{
-        top: 'calc(24px + 25vh + 32px)'
+      {/* 3. Два блока с информацией о компонентах - между счетчиком и центральной кнопкой */}
+      <div className="absolute z-20" style={{
+        top: 'calc(12px + 70px + 20px)', // под счетчиком токенов
+        left: '70px', // отступ от левой шкалы
+        right: '70px' // отступ от правой шкалы
       }}>
         <div className="flex gap-2 sm:gap-3 md:gap-4">
           {/* Левый блок */}
@@ -316,10 +321,10 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* 5. Левая шкала интенсивности - шире в 2 раза, 100 градаций */}
+      {/* 5. Левая шкала интенсивности - уменьшена на 30% */}
       <div className="absolute left-1 sm:left-2 md:left-4 top-0 bottom-0 z-20 flex items-center">
         <div className="cyber-scale" style={{
-          width: '48px', // увеличено в 2 раза
+          width: '34px', // уменьшено на 30% (48px * 0.7 ≈ 34px)
           height: 'calc(100vh - 40px)',
           marginTop: '20px',
           marginBottom: '20px',
@@ -354,9 +359,9 @@ const App: React.FC = () => {
               style={{
                 position: 'absolute',
                 top: `${i * 1}%`,
-                left: i % 10 === 0 ? '4px' : '8px', // длинные деления каждые 10%
-                right: '4px',
-                height: i % 10 === 0 ? '2px' : '1px', // толстые деления каждые 10%
+                left: i % 10 === 0 ? '3px' : '6px', // пропорционально уменьшено
+                right: '3px',
+                height: i % 10 === 0 ? '2px' : '1px',
                 background: intensity >= (100 - i) ? 
                   `rgba(0, 255, 136, ${0.8 + intensity / 500})` : 
                   'rgba(0, 255, 136, 0.2)',
@@ -370,8 +375,8 @@ const App: React.FC = () => {
           <div style={{
             position: 'absolute',
             bottom: `${intensity}%`,
-            left: '-3px',
-            right: '-3px',
+            left: '-2px',
+            right: '-2px',
             height: '3px',
             background: `rgba(0, 255, 136, ${0.9 + intensity / 200})`,
             boxShadow: `0 0 12px rgba(0, 255, 136, 0.9)`,
@@ -381,10 +386,10 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* 6. Правая шкала заряда гипердвигателя - шире в 2 раза, 100 градаций */}
+      {/* 6. Правая шкала заряда гипердвигателя - уменьшена на 30% */}
       <div className="absolute right-1 sm:right-2 md:right-4 top-0 bottom-0 z-20 flex items-center">
         <div className="cyber-scale" style={{
-          width: '48px', // увеличено в 2 раза
+          width: '34px', // уменьшено на 30% (48px * 0.7 ≈ 34px)
           height: 'calc(100vh - 40px)',
           marginTop: '20px',
           marginBottom: '20px',
@@ -419,9 +424,9 @@ const App: React.FC = () => {
               style={{
                 position: 'absolute',
                 top: `${i * 1}%`,
-                left: i % 10 === 0 ? '4px' : '8px', // длинные деления каждые 10%
-                right: '4px',
-                height: i % 10 === 0 ? '2px' : '1px', // толстые деления каждые 10%
+                left: i % 10 === 0 ? '3px' : '6px', // пропорционально уменьшено
+                right: '3px',
+                height: i % 10 === 0 ? '2px' : '1px',
                 background: hyperdriveEnergy >= ((100 - i)) ? 
                   `rgba(255, 0, 255, ${0.8 + hyperdriveEnergy / 500})` : 
                   'rgba(255, 0, 255, 0.2)',
@@ -435,8 +440,8 @@ const App: React.FC = () => {
           <div style={{
             position: 'absolute',
             bottom: `${(hyperdriveEnergy / GAME_MECHANICS.ENERGY.MAX_LEVEL) * 100}%`,
-            left: '-3px',
-            right: '-3px',
+            left: '-2px',
+            right: '-2px',
             height: '3px',
             background: `rgba(255, 0, 255, ${0.9 + hyperdriveEnergy / 200})`,
             boxShadow: `0 0 12px rgba(255, 0, 255, 0.9)`,
@@ -499,10 +504,10 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* 7. Кнопка гипердвигателя - опущена на 20% ниже */}
+      {/* 7. Кнопка гипердвигателя - между центральной кнопкой и кнопкой профиля */}
       {hyperdriveEnergy >= currentHyperdrive.activationThreshold && (
         <div className="absolute left-1/2 transform -translate-x-1/2 z-30 px-2" style={{
-          bottom: 'calc(20% - 20px)' // опущена на 20% от предыдущего положения
+          bottom: 'calc(50% - 120px)' // между центральной кнопкой и нижней частью экрана
         }}>
           <button
             className={`hyperdrive-button ${isHyperdriveActive ? 'active' : ''} ${hyperdriveCharging ? 'charging' : ''} ${hyperdriveReadiness === 100 ? 'ready' : ''}`}
