@@ -49,7 +49,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       }}
     >
       <div 
-        className="cyber-panel w-[95vw] sm:w-[90vw] md:w-[85vw] lg:w-[80vw] xl:w-[70vw] max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-auto m-2"
+        className="cyber-panel w-[95vw] sm:w-[90vw] md:w-[85vw] lg:w-[80vw] xl:w-[70vw] max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden m-2"
         onClick={e => e.stopPropagation()}
         onTouchStart={e => e.stopPropagation()}
       >
@@ -101,7 +101,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           ))}
         </div>
 
-        <div className="mt-4 sm:mt-6 px-2 sm:px-0">
+        <div className="mt-4 sm:mt-6 px-2 sm:px-0 overflow-y-auto" style={{ maxHeight: 'calc(95vh - 180px)' }}>
           {activeTab === 'balance' && (
             <div className="space-y-4 sm:space-y-6">
               <div className="cyber-text text-lg sm:text-xl">Баланс: {Math.floor(tokens)} токенов</div>
