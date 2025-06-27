@@ -700,67 +700,23 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* 7. Кнопка гипердвигателя - между краем центральной кнопки и кнопкой профиля */}
-      {hyperdriveEnergy >= currentHyperdrive.activationThreshold && (
-        <div className="absolute left-1/2 transform -translate-x-1/2 z-30 px-2" style={{
-          top: 'calc(50% + 640px)' // центр экрана + половина размера центральной кнопки + отступ + 500px
-        }}>
-          <button
-            className={`hyperdrive-button ${isHyperdriveActive ? 'active' : ''} ${hyperdriveCharging ? 'charging' : ''} ${hyperdriveReadiness === 100 ? 'ready' : ''}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              activateHyperdrive();
-            }}
-            onTouchStart={(e) => {
-              e.stopPropagation();
-            }}
-            disabled={!isHyperdriveActive && hyperdriveReadiness < 100}
-            style={{
-              boxShadow: '0 0 10px rgba(255, 0, 255, 0.5)',
-              padding: '10px 20px',
-              fontSize: 'clamp(14px, 3vw, 18px)',
-              minHeight: '45px',
-              minWidth: '120px',
-              pointerEvents: 'auto'
-            }}
-          >
-            <div className="hyperdrive-status">
-              <div 
-                className="hyperdrive-charge-indicator"
-                style={{ width: `${hyperdriveReadiness}%` }}
-              />
-              <span className="hyperdrive-label">
-                {isHyperdriveActive ? 'DISENGAGE' : 
-                 hyperdriveReadiness === 100 ? 'ENGAGE' : 
-                 `CHARGING ${hyperdriveReadiness}%`
-                }
-              </span>
-            </div>
-          </button>
-        </div>
-      )}
-
-      {/* 8. Кнопка профиля внизу экрана */}
-      <div className="absolute bottom-2 sm:bottom-4 left-1/2 transform -translate-x-1/2 z-30">
+      {/* Кнопки справа */}
+      <div className="absolute right-4 sm:right-6 top-1/2 transform -translate-y-1/2 flex flex-col items-end gap-4 z-20">
+        {/* Кнопка гипердвигателя */}
         <button
-          className="cyber-button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsProfileOpen(true);
-          }}
-          onTouchStart={(e) => {
-            e.stopPropagation();
-          }}
+          onClick={activateHyperdrive}
+          className={`cyber-button-small ${isHyperdriveActive ? 'active' : ''}`}
           style={{
-            padding: '10px 20px',
-            fontSize: 'clamp(14px, 3vw, 18px)',
-            minHeight: '45px',
-            minWidth: '100px',
-            boxShadow: '0 0 15px rgba(0, 255, 136, 0.5)',
-            background: 'rgba(0, 255, 136, 0.1)',
-            border: '2px solid rgba(0, 255, 136, 0.3)',
-            pointerEvents: 'auto'
+            marginBottom: '10px'
           }}
+        >
+          {isHyperdriveActive ? 'Гипердвигатель активен' : 'Запустить гипердвигатель'}
+        </button>
+
+        {/* Кнопка профиля */}
+        <button
+          onClick={() => setIsProfileOpen(true)}
+          className="cyber-button-small"
         >
           Профиль
         </button>

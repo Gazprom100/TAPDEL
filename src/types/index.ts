@@ -39,4 +39,8 @@ export interface Transaction {
   amount: number;
   timestamp: number;
   status: 'pending' | 'completed' | 'failed';
+  itemInfo?: {
+    type: 'engine' | 'gearbox' | 'battery' | 'hyperdrive' | 'powerGrid';
+    level: string;
+  };
 } 

@@ -51,11 +51,9 @@
 }
 
 @keyframes neonPulse {
-  0% { background-color: rgba(0, 255, 136, 0.3); }
-  25% { background-color: rgba(0, 136, 255, 0.3); }
-  50% { background-color: rgba(255, 0, 255, 0.3); }
-  75% { background-color: rgba(255, 136, 0, 0.3); }
-  100% { background-color: rgba(0, 255, 136, 0.3); }
+  0% { filter: brightness(1) saturate(1); }
+  50% { filter: brightness(1.5) saturate(1.2); }
+  100% { filter: brightness(1) saturate(1); }
 }
 
 @keyframes screenGlow {
@@ -92,15 +90,9 @@
 }
 
 @keyframes hyperdriveGlow {
-  0% {
-    filter: brightness(1.5) hue-rotate(0deg);
-  }
-  50% {
-    filter: brightness(2) hue-rotate(180deg);
-  }
-  100% {
-    filter: brightness(1.5) hue-rotate(360deg);
-  }
+  0% { filter: brightness(1.5) hue-rotate(0deg); }
+  50% { filter: brightness(2) hue-rotate(180deg); }
+  100% { filter: brightness(1.5) hue-rotate(360deg); }
 }
 
 /* Основные responsive стили для всех устройств */
@@ -114,6 +106,17 @@
   --glow-color: #00ff88;
   --secondary-glow: #00ccff;
   --danger-glow: #ff4444;
+  /* Цвета для разных передач */
+  --gear-n-color: rgba(100, 100, 100, 0.8);
+  --gear-1-color: rgba(0, 255, 136, 0.8);
+  --gear-2-color: rgba(255, 255, 0, 0.8);
+  --gear-3-color: rgba(255, 165, 0, 0.8);
+  --gear-4-color: rgba(255, 100, 0, 0.8);
+  --gear-m-color: rgba(255, 0, 0, 0.8);
+  /* Цвета для состояний */
+  --inactive-color: rgba(100, 100, 100, 0.2);
+  --hyperdrive-color: rgba(255, 0, 255, 0.8);
+  --warning-color: rgba(255, 0, 0, 0.8);
 }
 
 /* Базовые стили контейнера с улучшенной адаптивностью */
@@ -614,27 +617,27 @@
 }
 
 .gear-N {
-  --glow-color: #00ff00;
+  --glow-color: var(--gear-n-color);
 }
 
 .gear-1 {
-  --glow-color: #00ffff;
+  --glow-color: var(--gear-1-color);
 }
 
 .gear-2 {
-  --glow-color: #ffff00;
+  --glow-color: var(--gear-2-color);
 }
 
 .gear-3 {
-  --glow-color: #ff00ff;
+  --glow-color: var(--gear-3-color);
 }
 
 .gear-4 {
-  --glow-color: #ff0000;
+  --glow-color: var(--gear-4-color);
 }
 
 .gear-M {
-  --glow-color: #ff00ff;
+  --glow-color: var(--gear-m-color);
 }
 
 .status-indicators {
@@ -1072,188 +1075,81 @@
   margin-top: 0.25rem;
 }
 
-/* Интенсивность свечения в зависимости от передачи */
+/* Стили для активного гипердвигателя */
+.hyperdrive-active {
+  --glow-color: var(--hyperdrive-color);
+}
+
+/* Стили для кнопок и индикаторов */
+.cyber-button,
+.cyber-panel,
+.power-ring,
+.status-bar {
+  border-color: var(--glow-color);
+  box-shadow: 0 0 15px var(--glow-color);
+}
+
+.cyber-text {
+  color: var(--glow-color);
+  text-shadow: 0 0 10px var(--glow-color);
+}
+
+/* Анимации свечения для разных передач */
 .gear-N .cyber-background-effects { 
   animation: none;
-  background: linear-gradient(rgba(0, 255, 136, 0.1), rgba(0, 136, 255, 0.1));
+  background: linear-gradient(var(--gear-n-color), var(--inactive-color));
+  opacity: 0.3;
 }
+
 .gear-1 .cyber-background-effects { 
   animation: neonPulse 4s infinite;
-  filter: brightness(1.3) contrast(1.2);
+  background: linear-gradient(var(--gear-1-color), var(--inactive-color));
+  opacity: 0.4;
 }
+
 .gear-2 .cyber-background-effects { 
   animation: neonPulse 3s infinite;
-  filter: brightness(1.4) contrast(1.3);
+  background: linear-gradient(var(--gear-2-color), var(--inactive-color));
+  opacity: 0.5;
 }
+
 .gear-3 .cyber-background-effects { 
   animation: neonPulse 2s infinite;
-  filter: brightness(1.5) contrast(1.4);
+  background: linear-gradient(var(--gear-3-color), var(--inactive-color));
+  opacity: 0.6;
 }
+
 .gear-4 .cyber-background-effects { 
   animation: neonPulse 1s infinite;
-  filter: brightness(1.6) contrast(1.5);
+  background: linear-gradient(var(--gear-4-color), var(--inactive-color));
+  opacity: 0.7;
 }
+
 .gear-M .cyber-background-effects { 
   animation: neonPulse 0.5s infinite;
-  filter: brightness(1.8) contrast(1.6);
+  background: linear-gradient(var(--gear-m-color), var(--inactive-color));
+  opacity: 0.8;
 }
 
-/* Добавляем свечение при разных интенсивностях */
-.intensity-20 .cyber-container { 
-  animation: screenGlow 4s infinite;
-  backdrop-filter: brightness(1.2);
-}
-.intensity-40 .cyber-container { 
-  animation: screenGlow 3s infinite;
-  backdrop-filter: brightness(1.4);
-}
-.intensity-60 .cyber-container { 
-  animation: screenGlow 2s infinite;
-  backdrop-filter: brightness(1.6);
-}
-.intensity-80 .cyber-container { 
-  animation: screenGlow 1s infinite;
-  backdrop-filter: brightness(1.8);
-}
-.intensity-100 .cyber-container { 
-  animation: screenGlow 0.5s infinite;
-  backdrop-filter: brightness(2);
-}
-
-/* Дополнительные эффекты для высокой интенсивности */
-.intensity-80 .cyber-background-effects,
-.intensity-100 .cyber-background-effects {
-  background: linear-gradient(
-    45deg,
-    rgba(0, 255, 136, 0.4),
-    rgba(0, 136, 255, 0.4),
-    rgba(255, 0, 255, 0.4),
-    rgba(255, 136, 0, 0.4)
-  );
-  animation: neonPulse 1s infinite;
-  filter: brightness(2) contrast(1.5);
-}
-
-/* Эффект при активации гипердвигателя */
-.hyperdrive-active .cyber-background-effects {
-  background: linear-gradient(
-    45deg,
-    rgba(255, 0, 255, 0.5),
-    rgba(255, 0, 136, 0.5),
-    rgba(136, 0, 255, 0.5)
-  );
-  animation: hyperdriveGlow 0.3s infinite;
-  filter: brightness(2.5) contrast(1.8);
-}
-
-/* Усиление свечения для всех элементов */
-.cyber-text,
-.token-value,
-.fuel-value,
-.gear-indicator {
-  text-shadow: 
-    0 0 10px var(--glow-color),
-    0 0 20px var(--glow-color),
-    0 0 30px var(--glow-color);
-  filter: brightness(1.5);
-}
-
-.power-ring,
-.power-ring-outer,
-.power-ring-inner {
-  box-shadow:
-    0 0 10px var(--glow-color),
-    0 0 20px var(--glow-color),
-    0 0 30px var(--glow-color),
-    inset 0 0 10px var(--glow-color),
-    inset 0 0 20px var(--glow-color);
-  filter: brightness(1.5) contrast(1.2);
-}
-
-.status-bar,
-.intensity-bar.active {
-  box-shadow: 
-    0 0 10px var(--glow-color),
-    0 0 20px var(--glow-color);
-  filter: brightness(1.5);
-}
-
-.hyperdrive-control {
-  position: fixed;
-  bottom: calc(env(safe-area-inset-bottom, 24px) + 60px);
-  right: env(safe-area-inset-right, 16px);
-  z-index: 2;
-}
-
-.hyperdrive-button {
-  position: relative;
-  padding: 0.75rem 1.5rem;
-  min-width: 160px;
-  background: rgba(0, 0, 0, 0.8);
-  border: 2px solid var(--glow-color);
-  overflow: hidden;
-}
-
-.hyperdrive-button.charging {
-  animation: pulse 1s infinite;
-}
-
-.hyperdrive-button.ready {
-  border-color: #ff00ff;
-  box-shadow: 0 0 15px rgba(255, 0, 255, 0.5);
-}
-
-.hyperdrive-button:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.hyperdrive-status {
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 24px;
-}
-
-.hyperdrive-warning {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  color: #ff0000;
-  font-size: 1.2rem;
-  font-weight: bold;
-  text-shadow: 0 0 10px currentColor;
-  animation: pulse 0.5s infinite;
-  z-index: 10;
-}
-
-/* Анимация при активном гипердвигателе */
+/* Анимация для гипердвигателя */
 .hyperdrive-active .cyber-background-effects {
   animation: hyperdriveGlow 0.3s infinite;
-  filter: brightness(2) contrast(1.5);
+  background: linear-gradient(var(--hyperdrive-color), var(--inactive-color));
+  opacity: 0.9;
 }
 
-.hyperdrive-active .power-ring,
-.hyperdrive-active .power-ring-outer,
-.hyperdrive-active .power-ring-inner {
-  border-color: #ff00ff;
-  box-shadow: 
-    0 0 20px rgba(255, 0, 255, 0.5),
-    inset 0 0 20px rgba(255, 0, 255, 0.5);
+/* Обновленная анимация неонового пульса */
+@keyframes neonPulse {
+  0% { filter: brightness(1) saturate(1); }
+  50% { filter: brightness(1.5) saturate(1.2); }
+  100% { filter: brightness(1) saturate(1); }
 }
 
+/* Обновленная анимация гипердвигателя */
 @keyframes hyperdriveGlow {
-  0% {
-    filter: brightness(1.5) hue-rotate(0deg);
-  }
-  50% {
-    filter: brightness(2) hue-rotate(180deg);
-  }
-  100% {
-    filter: brightness(1.5) hue-rotate(360deg);
-  }
+  0% { filter: brightness(1.5) hue-rotate(0deg); }
+  50% { filter: brightness(2) hue-rotate(180deg); }
+  100% { filter: brightness(1.5) hue-rotate(360deg); }
 }
 
 /* Mobile-specific optimizations */

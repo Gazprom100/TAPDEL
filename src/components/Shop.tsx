@@ -62,7 +62,7 @@ export const Shop: React.FC = () => {
 
     try {
       setPurchaseInProgress(true);
-      const success = await spendTokens(cost);
+      const success = await spendTokens(cost, { type, level });
       
       if (success) {
         setPurchaseAnimation(level);
@@ -196,12 +196,12 @@ export const Shop: React.FC = () => {
   };
 
   return (
-    <div className="h-full overflow-y-auto" style={{
+    <div className="fixed inset-0 overflow-y-auto overscroll-contain" style={{
       WebkitOverflowScrolling: 'touch',
       touchAction: 'pan-y',
-      overscrollBehavior: 'contain'
+      height: '100%'
     }}>
-      <div className="p-4 space-y-6 sm:space-y-8">
+      <div className="min-h-full p-4 space-y-6 sm:space-y-8 pb-safe">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0">
           <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[#00ff88]">Магазин улучшений</h2>
           <div className="text-base sm:text-lg md:text-xl">

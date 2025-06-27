@@ -28,7 +28,7 @@ interface GameActions {
   
   // Действия с токенами
   addTokens: (amount: number) => Promise<void>;
-  spendTokens: (amount: number) => Promise<boolean>;
+  spendTokens: (amount: number, itemInfo?: { type: 'engine' | 'gearbox' | 'battery' | 'hyperdrive' | 'powerGrid'; level: string }) => Promise<boolean>;
   withdrawTokens: (amount: number) => Promise<boolean>;
   depositTokens: (amount: number) => Promise<boolean>;
   
@@ -178,7 +178,7 @@ export const useGameStore = create<GameStore>()(
         }
       },
 
-      spendTokens: async (amount) => {
+      spendTokens: async (amount, itemInfo?: { type: 'engine' | 'gearbox' | 'battery' | 'hyperdrive' | 'powerGrid'; level: string }) => {
         try {
           const state = get();
           if (state.tokens < amount) return false;
@@ -188,7 +188,8 @@ export const useGameStore = create<GameStore>()(
             type: 'purchase' as const,
             amount: -amount,
             timestamp: Date.now(),
-            status: 'completed' as const
+            status: 'completed' as const,
+            itemInfo
           };
           
           set((state) => ({
@@ -200,7 +201,8 @@ export const useGameStore = create<GameStore>()(
             await apiService.addTransaction(state.profile.userId, {
               type: newTransaction.type,
               amount: newTransaction.amount,
-              status: newTransaction.status
+              status: newTransaction.status,
+              itemInfo: newTransaction.itemInfo
             });
           }
 

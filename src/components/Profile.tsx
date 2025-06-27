@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { Shop } from './Shop';
 
@@ -8,14 +8,46 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [activeTab, setActiveTab] = useState<Tab>('shop');
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [depositAmount, setDepositAmount] = useState('');
+  const [isLeaderboardLoading, setIsLeaderboardLoading] = useState(false);
   
   const {
     tokens,
     transactions,
     leaderboard,
     withdrawTokens,
-    depositTokens
+    depositTokens,
+    initializeUser,
+    profile
   } = useGameStore();
+
+  // Периодическое обновление таблицы лидеров
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+
+    const updateLeaderboard = async () => {
+      if (activeTab === 'leaderboard' && profile?.userId) {
+        setIsLeaderboardLoading(true);
+        try {
+          await initializeUser(profile.userId);
+        } catch (error) {
+          console.error('Error updating leaderboard:', error);
+        } finally {
+          setIsLeaderboardLoading(false);
+        }
+      }
+    };
+
+    if (activeTab === 'leaderboard') {
+      updateLeaderboard();
+      interval = setInterval(updateLeaderboard, 30000); // Обновляем каждые 30 секунд
+    }
+
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [activeTab, profile?.userId, initializeUser]);
 
   const handleWithdraw = async () => {
     const amount = Number(withdrawAmount);
@@ -214,7 +246,17 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         <div className="cyber-text text-sm sm:text-base">
                           {tx.type === 'withdraw' ? 'Вывод' : 
                            tx.type === 'deposit' ? 'Ввод' : 
-                           tx.type === 'purchase' ? 'Покупка' : 'Операция'}
+                           tx.type === 'purchase' ? (
+                             tx.itemInfo ? (
+                               `Покупка ${
+                                 tx.itemInfo.type === 'engine' ? 'двигателя' :
+                                 tx.itemInfo.type === 'gearbox' ? 'коробки передач' :
+                                 tx.itemInfo.type === 'battery' ? 'батареи' :
+                                 tx.itemInfo.type === 'hyperdrive' ? 'гипердвигателя' :
+                                 tx.itemInfo.type === 'powerGrid' ? 'энергосети' : ''
+                               } ${tx.itemInfo.level}`
+                             ) : 'Покупка'
+                           ) : 'Операция'}
                         </div>
                         <div className="text-xs sm:text-sm opacity-70">
                           {new Date(tx.timestamp).toLocaleString('ru-RU', {
@@ -249,28 +291,39 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               overscrollBehavior: 'contain'
             }}>
               <div className="space-y-3 sm:space-y-4 p-4">
-                {leaderboard.map((entry, index) => (
-                  <div
-                    key={entry.id}
-                    className="cyber-card flex justify-between items-center p-3 sm:p-4"
-                  >
-                    <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
-                      <div className="cyber-text text-lg sm:text-xl font-bold" style={{
-                        minWidth: '32px'
-                      }}>
-                        #{index + 1}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="cyber-text text-sm sm:text-base truncate">{entry.username}</div>
-                        <div className="text-xs sm:text-sm opacity-70">Уровень: {entry.level}</div>
-                      </div>
-                    </div>
-                    <div className="cyber-text text-sm sm:text-base font-bold whitespace-nowrap ml-2">
-                      {Math.floor(entry.score || entry.tokens || 0)} очков
-                    </div>
+                {isLeaderboardLoading ? (
+                  <div className="text-center py-8">
+                    <div className="cyber-spinner"></div>
+                    <div className="mt-4 text-sm sm:text-base opacity-70">Загрузка таблицы лидеров...</div>
                   </div>
-                ))}
-                {leaderboard.length === 0 && (
+                ) : leaderboard && leaderboard.length > 0 ? (
+                  leaderboard.map((entry, index) => (
+                    <div
+                      key={entry.id}
+                      className={`cyber-card flex justify-between items-center p-3 sm:p-4 ${
+                        entry.userId === profile?.userId ? 'border-[#00ff88] bg-[#00ff88]/10' : ''
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
+                        <div className="cyber-text text-lg sm:text-xl font-bold" style={{
+                          minWidth: '32px'
+                        }}>
+                          #{index + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="cyber-text text-sm sm:text-base truncate">
+                            {entry.username}
+                            {entry.userId === profile?.userId && ' (вы)'}
+                          </div>
+                          <div className="text-xs sm:text-sm opacity-70">Уровень: {entry.level}</div>
+                        </div>
+                      </div>
+                      <div className="cyber-text text-sm sm:text-base font-bold whitespace-nowrap ml-2">
+                        {Math.floor(entry.score)} очков
+                      </div>
+                    </div>
+                  ))
+                ) : (
                   <div className="text-center opacity-50 py-8 text-sm sm:text-base">
                     Таблица лидеров пуста
                   </div>

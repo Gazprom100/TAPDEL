@@ -1,58 +1,30 @@
-import { useEffect, useRef } from 'react'
-import gsap from 'gsap'
+import React from 'react'
 
 interface EnergyIndicatorProps {
-  energy: number
-  maxEnergy?: number
+  hyperdriveCharge: number
+  isHyperdriveActive: boolean
 }
 
-export const EnergyIndicator = ({ energy, maxEnergy = 100 }: EnergyIndicatorProps) => {
-  const circleRef = useRef<SVGCircleElement>(null)
-  const percentage = (energy / maxEnergy) * 100
-  const circumference = 2 * Math.PI * 70 // radius is 70
-
-  useEffect(() => {
-    if (circleRef.current) {
-      gsap.to(circleRef.current, {
-        strokeDashoffset: circumference - (percentage / 100) * circumference,
-        duration: 0.5,
-        ease: "power2.out"
-      })
-    }
-  }, [energy, circumference, percentage])
-
+export const EnergyIndicator: React.FC<EnergyIndicatorProps> = ({ 
+  hyperdriveCharge,
+  isHyperdriveActive
+}) => {
   return (
-    <div className="relative w-64 h-64">
-      <svg className="w-full h-full transform -rotate-90">
-        <circle
-          cx="50%"
-          cy="50%"
-          r="70"
-          stroke="#1a472a"
-          strokeWidth="8"
-          fill="none"
-          className="opacity-25"
-        />
-        <circle
-          ref={circleRef}
-          cx="50%"
-          cy="50%"
-          r="70"
-          stroke="#00ff88"
-          strokeWidth="8"
-          fill="none"
-          strokeLinecap="round"
-          style={{
-            strokeDasharray: circumference,
-            strokeDashoffset: circumference,
-          }}
-          className="transition-all duration-200"
-        />
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-4xl font-bold text-neon-green">
-          {Math.round(energy)}
-        </span>
+    <div className="absolute right-4 sm:right-6 top-20 z-20">
+      <div className="cyber-panel p-3 sm:p-4">
+        <div className="text-center">
+          <div className="text-sm sm:text-base opacity-70 mb-1">
+            Заряд гипердвигателя
+          </div>
+          <div className="text-xl sm:text-2xl font-bold text-[#00ff88]">
+            {Math.floor(hyperdriveCharge)}%
+          </div>
+          {isHyperdriveActive && (
+            <div className="text-xs sm:text-sm text-[#ffcc00] mt-1">
+              Активен (x2)
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

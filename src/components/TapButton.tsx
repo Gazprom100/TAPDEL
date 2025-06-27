@@ -393,6 +393,17 @@ export const TapButton: React.FC = () => {
         <span className="profile-icon">👤</span>
         <span className="profile-level">LVL {profile?.level || 1}</span>
       </button>
+
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-2xl sm:text-3xl font-bold text-[#00ff88]">
+            {Math.floor(fuelLevel)}%
+          </div>
+          <div className="text-sm sm:text-base opacity-70">
+            Топливо
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
