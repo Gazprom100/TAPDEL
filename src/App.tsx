@@ -110,13 +110,11 @@ const App: React.FC = () => {
       return;
     }
     
-    // Накапливаем энергию для гипердвигателя
-    if (!isHyperdriveActive) {
-      const fuelUsed = GAME_MECHANICS.GEAR.MULTIPLIERS[newGear] * (currentPowerGrid.efficiency / 100);
-      const energyGain = fuelUsed * GAME_MECHANICS.ENERGY.HYPERDRIVE_CHARGE_RATIO;
-      const newEnergy = Math.min(GAME_MECHANICS.ENERGY.MAX_LEVEL, hyperdriveEnergy + energyGain);
-      setHyperdriveEnergy(newEnergy);
-    }
+    // Заряжаем аккумулятор гипердвигателя от активности тапания
+    const fuelUsed = GAME_MECHANICS.GEAR.MULTIPLIERS[newGear] * (currentPowerGrid.efficiency / 100);
+    const energyGain = fuelUsed * GAME_MECHANICS.ENERGY.HYPERDRIVE_CHARGE_RATIO;
+    const newEnergy = Math.min(GAME_MECHANICS.ENERGY.MAX_LEVEL, hyperdriveEnergy + energyGain);
+    setHyperdriveEnergy(newEnergy);
     
     // Рассчитываем награду
     const baseReward = GAME_MECHANICS.TAP.BASE_REWARD;
@@ -124,7 +122,8 @@ const App: React.FC = () => {
     const engineBonus = 1 + (currentEngine.power / 100);
     const gearboxBonus = 1 + (currentGearbox.gear / 10);
     const gridEfficiency = currentPowerGrid.efficiency / 100;
-    const hyperdriveBonus = isHyperdriveActive ? currentHyperdrive.speedMultiplier : 1;
+    // Гипердвигатель увеличивает награду в 2 раза
+    const hyperdriveBonus = isHyperdriveActive ? 2 : 1;
     
     const reward = baseReward * gearMultiplier * engineBonus * gearboxBonus * gridEfficiency * hyperdriveBonus;
     
@@ -166,18 +165,11 @@ const App: React.FC = () => {
       const now = Date.now();
       const timeSinceLastTap = now - lastTapTime;
       
-      // Восстановление топлива только при активности (если был тап в последние 3 секунды)
-      if (timeSinceLastTap <= 3000) {
-        // Восстановление топлива: новая система - 0.033% за 100мс = 100% за 5 минут
+      // Топливо накапливается от бездействия (если не было тапов больше 3 секунд)
+      if (timeSinceLastTap > 3000) {
+        // Восстановление топлива: 0.033% за 100мс = 100% за 5 минут
         const newFuelLevel = Math.min(GAME_MECHANICS.ENERGY.MAX_LEVEL, fuelLevel + GAME_MECHANICS.ENERGY.RECOVERY_RATE);
         setFuelLevel(newFuelLevel);
-      } else {
-        // Разряд батареи при неактивности (если не было тапов больше 3 секунд)
-        // Батарея разряжается за 1 минуту неактивности
-        // 1.67% за 100мс = 100% за 60 секунд (1 минута)
-        const batteryDrainRate = 1.67;
-        const newBatteryLevel = Math.max(GAME_MECHANICS.ENERGY.MIN_LEVEL, fuelLevel - batteryDrainRate);
-        setFuelLevel(newBatteryLevel);
       }
       
       // Снижение тахометра при отсутствии тапов
@@ -217,23 +209,29 @@ const App: React.FC = () => {
     };
   }, [hyperdriveEnergy, currentHyperdrive.activationThreshold, isHyperdriveActive, hyperdriveReadiness]);
 
-  // Потребление энергии гипердвигателем - настроено на 1 минуту работы
+  // Потребление энергии гипердвигателем - 1 минуту работы при активном тапании
   useEffect(() => {
     let consumptionInterval: NodeJS.Timeout;
     
     if (isHyperdriveActive) {
       consumptionInterval = setInterval(() => {
-        setHyperdriveEnergy(prevEnergy => {
-          // Тратим энергию за 1 минуту (60 секунд = 60 интервалов по 1 секунде)
-          const energyConsumptionPerSecond = 100 / 60; // 1.67% в секунду = 100% за 60 секунд
-          const newEnergy = Math.max(GAME_MECHANICS.ENERGY.MIN_LEVEL, prevEnergy - energyConsumptionPerSecond);
-          
-          if (newEnergy <= 0) {
-            setIsHyperdriveActive(false);
-          }
-          
-          return newEnergy;
-        });
+        const now = Date.now();
+        const timeSinceLastTap = now - lastTapTime;
+        
+        // Энергия тратится только при активном тапании (в течение 3 секунд после последнего тапа)
+        if (timeSinceLastTap <= 3000) {
+          setHyperdriveEnergy(prevEnergy => {
+            // Тратим энергию за 1 минуту активного тапания (60 секунд = 60 интервалов по 1 секунде)
+            const energyConsumptionPerSecond = 100 / 60; // 1.67% в секунду = 100% за 60 секунд
+            const newEnergy = Math.max(GAME_MECHANICS.ENERGY.MIN_LEVEL, prevEnergy - energyConsumptionPerSecond);
+            
+            if (newEnergy <= 0) {
+              setIsHyperdriveActive(false);
+            }
+            
+            return newEnergy;
+          });
+        }
       }, 1000); // каждую секунду
     }
 
@@ -242,7 +240,7 @@ const App: React.FC = () => {
         clearInterval(consumptionInterval);
       }
     };
-  }, [isHyperdriveActive]);
+  }, [isHyperdriveActive, lastTapTime]);
 
   // Предотвращаем нежелательные жесты браузера
   useEffect(() => {
@@ -327,13 +325,13 @@ const App: React.FC = () => {
       <div className="absolute top-12 sm:top-16 md:top-20 z-20" style={{
         left: '70px', // отступ от левой шкалы (48px + 22px)
         right: '70px', // отступ от правой шкалы (48px + 22px)
-        height: '150px'
+        height: '30px'
       }}>
         <div className="cyber-panel h-full flex items-center justify-center" style={{
           boxShadow: '0 0 10px rgba(0, 255, 136, 0.3)'
         }}>
           <div className="text-center">
-            <div className="cyber-text text-xl sm:text-2xl md:text-3xl font-bold" style={{
+            <div className="cyber-text text-lg sm:text-xl md:text-2xl font-bold" style={{
               textShadow: '0 0 5px rgba(0, 255, 136, 0.8)'
             }}>
               {Math.floor(tokens)} DEL
@@ -344,7 +342,7 @@ const App: React.FC = () => {
 
       {/* 3. Два блока с информацией о компонентах - между счетчиком и центральной кнопкой */}
       <div className="absolute z-20" style={{
-        top: 'calc(12px + 150px + 120px)', // под счетчиком токенов (новая высота 150px) + 100px вниз
+        top: 'calc(12px + 30px + 120px)', // под счетчиком токенов (высота 30px) + 100px вниз
         left: '70px', // отступ от левой шкалы
         right: '70px' // отступ от правой шкалы
       }}>
@@ -507,7 +505,7 @@ const App: React.FC = () => {
       {/* 4. Центральная круглая кнопка с топливом */}
       <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none">
         <div 
-          className="power-display pointer-events-auto"
+          className="pointer-events-auto relative"
           onClick={(e) => {
             e.stopPropagation();
             handleTap();
@@ -517,39 +515,176 @@ const App: React.FC = () => {
             handleTap();
           }}
           style={{
-            transform: `scale(${1.3 + intensity / 500})`,
-            width: 'clamp(234px, 32.5vw, 364px)',
-            height: 'clamp(234px, 32.5vw, 364px)'
+            width: 'clamp(280px, 35vw, 400px)',
+            height: 'clamp(280px, 35vw, 400px)',
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.7) 70%, transparent 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            position: 'relative',
+            cursor: 'pointer'
           }}
         >
-          {/* Внешние кольца */}
-          <div className="power-ring-outer" style={{
-            boxShadow: '0 0 20px rgba(0, 255, 136, 0.4)'
+          {/* Внешние HUD кольца */}
+          <div style={{
+            position: 'absolute',
+            width: '100%',
+            height: '100%',
+            borderRadius: '50%',
+            border: '2px solid rgba(0, 255, 136, 0.3)',
+            background: `conic-gradient(
+              rgba(0, 255, 136, 0.6) 0deg,
+              rgba(0, 255, 136, 0.3) ${(fuelLevel / 100) * 360}deg,
+              rgba(0, 255, 136, 0.1) ${(fuelLevel / 100) * 360}deg,
+              rgba(0, 255, 136, 0.1) 360deg
+            )`,
+            maskImage: 'radial-gradient(circle, transparent 60%, black 62%, black 98%, transparent 100%)',
+            WebkitMaskImage: 'radial-gradient(circle, transparent 60%, black 62%, black 98%, transparent 100%)',
+            filter: 'drop-shadow(0 0 20px rgba(0, 255, 136, 0.8))'
           }} />
-          <div className="power-ring" style={{
-            boxShadow: 'inset 0 0 15px rgba(0, 255, 136, 0.6)'
+
+          {/* Средние кольца с делениями */}
+          <div style={{
+            position: 'absolute',
+            width: '85%',
+            height: '85%',
+            borderRadius: '50%',
+            border: '1px solid rgba(0, 255, 136, 0.4)',
+            background: `conic-gradient(
+              rgba(0, 200, 255, 0.4) 0deg,
+              rgba(0, 200, 255, 0.2) ${(hyperdriveEnergy / 100) * 360}deg,
+              rgba(0, 200, 255, 0.1) ${(hyperdriveEnergy / 100) * 360}deg,
+              rgba(0, 200, 255, 0.1) 360deg
+            )`,
+            maskImage: 'radial-gradient(circle, transparent 70%, black 72%, black 96%, transparent 100%)',
+            WebkitMaskImage: 'radial-gradient(circle, transparent 70%, black 72%, black 96%, transparent 100%)',
+            filter: 'drop-shadow(0 0 15px rgba(0, 200, 255, 0.6))'
           }} />
-          <div className="power-ring-inner" style={{
-            background: 'radial-gradient(circle, rgba(0, 255, 136, 0.1) 0%, rgba(0, 0, 0, 0.9) 100%)'
-          }} />
-          
-          {/* Индикатор топлива */}
-          <div className="fuel-display">
-            <div className="cyber-text text-lg sm:text-xl md:text-2xl font-bold" style={{
+
+          {/* Внутренние деления */}
+          {Array.from({ length: 24 }).map((_, i) => (
+            <div
+              key={i}
+              style={{
+                position: 'absolute',
+                width: '2px',
+                height: i % 6 === 0 ? '25px' : '15px',
+                background: `rgba(0, 255, 136, ${i * 4 <= fuelLevel * 0.24 ? 0.8 : 0.2})`,
+                transform: `rotate(${i * 15}deg) translateY(-120px)`,
+                transformOrigin: 'center 120px',
+                boxShadow: i * 4 <= fuelLevel * 0.24 ? '0 0 8px rgba(0, 255, 136, 0.8)' : 'none'
+              }}
+            />
+          ))}
+
+          {/* Средние деления для гипердвигателя */}
+          {Array.from({ length: 16 }).map((_, i) => (
+            <div
+              key={i}
+              style={{
+                position: 'absolute',
+                width: '1px',
+                height: '12px',
+                background: `rgba(0, 200, 255, ${i * 6.25 <= hyperdriveEnergy ? 0.8 : 0.2})`,
+                transform: `rotate(${i * 22.5}deg) translateY(-100px)`,
+                transformOrigin: 'center 100px',
+                boxShadow: i * 6.25 <= hyperdriveEnergy ? '0 0 6px rgba(0, 200, 255, 0.8)' : 'none'
+              }}
+            />
+          ))}
+
+          {/* Центральная область */}
+          <div style={{
+            width: '60%',
+            height: '60%',
+            borderRadius: '50%',
+            background: `radial-gradient(circle, 
+              rgba(0, 0, 0, 0.95) 0%, 
+              rgba(0, 50, 25, 0.9) 50%, 
+              rgba(0, 100, 50, 0.3) 100%)`,
+            border: '2px solid rgba(0, 255, 136, 0.5)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: `
+              inset 0 0 30px rgba(0, 255, 136, 0.3),
+              0 0 30px rgba(0, 255, 136, 0.4)
+            `,
+            position: 'relative'
+          }}>
+            {/* Внутренние световые эффекты */}
+            <div 
+              className="rotating-effect"
+              style={{
+                position: 'absolute',
+                width: '80%',
+                height: '80%',
+                borderRadius: '50%',
+                background: `conic-gradient(
+                  rgba(0, 255, 136, 0.1) 0deg,
+                  rgba(255, 255, 255, 0.1) 90deg,
+                  rgba(0, 255, 136, 0.1) 180deg,
+                  rgba(0, 255, 136, 0.05) 270deg
+                )`
+              }} 
+            />
+
+            {/* Основной текст */}
+            <div className="cyber-text text-2xl sm:text-3xl md:text-4xl font-bold" style={{
               color: fuelLevel > 50 ? '#00ff88' : fuelLevel > 20 ? '#ffaa00' : '#ff4444',
-              textShadow: '0 0 3px currentColor'
+              textShadow: `0 0 20px currentColor`,
+              zIndex: 10,
+              position: 'relative'
             }}>
               {Math.floor(fuelLevel)}%
             </div>
-            <div className="cyber-text text-xs opacity-70">
-              {gear}
+            
+            {/* Передача */}
+            <div className="cyber-text text-sm opacity-80" style={{
+              color: '#00ff88',
+              textShadow: '0 0 10px rgba(0, 255, 136, 0.8)',
+              zIndex: 10,
+              position: 'relative',
+              marginTop: '5px'
+            }}>
+              GEAR {gear}
             </div>
-            {fuelLevel < 100 && (
-              <div className="cyber-text text-xs opacity-60">
-                Восст.: {calculateRecoveryTime()}
+
+            {/* Гипердвигатель индикатор */}
+            {isHyperdriveActive && (
+              <div 
+                className="pulse-effect cyber-text text-xs" 
+                style={{
+                  color: '#ff0080',
+                  textShadow: '0 0 15px rgba(255, 0, 128, 0.8)',
+                  zIndex: 10,
+                  position: 'relative',
+                  marginTop: '3px'
+                }}
+              >
+                HYPERDRIVE
               </div>
             )}
           </div>
+
+          {/* Внешние декоративные элементы */}
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div
+              key={i}
+              style={{
+                position: 'absolute',
+                width: '3px',
+                height: '30px',
+                background: `linear-gradient(to bottom, rgba(0, 255, 136, 0.8), transparent)`,
+                transform: `rotate(${i * 45}deg) translateY(-140px)`,
+                transformOrigin: 'center 140px',
+                filter: 'drop-shadow(0 0 10px rgba(0, 255, 136, 0.8))',
+                opacity: 0.7 + Math.sin(i * 0.8) * 0.3
+              }}
+            />
+          ))}
         </div>
       </div>
 

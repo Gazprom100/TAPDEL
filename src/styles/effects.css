@@ -112,6 +112,8 @@
   --gap-size: clamp(8px, 2vw, 16px);
   --central-button-size: clamp(160px, 30vw, 280px);
   --glow-color: #00ff88;
+  --secondary-glow: #00ccff;
+  --danger-glow: #ff4444;
 }
 
 /* Базовые стили контейнера с улучшенной адаптивностью */
@@ -1451,4 +1453,65 @@
     max-height: 95vh;
     min-height: auto;
   }
+}
+
+/* HUD интерфейс анимации */
+.rotating-effect {
+  animation: rotate 10s linear infinite;
+}
+
+.pulse-effect {
+  animation: pulse 1s ease-in-out infinite;
+}
+
+/* Гипердвигатель */
+.hyperdrive-button {
+  background: rgba(255, 0, 255, 0.1);
+  border: 2px solid rgba(255, 0, 255, 0.3);
+  color: #ff00ff;
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.hyperdrive-button:hover:not(:disabled) {
+  background: rgba(255, 0, 255, 0.2);
+  border-color: rgba(255, 0, 255, 0.6);
+}
+
+.hyperdrive-button.active {
+  background: rgba(255, 0, 255, 0.3);
+  border-color: rgba(255, 0, 255, 0.8);
+  animation: glow 1s ease-in-out infinite;
+}
+
+.hyperdrive-button.charging {
+  background: rgba(255, 255, 0, 0.2);
+  border-color: rgba(255, 255, 0, 0.5);
+  color: #ffff00;
+}
+
+.hyperdrive-button.ready {
+  background: rgba(0, 255, 0, 0.2);
+  border-color: rgba(0, 255, 0, 0.6);
+  color: #00ff00;
+  animation: pulse 0.5s ease-in-out infinite;
+}
+
+.hyperdrive-status {
+  position: relative;
+  z-index: 2;
+}
+
+.hyperdrive-charge-indicator {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 100%;
+  background: rgba(255, 0, 255, 0.3);
+  transition: width 0.3s ease;
+  z-index: 1;
 } 
