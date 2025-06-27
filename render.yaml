@@ -2,21 +2,18 @@ services:
   - type: web
     name: tapdel
     env: node
-    plan: free
     buildCommand: npm install && npm run build
     startCommand: npm start
-    staticPublishPath: ./dist
-    autoDeploy: true
-    healthCheckPath: /
     envVars:
-      - key: NODE_VERSION
-        value: 18.0.0
       - key: NODE_ENV
         value: production
-      - key: VITE_TELEGRAM_BOT_TOKEN
+      - key: TELEGRAM_BOT_TOKEN
         sync: false
-      - key: PORT
-        value: 10000
+      - key: APP_URL
+        value: https://tapdel.onrender.com
+    healthCheckPath: /
+    autoDeploy: true
+    staticPublishPath: ./dist
     headers:
       - path: /*
         name: Cache-Control

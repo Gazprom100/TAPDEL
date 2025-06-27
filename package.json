@@ -9,7 +9,7 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "test:db": "tsx src/scripts/testDb.ts",
-    "start": "node backend/server.js"
+    "start": "NODE_ENV=production node backend/server.js"
   },
   "dependencies": {
     "@types/mongodb": "^4.0.6",

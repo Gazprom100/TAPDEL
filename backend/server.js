@@ -11,7 +11,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 10000;
+const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
@@ -19,20 +19,20 @@ app.use(express.json());
 app.use(express.static(join(__dirname, '../dist')));
 
 // Инициализация бота
-const token = process.env.VITE_TELEGRAM_BOT_TOKEN;
+const token = process.env.TELEGRAM_BOT_TOKEN;
 if (!token) {
   console.warn('Telegram Bot Token not provided. Bot functionality will be disabled.');
 }
 
 const isProduction = process.env.NODE_ENV === 'production';
-const WEBHOOK_URL = process.env.WEBHOOK_URL || `https://${process.env.RENDER_EXTERNAL_URL}/webhook/${token}`;
+const url = process.env.APP_URL || 'https://tapdel.onrender.com';
 
 let bot = null;
 if (token) {
   const options = isProduction
     ? {
         webHook: {
-          port: process.env.PORT || 10000
+          port: PORT
         }
       }
     : {
@@ -45,24 +45,27 @@ if (token) {
   
   if (isProduction) {
     // Set webhook in production
-    bot.setWebHook(WEBHOOK_URL).then(() => {
-      console.log('Webhook set successfully');
-    }).catch(error => {
-      console.error('Failed to set webhook:', error);
+    const webhookPath = `/webhook/${token}`;
+    const webhookUrl = `${url}${webhookPath}`;
+    
+    bot.setWebHook(webhookUrl)
+      .then(() => {
+        console.log('Webhook set successfully:', webhookUrl);
+      })
+      .catch((error) => {
+        console.error('Failed to set webhook:', error);
+      });
+
+    // Webhook endpoint
+    app.post(webhookPath, (req, res) => {
+      bot.handleUpdate(req.body);
+      res.sendStatus(200);
     });
   }
 }
 
 // Хранилище чат ID пользователей
 const userChatIds = new Map();
-
-// Webhook endpoint
-if (isProduction && bot) {
-  app.post(`/webhook/${token}`, (req, res) => {
-    bot.handleUpdate(req.body);
-    res.sendStatus(200);
-  });
-}
 
 // API endpoints
 app.post('/api/telegram/register', (req, res) => {
@@ -111,8 +114,14 @@ const server = app.listen(PORT, () => {
 const gracefulShutdown = async () => {
   console.log('\nStarting graceful shutdown...');
   
-  // Останавливаем polling бота
-  if (bot) {
+  if (process.env.NODE_ENV === 'production') {
+    try {
+      await bot.deleteWebHook();
+      console.log('Webhook removed');
+    } catch (error) {
+      console.error('Error removing webhook:', error);
+    }
+  } else {
     try {
       await bot.stopPolling();
       console.log('Bot polling stopped');
