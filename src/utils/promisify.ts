@@ -1,14 +1,14 @@
 type Callback<T> = (error: Error | null, result?: T) => void;
-type AsyncFunction<T> = (...args: any[]) => Promise<T>;
-type NodeStyleFunction<T> = (...args: [...any[], Callback<T>]) => void;
 
 /**
  * Преобразует функцию с колбэком в Promise
  * @param fn Функция для промисификации
  * @returns Promise версия функции
  */
-export function promisify<T>(fn: NodeStyleFunction<T>): AsyncFunction<T> {
-  return (...args: any[]): Promise<T> => {
+export function promisify<T, Args extends any[]>(
+  fn: (...args: [...Args, Callback<T>]) => void
+): (...args: Args) => Promise<T> {
+  return (...args: Args): Promise<T> => {
     return new Promise((resolve, reject) => {
       try {
         fn(...args, (error: Error | null, result?: T) => {

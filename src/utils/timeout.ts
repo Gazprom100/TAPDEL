@@ -4,14 +4,20 @@
 
 import { promisify } from './promisify';
 
+type TimeoutCallback = (error: Error | null) => void;
+
 /**
  * Создает Promise с таймаутом
  * @param ms Время ожидания в миллисекундах
  * @returns Promise, который разрешается после указанного времени
  */
-export const wait = promisify<void>((ms: number, callback: (error: Error | null) => void) => {
-  setTimeout(() => callback(null), ms);
-});
+const setTimeoutAsync = promisify<void, [number]>(
+  (ms: number, callback: TimeoutCallback) => {
+    setTimeout(() => callback(null), ms);
+  }
+);
+
+export const wait = setTimeoutAsync;
 
 /**
  * Оборачивает Promise с таймаутом
