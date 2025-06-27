@@ -700,17 +700,14 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* Кнопки справа */}
-      <div className="absolute right-4 sm:right-6 top-1/2 transform -translate-y-1/2 flex flex-col items-end gap-4 z-20">
+      {/* Кнопки внизу по центру */}
+      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex flex-col items-center gap-2.5 z-20">
         {/* Кнопка гипердвигателя */}
         <button
           onClick={activateHyperdrive}
           className={`cyber-button-small ${isHyperdriveActive ? 'active' : ''}`}
-          style={{
-            marginBottom: '10px'
-          }}
         >
-          {isHyperdriveActive ? 'Гипердвигатель активен' : 'Запустить гипердвигатель'}
+          Hyper
         </button>
 
         {/* Кнопка профиля */}
