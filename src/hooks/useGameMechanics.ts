@@ -20,7 +20,7 @@ const HYPERDRIVE_MECHANICS = {
   CHARGE_RATE: 0.5, // % за тап
   // При активации тратится и топливо, и заряд
   FUEL_CONSUMPTION_MULTIPLIER: 2, // Удваивает расход топлива
-  CHARGE_CONSUMPTION_RATE: 100 / 60, // % заряда в секунду при активности (100% за 60 секунд = ~1.67%/сек)
+  CHARGE_CONSUMPTION_RATE: 100 / 10, // % заряда в секунду при активности (100% за 10 секунд = 10%/сек)
 };
 
 export const useGameMechanics = () => {
