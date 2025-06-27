@@ -913,7 +913,7 @@
   border: 2px solid var(--glow-color);
   border-radius: 8px;
   padding: 1rem;
-  box-shadow: 0 0 10px var(--glow-color);
+  box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
 }
 
 .cyber-input {
@@ -1500,4 +1500,79 @@
   border-color: rgba(255, 0, 255, 0.8);
   color: #ff00ff;
   animation: glow 1s ease-in-out infinite;
+}
+
+/* Класс для шкал активности и топлива */
+.cyber-scale {
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid rgba(0, 255, 136, 0.3);
+  border-radius: 16px;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(5px);
+}
+
+/* Дополнительные стили для информационных блоков */
+.cyber-panel {
+  background: rgba(0, 0, 0, 0.9);
+  border: 1px solid var(--glow-color);
+  border-radius: 8px;
+  padding: var(--panel-padding);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 95vh;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 0 20px rgba(0, 255, 136, 0.2);
+}
+
+/* Стили для модального окна */
+.cyber-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 8px;
+  backdrop-filter: blur(5px);
+}
+
+/* Стили для input элементов */
+.cyber-input {
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(0, 255, 136, 0.3);
+  border-radius: 4px;
+  color: #00ff88;
+  padding: 8px 12px;
+  font-family: inherit;
+  font-size: inherit;
+  outline: none;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(5px);
+}
+
+.cyber-input:focus {
+  border-color: #00ff88;
+  box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+}
+
+/* Стили для карточек */
+.cyber-card {
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(0, 255, 136, 0.3);
+  border-radius: 6px;
+  padding: 12px;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(5px);
+}
+
+.cyber-card:hover {
+  border-color: #00ff88;
+  box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
 } 

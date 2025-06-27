@@ -90,7 +90,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           height: '95vh'
         }}
       >
-        <div className="flex justify-between items-center mb-4 sm:mb-6 p-2 sm:p-0">
+        <div className="flex justify-between items-center mb-4 sm:mb-6 p-2 sm:p-0 flex-shrink-0">
           <h2 className="cyber-text text-lg sm:text-xl md:text-2xl">Профиль</h2>
           <button 
             onClick={(e) => {
@@ -111,7 +111,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           </button>
         </div>
 
-        <div className="grid grid-cols-2 sm:flex gap-2 sm:gap-4 mb-4 sm:mb-6 overflow-x-auto">
+        <div className="grid grid-cols-2 sm:flex gap-2 sm:gap-4 mb-4 sm:mb-6 overflow-x-auto flex-shrink-0">
           {(['balance', 'shop', 'transactions', 'leaderboard'] as Tab[]).map((tab) => (
             <button
               key={tab}
@@ -127,7 +127,8 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               }`}
               style={{
                 minHeight: '36px',
-                pointerEvents: 'auto'
+                pointerEvents: 'auto',
+                zIndex: 10
               }}
             >
               {tab === 'balance' && 'Баланс'}
@@ -138,13 +139,16 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           ))}
         </div>
 
-        <div className="flex-1 min-h-0 mt-4 sm:mt-6 px-2 sm:px-0" style={{ height: 'calc(95vh - 140px)' }}>
+        <div className="flex-1 min-h-0 overflow-hidden">
           {activeTab === 'balance' && (
-            <div className="h-full overflow-y-auto" style={{ 
-              WebkitOverflowScrolling: 'touch',
-              touchAction: 'pan-y',
-              overscrollBehavior: 'contain'
-            }}>
+            <div 
+              className="h-full overflow-y-auto" 
+              style={{ 
+                WebkitOverflowScrolling: 'touch',
+                touchAction: 'pan-y',
+                overscrollBehavior: 'contain'
+              }}
+            >
               <div className="space-y-4 sm:space-y-6 p-4">
                 <div className="cyber-text text-lg sm:text-xl">Баланс: {Math.floor(tokens)} токенов</div>
                 
@@ -220,21 +224,26 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           )}
 
           {activeTab === 'shop' && (
-            <div className="h-full overflow-y-auto" style={{ 
-              WebkitOverflowScrolling: 'touch',
-              touchAction: 'pan-y',
-              overscrollBehavior: 'contain'
-            }}>
+            <div 
+              className="h-full"
+              style={{
+                position: 'relative',
+                overflow: 'hidden'
+              }}
+            >
               <Shop />
             </div>
           )}
 
           {activeTab === 'transactions' && (
-            <div className="h-full overflow-y-auto" style={{ 
-              WebkitOverflowScrolling: 'touch',
-              touchAction: 'pan-y',
-              overscrollBehavior: 'contain'
-            }}>
+            <div 
+              className="h-full overflow-y-auto" 
+              style={{ 
+                WebkitOverflowScrolling: 'touch',
+                touchAction: 'pan-y',
+                overscrollBehavior: 'contain'
+              }}
+            >
               <div className="space-y-3 sm:space-y-4 p-4">
                 {transactions && transactions.length > 0 ? (
                   transactions.map((tx) => (
@@ -285,11 +294,14 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           )}
 
           {activeTab === 'leaderboard' && (
-            <div className="h-full overflow-y-auto" style={{ 
-              WebkitOverflowScrolling: 'touch',
-              touchAction: 'pan-y',
-              overscrollBehavior: 'contain'
-            }}>
+            <div 
+              className="h-full overflow-y-auto" 
+              style={{ 
+                WebkitOverflowScrolling: 'touch',
+                touchAction: 'pan-y',
+                overscrollBehavior: 'contain'
+              }}
+            >
               <div className="space-y-3 sm:space-y-4 p-4">
                 {isLeaderboardLoading ? (
                   <div className="text-center py-8">

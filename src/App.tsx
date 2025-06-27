@@ -3,12 +3,17 @@ import { Profile } from './components/Profile'
 import { EnergyIndicator } from './components/EnergyIndicator'
 import { useGameStore } from './store/gameStore'
 import { useGameMechanics } from './hooks/useGameMechanics'
+import { COMPONENTS } from './types/game'
 import './styles/effects.css'
 
 const App: React.FC = () => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const { 
-    tokens, 
+    tokens,
+    engineLevel,
+    gearboxLevel,
+    batteryLevel,
+    powerGridLevel,
     initializeUser
   } = useGameStore();
 
@@ -22,6 +27,46 @@ const App: React.FC = () => {
     currentHyperdrive,
     getHyperdriveChargeColor
   } = useGameMechanics();
+
+  // Получаем текущие компоненты для отображения
+  const currentEngine = COMPONENTS.ENGINES.find(e => e.level === engineLevel)!;
+  const currentGearbox = COMPONENTS.GEARBOXES.find(g => g.level === gearboxLevel)!;
+  const currentBattery = COMPONENTS.BATTERIES.find(b => b.level === batteryLevel)!;
+  const currentPowerGrid = COMPONENTS.POWER_GRIDS.find(p => p.level === powerGridLevel)!;
+
+  // Функция для определения цвета тахометра
+  const getTachometerColor = (currentGear: string, level: number) => {
+    const zones = {
+      'N': { color: 'rgba(100, 100, 100, 0.8)', threshold: 0 },
+      '1': { color: 'rgba(0, 255, 136, 0.8)', threshold: 20 },
+      '2': { color: 'rgba(255, 255, 0, 0.8)', threshold: 40 },
+      '3': { color: 'rgba(255, 165, 0, 0.8)', threshold: 60 },
+      '4': { color: 'rgba(255, 100, 0, 0.8)', threshold: 80 },
+      'M': { color: 'rgba(255, 0, 0, 0.8)', threshold: 90 }
+    };
+
+    if (currentGear === 'N') return level > 0 ? zones['N'].color : 'rgba(100, 100, 100, 0.2)';
+    if (currentGear === '1') return level <= 20 ? zones['1'].color : 'rgba(0, 255, 136, 0.2)';
+    if (currentGear === '2') return level <= 40 ? (level <= 20 ? zones['1'].color : zones['2'].color) : 'rgba(255, 255, 0, 0.2)';
+    if (currentGear === '3') return level <= 60 ? (level <= 20 ? zones['1'].color : level <= 40 ? zones['2'].color : zones['3'].color) : 'rgba(255, 165, 0, 0.2)';
+    if (currentGear === '4') return level <= 80 ? (level <= 20 ? zones['1'].color : level <= 40 ? zones['2'].color : level <= 60 ? zones['3'].color : zones['4'].color) : 'rgba(255, 100, 0, 0.2)';
+    if (currentGear === 'M') {
+      if (level <= 20) return zones['1'].color;
+      if (level <= 40) return zones['2'].color;
+      if (level <= 60) return zones['3'].color;
+      if (level <= 80) return zones['4'].color;
+      return zones['M'].color;
+    }
+    
+    return 'rgba(100, 100, 100, 0.2)';
+  };
+
+  // Рассчитываем активность тапов для отображения на шкале
+  const tapActivity = gear === 'N' ? 0 : 
+                     gear === '1' ? 20 :
+                     gear === '2' ? 40 :
+                     gear === '3' ? 60 :
+                     gear === '4' ? 80 : 100;
 
   // Инициализация пользователя при загрузке приложения
   useEffect(() => {
@@ -83,8 +128,173 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* Индикатор заряда аккумулятора гипердвигателя справа */}
-      <div className="absolute right-4 sm:right-6 top-20 z-20">
+      {/* 3. Два блока с информацией о компонентах */}
+      <div className="absolute z-20" style={{
+        top: 'calc(12px + 30px + 80px)',
+        left: '70px',
+        right: '70px'
+      }}>
+        <div className="flex gap-2 sm:gap-3 md:gap-4">
+          {/* Левый блок */}
+          <div className="flex-1 cyber-panel p-2 sm:p-2.5 md:p-3" style={{
+            boxShadow: '0 0 5px rgba(0, 255, 136, 0.2)'
+          }}>
+            <div className="cyber-text mb-1 sm:mb-2" style={{ fontSize: '6px' }}>ДВИГАТЕЛЬ & КПП</div>
+            <div className="cyber-text" style={{ fontSize: '5px' }}>
+              {currentEngine.level} • {currentEngine.power}W • {currentEngine.fuelEfficiency}%
+            </div>
+            <div className="cyber-text" style={{ fontSize: '5px' }}>
+              {currentGearbox.level} • {currentGearbox.gear}x • {currentGearbox.switchTime}ms
+            </div>
+          </div>
+        
+          {/* Правый блок */}
+          <div className="flex-1 cyber-panel p-2 sm:p-2.5 md:p-3" style={{
+            boxShadow: '0 0 5px rgba(0, 255, 136, 0.2)'
+          }}>
+            <div className="cyber-text mb-1 sm:mb-2" style={{ fontSize: '6px' }}>БАТАРЕЯ & СЕТЬ</div>
+            <div className="cyber-text" style={{ fontSize: '5px' }}>
+              {currentBattery.level} • {currentBattery.capacity}% • {currentBattery.chargeRate}%/s
+            </div>
+            <div className="cyber-text" style={{ fontSize: '5px' }}>
+              {currentPowerGrid.level} • {currentPowerGrid.efficiency}% • {currentPowerGrid.maxLoad}W
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 5. Левая шкала тахометра (активность тапанья) */}
+      <div className="absolute left-1 sm:left-2 md:left-4 top-0 bottom-0 z-20 flex items-center">
+        <div className="cyber-scale" style={{
+          width: '34px',
+          height: 'calc(100vh - 40px)',
+          marginTop: '20px',
+          marginBottom: '20px',
+          background: 'linear-gradient(to bottom, rgba(0, 255, 136, 0.1), rgba(0, 100, 50, 0.1))',
+          border: '2px solid rgba(0, 255, 136, 0.3)',
+          borderRadius: '16px',
+          position: 'relative',
+          boxShadow: `0 0 15px rgba(0, 255, 136, 0.3), inset 0 0 15px rgba(0, 255, 136, 0.1)`,
+          overflow: 'hidden'
+        }}>
+          {/* Фоновое свечение тахометра */}
+          <div style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: `${tapActivity}%`,
+            background: `linear-gradient(to top, 
+              ${getTachometerColor(gear, 20)}, 
+              ${getTachometerColor(gear, tapActivity)})`,
+            transition: 'height 0.2s ease-out',
+            boxShadow: `0 0 8px ${getTachometerColor(gear, tapActivity)}`
+          }} />
+          
+          {/* 100 градаций шкалы тахометра */}
+          {Array.from({ length: 100 }).map((_, i) => (
+            <div
+              key={i}
+              style={{
+                position: 'absolute',
+                top: `${i * 1}%`,
+                left: i % 10 === 0 ? '3px' : '6px',
+                right: '3px',
+                height: i % 10 === 0 ? '2px' : '1px',
+                background: tapActivity >= (100 - i) ? 
+                  getTachometerColor(gear, 100 - i) : 
+                  'rgba(100, 100, 100, 0.2)',
+                boxShadow: tapActivity >= (100 - i) ? 
+                  `0 0 3px ${getTachometerColor(gear, 100 - i)}` : 'none'
+              }}
+            />
+          ))}
+          
+          {/* Индикатор текущего уровня тахометра */}
+          <div style={{
+            position: 'absolute',
+            bottom: `${tapActivity}%`,
+            left: '-2px',
+            right: '-2px',
+            height: '3px',
+            background: getTachometerColor(gear, tapActivity),
+            boxShadow: `0 0 12px ${getTachometerColor(gear, tapActivity)}`,
+            transition: 'bottom 0.2s ease-out',
+            borderRadius: '2px'
+          }} />
+        </div>
+      </div>
+
+      {/* 6. Правая шкала заряда батареи */}
+      <div className="absolute right-1 sm:right-2 md:right-4 top-0 bottom-0 z-20 flex items-center">
+        <div className="cyber-scale" style={{
+          width: '34px',
+          height: 'calc(100vh - 40px)',
+          marginTop: '20px',
+          marginBottom: '20px',
+          background: 'linear-gradient(to bottom, rgba(0, 100, 255, 0.1), rgba(0, 50, 150, 0.1))',
+          border: '2px solid rgba(0, 100, 255, 0.3)',
+          borderRadius: '16px',
+          position: 'relative',
+          boxShadow: `
+            0 0 ${15 + fuelLevel / 5}px rgba(0, 100, 255, ${0.3 + fuelLevel / 200}),
+            inset 0 0 15px rgba(0, 100, 255, 0.1)
+          `,
+          overflow: 'hidden'
+        }}>
+          {/* Фоновое свечение */}
+          <div style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: `${fuelLevel}%`,
+            background: `linear-gradient(to top, 
+              rgba(0, 100, 255, ${0.6 + fuelLevel / 200}), 
+              rgba(100, 150, 255, ${0.3 + fuelLevel / 300}))`,
+            transition: 'height 0.3s ease-out',
+            boxShadow: `0 0 ${8 + fuelLevel / 10}px rgba(0, 100, 255, 0.8)`
+          }} />
+          
+          {/* 100 градаций шкалы */}
+          {Array.from({ length: 100 }).map((_, i) => (
+            <div
+              key={i}
+              style={{
+                position: 'absolute',
+                top: `${i * 1}%`,
+                left: i % 10 === 0 ? '3px' : '6px',
+                right: '3px',
+                height: i % 10 === 0 ? '2px' : '1px',
+                background: fuelLevel >= (100 - i) ? 
+                  `rgba(0, 100, 255, ${0.8 + fuelLevel / 500})` : 
+                  'rgba(0, 100, 255, 0.2)',
+                boxShadow: fuelLevel >= (100 - i) ? 
+                  `0 0 3px rgba(0, 100, 255, 0.8)` : 'none'
+              }}
+            />
+          ))}
+          
+          {/* Индикатор текущего уровня */}
+          <div style={{
+            position: 'absolute',
+            bottom: `${fuelLevel}%`,
+            left: '-2px',
+            right: '-2px',
+            height: '3px',
+            background: `rgba(0, 100, 255, ${0.9 + fuelLevel / 200})`,
+            boxShadow: `0 0 12px rgba(0, 100, 255, 0.9)`,
+            transition: 'bottom 0.3s ease-out',
+            borderRadius: '2px'
+          }} />
+        </div>
+      </div>
+
+      {/* Индикатор заряда аккумулятора гипердвигателя справа (между шкалой и краем) */}
+      <div className="absolute z-20" style={{
+        right: '50px', // между шкалой и краем
+        top: '80px'
+      }}>
         <div className="cyber-panel p-3 sm:p-4">
           <div className="text-center">
             <div className="text-xs sm:text-sm opacity-70 mb-1">
