@@ -1454,4 +1454,50 @@
 
 .cyber-panel > div[style*="overflow-y: auto"]::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 255, 136, 0.5);
+}
+
+/* Адаптивные кнопки */
+.cyber-button-small {
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid var(--glow-color);
+  border-radius: 6px;
+  color: var(--glow-color);
+  font-family: 'Orbitron', monospace;
+  font-size: clamp(12px, 2.5vw, 16px);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  min-height: 44px;
+  padding: 8px 16px;
+  text-transform: uppercase;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+}
+
+.cyber-button-small:hover:not(:disabled) {
+  background: rgba(0, 255, 136, 0.1);
+  border-color: var(--glow-color);
+  box-shadow: 0 0 15px var(--glow-color);
+}
+
+.cyber-button-small:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: rgba(100, 100, 100, 0.2);
+  border-color: rgba(100, 100, 100, 0.3);
+  color: rgba(100, 100, 100, 0.5);
+}
+
+.cyber-button-small.active {
+  background: rgba(255, 0, 255, 0.3);
+  border-color: rgba(255, 0, 255, 0.8);
+  color: #ff00ff;
+  animation: glow 1s ease-in-out infinite;
 } 

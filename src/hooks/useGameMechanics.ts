@@ -2,6 +2,27 @@ import { useCallback, useEffect, useState } from 'react';
 import { COMPONENTS, GAME_MECHANICS } from '../types/game';
 import { useGameStore } from '../store/gameStore';
 
+// Новые константы механики
+const FUEL_MECHANICS = {
+  MAX_LEVEL: 100,
+  MIN_LEVEL: 0,
+  // За 3 минуты активного тапания 5 пальцами (максимальная скорость) тратится все топливо
+  CONSUMPTION_RATE: 100 / (3 * 60), // ~0.56% в секунду при активном тапании
+  // За 5 минут бездействия восстанавливается все топливо
+  RECOVERY_RATE: 100 / (5 * 60), // ~0.33% в секунду при бездействии
+  INACTIVITY_THRESHOLD: 2000 // 2 секунды без активности для начала восстановления
+};
+
+const HYPERDRIVE_MECHANICS = {
+  MAX_CHARGE: 100,
+  MIN_CHARGE: 0,
+  // Заряжается от активности тапания
+  CHARGE_RATE: 0.5, // % за тап
+  // При активации тратится и топливо, и заряд
+  FUEL_CONSUMPTION_MULTIPLIER: 2, // Удваивает расход топлива
+  CHARGE_CONSUMPTION_RATE: 2, // % заряда в секунду при активности
+};
+
 export const useGameMechanics = () => {
   const {
     engineLevel,
@@ -9,24 +30,15 @@ export const useGameMechanics = () => {
     batteryLevel,
     hyperdriveLevel,
     powerGridLevel,
-    setFuelLevel,
-    setTemperature,
-    setPowerLevel,
-    setIsOverheated,
-    setCoolingTimer,
-    setHyperdriveActive
+    addTokens
   } = useGameStore();
 
-  const [lastTapTimestamp, setLastTapTimestamp] = useState(0);
-  const [tapRate, setTapRate] = useState(0);
-  const [currentGear, setCurrentGear] = useState('N');
-  const [engineTemp, setEngineTemp] = useState(GAME_MECHANICS.TEMPERATURE.MIN);
-  const [gearboxTemp, setGearboxTemp] = useState(GAME_MECHANICS.TEMPERATURE.MIN);
-  const [batteryTemp, setBatteryTemp] = useState(GAME_MECHANICS.TEMPERATURE.MIN);
-  const [batteryCharge, setBatteryCharge] = useState(GAME_MECHANICS.ENERGY.MAX_LEVEL);
-  const [powerGridLoad, setPowerGridLoad] = useState(0);
-  const [hyperdriveCharge, setHyperdriveCharge] = useState(0);
+  const [fuelLevel, setFuelLevel] = useState(FUEL_MECHANICS.MAX_LEVEL);
+  const [hyperdriveCharge, setHyperdriveCharge] = useState(HYPERDRIVE_MECHANICS.MIN_CHARGE);
   const [isHyperdriveActive, setIsHyperdriveActive] = useState(false);
+  const [lastTapTime, setLastTapTime] = useState(0);
+  const [gear, setGear] = useState('N');
+  const [taps, setTaps] = useState<number[]>([]);
 
   // Получаем текущие компоненты
   const currentEngine = COMPONENTS.ENGINES.find(e => e.level === engineLevel)!;
@@ -35,127 +47,123 @@ export const useGameMechanics = () => {
   const currentHyperdrive = COMPONENTS.HYPERDRIVES.find(h => h.level === hyperdriveLevel)!;
   const currentPowerGrid = COMPONENTS.POWER_GRIDS.find(p => p.level === powerGridLevel)!;
 
-  // Обновление состояния гипердвигателя
-  const updateHyperdrive = useCallback(() => {
-    if (hyperdriveCharge >= currentHyperdrive.activationThreshold && !isHyperdriveActive) {
-      setIsHyperdriveActive(true);
-      setHyperdriveActive(true);
-    } else if (hyperdriveCharge < currentHyperdrive.activationThreshold && isHyperdriveActive) {
-      setIsHyperdriveActive(false);
-      setHyperdriveActive(false);
-    }
-
-    // Потребление энергии при активном гипердвигателе
-    if (isHyperdriveActive) {
-      setHyperdriveCharge(prev => Math.max(0, prev - currentHyperdrive.energyConsumption));
-    }
-  }, [hyperdriveCharge, currentHyperdrive, isHyperdriveActive, setHyperdriveActive]);
-
-  // Обновление температуры компонентов
-  const updateTemperatures = useCallback(() => {
-    // Двигатель
-    if (engineTemp > GAME_MECHANICS.TEMPERATURE.WARNING_THRESHOLD) {
-      setEngineTemp(prev => Math.max(GAME_MECHANICS.TEMPERATURE.MIN, prev - GAME_MECHANICS.TEMPERATURE.COOLING_RATE));
-    }
-
-    // Коробка передач
-    if (gearboxTemp > GAME_MECHANICS.TEMPERATURE.WARNING_THRESHOLD) {
-      setGearboxTemp(prev => Math.max(GAME_MECHANICS.TEMPERATURE.MIN, prev - GAME_MECHANICS.TEMPERATURE.COOLING_RATE));
-    }
-
-    // Батарея
-    if (batteryTemp > GAME_MECHANICS.TEMPERATURE.WARNING_THRESHOLD) {
-      setBatteryTemp(prev => Math.max(GAME_MECHANICS.TEMPERATURE.MIN, prev - GAME_MECHANICS.TEMPERATURE.COOLING_RATE));
-    }
-
-    // Проверка перегрева
-    const isOverheated = 
-      engineTemp >= currentEngine.maxTemp ||
-      gearboxTemp >= currentGearbox.switchTime ||
-      batteryTemp >= currentBattery.maxTemp;
-
-    setIsOverheated(isOverheated);
-    if (isOverheated) {
-      setCoolingTimer(Date.now());
-    }
-  }, [engineTemp, gearboxTemp, batteryTemp, currentEngine, currentGearbox, currentBattery, setIsOverheated, setCoolingTimer]);
-
-  // Обновление заряда батареи
-  const updateBatteryCharge = useCallback(() => {
-    if (batteryCharge < GAME_MECHANICS.ENERGY.MAX_LEVEL) {
-      const chargeRate = currentBattery.chargeRate * (currentPowerGrid.efficiency / 100);
-      setBatteryCharge(prev => Math.min(GAME_MECHANICS.ENERGY.MAX_LEVEL, prev + chargeRate));
-    }
-  }, [batteryCharge, currentBattery, currentPowerGrid]);
-
-  // Обновление нагрузки на энергосеть
-  const updatePowerGridLoad = useCallback(() => {
-    const baseLoad = currentEngine.power + currentGearbox.gear;
-    const hyperdriveLoad = isHyperdriveActive ? currentHyperdrive.energyConsumption * 100 : 0;
-    const totalLoad = baseLoad + hyperdriveLoad;
+  // Функция расчета передачи
+  const calculateGear = useCallback((tapHistory: number[]) => {
+    const now = Date.now();
+    const recentTaps = tapHistory.filter(tap => now - tap < 1000);
+    const tapsPerSecond = recentTaps.length;
     
-    setPowerGridLoad(Math.min(currentPowerGrid.maxLoad, totalLoad));
-  }, [currentEngine, currentGearbox, currentHyperdrive, isHyperdriveActive, currentPowerGrid]);
-
-  // Основной цикл обновления
-  useEffect(() => {
-    const updateInterval = setInterval(() => {
-      updateHyperdrive();
-      updateTemperatures();
-      updateBatteryCharge();
-      updatePowerGridLoad();
-    }, GAME_MECHANICS.ENERGY.RECOVERY_INTERVAL);
-
-    return () => clearInterval(updateInterval);
-  }, [updateHyperdrive, updateTemperatures, updateBatteryCharge, updatePowerGridLoad]);
+    if (tapsPerSecond >= 15) return 'M';
+    if (tapsPerSecond >= 12) return '4';
+    if (tapsPerSecond >= 8) return '3';
+    if (tapsPerSecond >= 4) return '2';
+    if (tapsPerSecond >= 1) return '1';
+    return 'N';
+  }, []);
 
   // Обработка тапа
   const handleTap = useCallback(() => {
     const now = Date.now();
-    const timeDiff = now - lastTapTimestamp;
+    setLastTapTime(now);
     
-    // Обновляем частоту тапов
-    if (timeDiff > 0) {
-      setTapRate(1000 / timeDiff);
+    // Обновляем историю тапов
+    const newTaps = [...taps, now].slice(-20);
+    setTaps(newTaps);
+    
+    // Рассчитываем передачу
+    const newGear = calculateGear(newTaps);
+    setGear(newGear);
+    
+    // Проверяем наличие топлива
+    if (fuelLevel <= 0) {
+      return; // Не обрабатываем тап без топлива
     }
-    setLastTapTimestamp(now);
+    
+    // Заряжаем аккумулятор гипердвигателя
+    setHyperdriveCharge(prev => 
+      Math.min(HYPERDRIVE_MECHANICS.MAX_CHARGE, prev + HYPERDRIVE_MECHANICS.CHARGE_RATE)
+    );
+    
+    // Рассчитываем награду
+    const baseReward = 1;
+    const gearMultiplier = GAME_MECHANICS.GEAR.MULTIPLIERS[newGear] || 1;
+    const engineBonus = 1 + (currentEngine.power / 100);
+    const gearboxBonus = 1 + (currentGearbox.gear / 10);
+    const gridEfficiency = currentPowerGrid.efficiency / 100;
+    
+    // Используем множитель скорости из конкретной модели гипердвигателя
+    const hyperdriveBonus = isHyperdriveActive ? currentHyperdrive.speedMultiplier : 1;
+    
+    const reward = baseReward * gearMultiplier * engineBonus * gearboxBonus * gridEfficiency * hyperdriveBonus;
+    
+    // Добавляем токены
+    addTokens(reward);
+    
+  }, [taps, calculateGear, fuelLevel, isHyperdriveActive, currentEngine, currentGearbox, currentPowerGrid, currentHyperdrive, addTokens]);
 
-    // Обновляем передачу
-    const newGear = calculateGear(tapRate);
-    setCurrentGear(newGear);
-
-    // Обновляем температуру компонентов
-    const heatIncrease = GAME_MECHANICS.GEAR.MULTIPLIERS[newGear as keyof typeof GAME_MECHANICS.GEAR.MULTIPLIERS];
-    setEngineTemp(prev => Math.min(currentEngine.maxTemp, prev + heatIncrease));
-    setGearboxTemp(prev => Math.min(currentGearbox.switchTime, prev + heatIncrease));
-    setBatteryTemp(prev => Math.min(currentBattery.maxTemp, prev + heatIncrease));
-
-    // Заряжаем гипердвигатель
-    if (!isHyperdriveActive) {
-      const chargeGain = heatIncrease * (currentPowerGrid.efficiency / 100);
-      setHyperdriveCharge(prev => Math.min(GAME_MECHANICS.ENERGY.MAX_LEVEL, prev + chargeGain));
+  // Активация гипердвигателя (только включение, выключение автоматическое)
+  const activateHyperdrive = useCallback(() => {
+    // Только активация, если заряд достаточен и гипердвигатель не активен
+    if (!isHyperdriveActive && hyperdriveCharge >= currentHyperdrive.activationThreshold) {
+      setIsHyperdriveActive(true);
     }
-  }, [lastTapTimestamp, tapRate, currentEngine, currentGearbox, currentBattery, currentPowerGrid, isHyperdriveActive]);
+    // Убираем возможность ручного выключения
+  }, [isHyperdriveActive, hyperdriveCharge, currentHyperdrive.activationThreshold]);
 
-  // Расчет передачи
-  const calculateGear = useCallback((currentTapRate: number) => {
-    if (currentTapRate >= GAME_MECHANICS.GEAR.THRESHOLDS.M) return 'M';
-    if (currentTapRate >= GAME_MECHANICS.GEAR.THRESHOLDS['4']) return '4';
-    if (currentTapRate >= GAME_MECHANICS.GEAR.THRESHOLDS['3']) return '3';
-    if (currentTapRate >= GAME_MECHANICS.GEAR.THRESHOLDS['2']) return '2';
-    if (currentTapRate >= GAME_MECHANICS.GEAR.THRESHOLDS['1']) return '1';
-    return 'N';
-  }, []);
+  // Механика топлива и заряда аккумулятора
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const timeSinceLastTap = now - lastTapTime;
+      const isActive = timeSinceLastTap < FUEL_MECHANICS.INACTIVITY_THRESHOLD;
+      
+      if (isActive) {
+        // Активность - тратим топливо
+        const fuelConsumption = isHyperdriveActive 
+          ? FUEL_MECHANICS.CONSUMPTION_RATE * HYPERDRIVE_MECHANICS.FUEL_CONSUMPTION_MULTIPLIER
+          : FUEL_MECHANICS.CONSUMPTION_RATE;
+          
+        setFuelLevel(prev => Math.max(FUEL_MECHANICS.MIN_LEVEL, prev - fuelConsumption));
+        
+        // Если гипердвигатель активен, тратим заряд (используем параметр energyConsumption из модели)
+        if (isHyperdriveActive) {
+          setHyperdriveCharge(prev => {
+            const newCharge = Math.max(HYPERDRIVE_MECHANICS.MIN_CHARGE, 
+              prev - currentHyperdrive.energyConsumption);
+            
+            // Автоматически выключаем гипердвигатель при разрядке ниже порога активации
+            if (newCharge < currentHyperdrive.activationThreshold) {
+              setIsHyperdriveActive(false);
+            }
+            
+            return newCharge;
+          });
+        }
+      } else {
+        // Бездействие - восстанавливаем топливо
+        setFuelLevel(prev => Math.min(FUEL_MECHANICS.MAX_LEVEL, prev + FUEL_MECHANICS.RECOVERY_RATE));
+      }
+    }, 1000); // Обновляем каждую секунду
+
+    return () => clearInterval(interval);
+  }, [lastTapTime, isHyperdriveActive, currentHyperdrive.energyConsumption, currentHyperdrive.activationThreshold]);
 
   return {
-    handleTap,
-    currentGear,
-    engineTemp,
-    gearboxTemp,
-    batteryTemp,
-    batteryCharge,
-    powerGridLoad,
+    fuelLevel,
     hyperdriveCharge,
-    isHyperdriveActive
+    isHyperdriveActive,
+    gear,
+    handleTap,
+    activateHyperdrive,
+    currentHyperdrive, // Экспортируем текущий гипердвигатель для отображения информации
+    // Функция для определения цвета заряда аккумулятора
+    getHyperdriveChargeColor: (charge: number) => {
+      // Используем порог активации конкретной модели для определения готовности
+      if (charge >= currentHyperdrive.activationThreshold) return 'rgb(0, 255, 136)'; // Готов к активации - зеленый
+      if (charge >= 75) return 'rgb(150, 255, 136)';
+      if (charge >= 50) return 'rgb(255, 255, 0)';
+      if (charge >= 25) return 'rgb(255, 165, 0)';
+      return 'rgb(255, 0, 0)'; // Минимальный заряд - красный
+    }
   };
 }; 
