@@ -160,22 +160,24 @@ const App: React.FC = () => {
     };
   }, [hyperdriveEnergy, currentHyperdrive.activationThreshold, isHyperdriveActive, hyperdriveReadiness]);
 
-  // Потребление энергии гипердвигателем
+  // Потребление энергии гипердвигателем - настроено на 1 минуту работы
   useEffect(() => {
     let consumptionInterval: NodeJS.Timeout;
     
     if (isHyperdriveActive) {
       consumptionInterval = setInterval(() => {
         setHyperdriveEnergy(prevEnergy => {
-          const newEnergy = Math.max(GAME_MECHANICS.ENERGY.MIN_LEVEL, prevEnergy - currentHyperdrive.energyConsumption);
+          // Тратим энергию за 1 минуту (60 секунд = 60 интервалов по 1 секунде)
+          const energyConsumptionPerSecond = 100 / 60; // 1.67% в секунду = 100% за 60 секунд
+          const newEnergy = Math.max(GAME_MECHANICS.ENERGY.MIN_LEVEL, prevEnergy - energyConsumptionPerSecond);
           
-          if (newEnergy <= currentHyperdrive.activationThreshold * GAME_MECHANICS.HYPERDRIVE.WARNING_THRESHOLD) {
+          if (newEnergy <= 0) {
             setIsHyperdriveActive(false);
           }
           
           return newEnergy;
         });
-      }, 1000);
+      }, 1000); // каждую секунду
     }
 
     return () => {
@@ -183,7 +185,7 @@ const App: React.FC = () => {
         clearInterval(consumptionInterval);
       }
     };
-  }, [isHyperdriveActive, currentHyperdrive]);
+  }, [isHyperdriveActive]);
 
   // Предотвращаем нежелательные жесты браузера
   useEffect(() => {
@@ -265,8 +267,8 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. Счетчик натапанных DEL */}
-      <div className="absolute top-12 sm:top-16 md:top-20 left-1/2 transform -translate-x-1/2 z-20 px-2">
+      {/* 2. Счетчик натапанных DEL - растянут на всю ширину */}
+      <div className="absolute top-12 sm:top-16 md:top-20 left-2 right-2 sm:left-4 sm:right-4 md:left-6 md:right-6 z-20">
         <div className="cyber-panel" style={{
           boxShadow: `0 0 ${10 + intensity / 2}px rgba(0, 255, 136, ${0.3 + intensity / 200})`
         }}>
@@ -281,9 +283,9 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* 3. Два блока с информацией о компонентах - опущены на 10% */}
+      {/* 3. Два блока с информацией о компонентах - опущены на 25% (10% + 15%) */}
       <div className="absolute left-2 sm:left-3 md:left-4 right-2 sm:right-3 md:right-4 z-20" style={{
-        top: 'calc(24px + 10vh + 32px)'
+        top: 'calc(24px + 25vh + 32px)'
       }}>
         <div className="flex gap-2 sm:gap-3 md:gap-4">
           {/* Левый блок */}
@@ -314,20 +316,20 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* 5. Левая шкала интенсивности - на всю высоту экрана, улучшенный дизайн */}
+      {/* 5. Левая шкала интенсивности - шире в 2 раза, 100 градаций */}
       <div className="absolute left-1 sm:left-2 md:left-4 top-0 bottom-0 z-20 flex items-center">
         <div className="cyber-scale" style={{
-          width: '24px',
+          width: '48px', // увеличено в 2 раза
           height: 'calc(100vh - 40px)',
           marginTop: '20px',
           marginBottom: '20px',
           background: 'linear-gradient(to bottom, rgba(0, 255, 136, 0.1), rgba(0, 100, 50, 0.1))',
-          border: '1px solid rgba(0, 255, 136, 0.3)',
-          borderRadius: '12px',
+          border: '2px solid rgba(0, 255, 136, 0.3)',
+          borderRadius: '16px',
           position: 'relative',
           boxShadow: `
-            0 0 ${10 + intensity / 5}px rgba(0, 255, 136, ${0.3 + intensity / 200}),
-            inset 0 0 10px rgba(0, 255, 136, 0.1)
+            0 0 ${15 + intensity / 5}px rgba(0, 255, 136, ${0.3 + intensity / 200}),
+            inset 0 0 15px rgba(0, 255, 136, 0.1)
           `,
           overflow: 'hidden'
         }}>
@@ -342,23 +344,23 @@ const App: React.FC = () => {
               rgba(0, 255, 136, ${0.6 + intensity / 200}), 
               rgba(0, 255, 136, ${0.3 + intensity / 300}))`,
             transition: 'height 0.3s ease-out',
-            boxShadow: `0 0 ${5 + intensity / 10}px rgba(0, 255, 136, 0.8)`
+            boxShadow: `0 0 ${8 + intensity / 10}px rgba(0, 255, 136, 0.8)`
           }} />
           
-          {/* Сегменты шкалы */}
-          {Array.from({ length: 10 }).map((_, i) => (
+          {/* 100 градаций шкалы */}
+          {Array.from({ length: 100 }).map((_, i) => (
             <div
               key={i}
               style={{
                 position: 'absolute',
-                top: `${i * 10}%`,
-                left: '2px',
-                right: '2px',
-                height: '1px',
-                background: intensity >= (10 - i) * 10 ? 
+                top: `${i * 1}%`,
+                left: i % 10 === 0 ? '4px' : '8px', // длинные деления каждые 10%
+                right: '4px',
+                height: i % 10 === 0 ? '2px' : '1px', // толстые деления каждые 10%
+                background: intensity >= (100 - i) ? 
                   `rgba(0, 255, 136, ${0.8 + intensity / 500})` : 
-                  'rgba(0, 255, 136, 0.3)',
-                boxShadow: intensity >= (10 - i) * 10 ? 
+                  'rgba(0, 255, 136, 0.2)',
+                boxShadow: intensity >= (100 - i) ? 
                   `0 0 3px rgba(0, 255, 136, 0.8)` : 'none'
               }}
             />
@@ -368,30 +370,31 @@ const App: React.FC = () => {
           <div style={{
             position: 'absolute',
             bottom: `${intensity}%`,
-            left: '-2px',
-            right: '-2px',
-            height: '2px',
+            left: '-3px',
+            right: '-3px',
+            height: '3px',
             background: `rgba(0, 255, 136, ${0.9 + intensity / 200})`,
-            boxShadow: `0 0 8px rgba(0, 255, 136, 0.9)`,
-            transition: 'bottom 0.3s ease-out'
+            boxShadow: `0 0 12px rgba(0, 255, 136, 0.9)`,
+            transition: 'bottom 0.3s ease-out',
+            borderRadius: '2px'
           }} />
         </div>
       </div>
 
-      {/* 6. Правая шкала заряда гипердвигателя - на всю высоту экрана, улучшенный дизайн */}
+      {/* 6. Правая шкала заряда гипердвигателя - шире в 2 раза, 100 градаций */}
       <div className="absolute right-1 sm:right-2 md:right-4 top-0 bottom-0 z-20 flex items-center">
         <div className="cyber-scale" style={{
-          width: '24px',
+          width: '48px', // увеличено в 2 раза
           height: 'calc(100vh - 40px)',
           marginTop: '20px',
           marginBottom: '20px',
           background: 'linear-gradient(to bottom, rgba(255, 0, 255, 0.1), rgba(100, 0, 100, 0.1))',
-          border: '1px solid rgba(255, 0, 255, 0.3)',
-          borderRadius: '12px',
+          border: '2px solid rgba(255, 0, 255, 0.3)',
+          borderRadius: '16px',
           position: 'relative',
           boxShadow: `
-            0 0 ${10 + hyperdriveEnergy / 5}px rgba(255, 0, 255, ${0.3 + hyperdriveEnergy / 200}),
-            inset 0 0 10px rgba(255, 0, 255, 0.1)
+            0 0 ${15 + hyperdriveEnergy / 5}px rgba(255, 0, 255, ${0.3 + hyperdriveEnergy / 200}),
+            inset 0 0 15px rgba(255, 0, 255, 0.1)
           `,
           overflow: 'hidden'
         }}>
@@ -406,23 +409,23 @@ const App: React.FC = () => {
               rgba(255, 0, 255, ${0.6 + hyperdriveEnergy / 200}), 
               rgba(255, 100, 255, ${0.3 + hyperdriveEnergy / 300}))`,
             transition: 'height 0.3s ease-out',
-            boxShadow: `0 0 ${5 + hyperdriveEnergy / 10}px rgba(255, 0, 255, 0.8)`
+            boxShadow: `0 0 ${8 + hyperdriveEnergy / 10}px rgba(255, 0, 255, 0.8)`
           }} />
           
-          {/* Сегменты шкалы */}
-          {Array.from({ length: 10 }).map((_, i) => (
+          {/* 100 градаций шкалы */}
+          {Array.from({ length: 100 }).map((_, i) => (
             <div
               key={i}
               style={{
                 position: 'absolute',
-                top: `${i * 10}%`,
-                left: '2px',
-                right: '2px',
-                height: '1px',
-                background: hyperdriveEnergy >= ((10 - i) * 10) ? 
+                top: `${i * 1}%`,
+                left: i % 10 === 0 ? '4px' : '8px', // длинные деления каждые 10%
+                right: '4px',
+                height: i % 10 === 0 ? '2px' : '1px', // толстые деления каждые 10%
+                background: hyperdriveEnergy >= ((100 - i)) ? 
                   `rgba(255, 0, 255, ${0.8 + hyperdriveEnergy / 500})` : 
-                  'rgba(255, 0, 255, 0.3)',
-                boxShadow: hyperdriveEnergy >= ((10 - i) * 10) ? 
+                  'rgba(255, 0, 255, 0.2)',
+                boxShadow: hyperdriveEnergy >= ((100 - i)) ? 
                   `0 0 3px rgba(255, 0, 255, 0.8)` : 'none'
               }}
             />
@@ -432,12 +435,13 @@ const App: React.FC = () => {
           <div style={{
             position: 'absolute',
             bottom: `${(hyperdriveEnergy / GAME_MECHANICS.ENERGY.MAX_LEVEL) * 100}%`,
-            left: '-2px',
-            right: '-2px',
-            height: '2px',
+            left: '-3px',
+            right: '-3px',
+            height: '3px',
             background: `rgba(255, 0, 255, ${0.9 + hyperdriveEnergy / 200})`,
-            boxShadow: `0 0 8px rgba(255, 0, 255, 0.9)`,
-            transition: 'bottom 0.3s ease-out'
+            boxShadow: `0 0 12px rgba(255, 0, 255, 0.9)`,
+            transition: 'bottom 0.3s ease-out',
+            borderRadius: '2px'
           }} />
         </div>
       </div>
@@ -495,21 +499,29 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* 7. Кнопка гипердвигателя */}
+      {/* 7. Кнопка гипердвигателя - опущена на 20% ниже */}
       {hyperdriveEnergy >= currentHyperdrive.activationThreshold && (
-        <div className="absolute bottom-20 sm:bottom-24 md:bottom-28 left-1/2 transform -translate-x-1/2 z-20 px-2 pointer-events-none">
+        <div className="absolute left-1/2 transform -translate-x-1/2 z-30 px-2" style={{
+          bottom: 'calc(20% - 20px)' // опущена на 20% от предыдущего положения
+        }}>
           <button
-            className={`hyperdrive-button pointer-events-auto ${isHyperdriveActive ? 'active' : ''} ${hyperdriveCharging ? 'charging' : ''} ${hyperdriveReadiness === 100 ? 'ready' : ''}`}
+            className={`hyperdrive-button ${isHyperdriveActive ? 'active' : ''} ${hyperdriveCharging ? 'charging' : ''} ${hyperdriveReadiness === 100 ? 'ready' : ''}`}
             onClick={(e) => {
               e.stopPropagation();
               activateHyperdrive();
+            }}
+            onTouchStart={(e) => {
+              e.stopPropagation();
             }}
             disabled={!isHyperdriveActive && hyperdriveReadiness < 100}
             style={{
               boxShadow: `0 0 ${10 + hyperdriveEnergy / 5}px rgba(255, 0, 255, ${0.5 + hyperdriveEnergy / 200})`,
               filter: `brightness(${1 + hyperdriveEnergy / 100})`,
-              padding: '8px 16px',
-              fontSize: 'clamp(12px, 2.5vw, 16px)'
+              padding: '10px 20px',
+              fontSize: 'clamp(14px, 3vw, 18px)',
+              minHeight: '45px',
+              minWidth: '120px',
+              pointerEvents: 'auto'
             }}
           >
             <div className="hyperdrive-status">
@@ -529,21 +541,25 @@ const App: React.FC = () => {
       )}
 
       {/* 8. Кнопка профиля внизу экрана */}
-      <div className="absolute bottom-2 sm:bottom-4 left-1/2 transform -translate-x-1/2 z-20 pointer-events-none">
+      <div className="absolute bottom-2 sm:bottom-4 left-1/2 transform -translate-x-1/2 z-30">
         <button
-          className="cyber-button pointer-events-auto"
+          className="cyber-button"
           onClick={(e) => {
             e.stopPropagation();
             setIsProfileOpen(true);
           }}
+          onTouchStart={(e) => {
+            e.stopPropagation();
+          }}
           style={{
-            padding: '8px 16px',
-            fontSize: 'clamp(12px, 2.5vw, 16px)',
-            minHeight: '40px',
-            minWidth: '80px',
-            boxShadow: `0 0 10px rgba(0, 255, 136, 0.5)`,
+            padding: '10px 20px',
+            fontSize: 'clamp(14px, 3vw, 18px)',
+            minHeight: '45px',
+            minWidth: '100px',
+            boxShadow: `0 0 15px rgba(0, 255, 136, 0.5)`,
             background: 'rgba(0, 255, 136, 0.1)',
-            border: '1px solid rgba(0, 255, 136, 0.3)'
+            border: '2px solid rgba(0, 255, 136, 0.3)',
+            pointerEvents: 'auto'
           }}
         >
           Профиль
