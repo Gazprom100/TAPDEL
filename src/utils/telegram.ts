@@ -2,7 +2,7 @@ import TelegramBot from 'node-telegram-bot-api';
 
 let bot: TelegramBot | null = null;
 
-const API_URL = import.meta.env.PROD 
+const API_URL = import.meta.env.MODE === 'production'
   ? '/api/telegram' 
   : 'http://localhost:10000/api/telegram';
 
