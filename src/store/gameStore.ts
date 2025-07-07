@@ -155,6 +155,41 @@ export const useGameStore = create<GameStore>()(
                 powerGridLevel: 'P1'
               }
             });
+            
+            // Добавляем нового пользователя в лидерборд
+            try {
+              await apiService.updateLeaderboard({
+                userId: userId,
+                username: newProfile.telegramFirstName || newProfile.telegramUsername || newProfile.username,
+                telegramId: newProfile.telegramId,
+                telegramUsername: newProfile.telegramUsername,
+                telegramFirstName: newProfile.telegramFirstName,
+                telegramLastName: newProfile.telegramLastName,
+                tokens: 0
+              });
+              console.log('✅ Новый пользователь добавлен в лидерборд');
+            } catch (error) {
+              console.error('⚠️ Ошибка добавления в лидерборд:', error);
+            }
+          }
+          
+          // Убеждаемся что текущий пользователь есть в лидерборде
+          const currentState = get();
+          if (currentState.profile?.userId && currentState.tokens >= 0) {
+            try {
+              await apiService.updateLeaderboard({
+                userId: currentState.profile.userId,
+                username: currentState.profile.telegramFirstName || currentState.profile.telegramUsername || currentState.profile.username,
+                telegramId: currentState.profile.telegramId,
+                telegramUsername: currentState.profile.telegramUsername,
+                telegramFirstName: currentState.profile.telegramFirstName,
+                telegramLastName: currentState.profile.telegramLastName,
+                tokens: currentState.tokens
+              });
+              console.log(`✅ Текущий пользователь обновлён в лидерборде с ${currentState.tokens} токенами`);
+            } catch (error) {
+              console.error('⚠️ Ошибка обновления текущего пользователя в лидерборде:', error);
+            }
           }
           
           // Загружаем лидерборд с обработкой ошибок
@@ -310,6 +345,24 @@ export const useGameStore = create<GameStore>()(
 
           // Автоматически синхронизируем с сервером и лидербордом
           await get().syncGameState();
+          
+          // Дополнительно обновляем лидерборд
+          if (state.profile?.userId) {
+            try {
+              await apiService.updateLeaderboard({
+                userId: state.profile.userId,
+                username: state.profile.telegramFirstName || state.profile.telegramUsername || state.profile.username,
+                telegramId: state.profile.telegramId,
+                telegramUsername: state.profile.telegramUsername,
+                telegramFirstName: state.profile.telegramFirstName,
+                telegramLastName: state.profile.telegramLastName,
+                tokens: newTokens
+              });
+              console.log(`🏆 Лидерборд обновлён: ${state.profile.username} теперь имеет ${newTokens} токенов`);
+            } catch (error) {
+              console.error('⚠️ Ошибка обновления лидерборда при добавлении токенов:', error);
+            }
+          }
         } catch (error) {
           set({ error: (error as Error).message });
         }
