@@ -678,9 +678,30 @@ export const useGameStore = create<GameStore>()(
     {
       name: 'tapdel-storage',
       partialize: (state) => ({
+        // Игровое состояние
         tokens: state.tokens,
         highScore: state.highScore,
-        profile: state.profile
+        engineLevel: state.engineLevel,
+        gearboxLevel: state.gearboxLevel,
+        batteryLevel: state.batteryLevel,
+        hyperdriveLevel: state.hyperdriveLevel,
+        powerGridLevel: state.powerGridLevel,
+        
+        // Профиль пользователя
+        profile: state.profile,
+        
+        // Транзакции и лидерборд (последние данные)
+        transactions: state.transactions,
+        leaderboard: state.leaderboard,
+        
+        // Игровые параметры
+        fuelLevel: state.fuelLevel,
+        currentGear: state.currentGear,
+        temperature: state.temperature,
+        powerLevel: state.powerLevel,
+        
+        // Временные метки для синхронизации
+        lastTapTimestamp: state.lastTapTimestamp
       })
     }
   )

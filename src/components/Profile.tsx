@@ -309,6 +309,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     <div className="cyber-spinner"></div>
                     <div className="mt-4 text-sm sm:text-base opacity-70">Загрузка таблицы лидеров...</div>
                   </div>
+                ) : leaderboard && leaderboard.length > 0 ? (
                   leaderboard.map((entry, index) => (
                     <div
                       key={entry.id}

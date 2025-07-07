@@ -84,7 +84,7 @@ const App: React.FC = () => {
   useEffect(() => {
     let userId = localStorage.getItem('userId');
     if (!userId) {
-      userId = 'demo-user-main;
+      userId = 'demo-user-main';
       localStorage.setItem('userId', userId);
     }
     

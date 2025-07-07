@@ -199,7 +199,7 @@ export const Shop: React.FC = () => {
     <div 
       className="h-full overflow-y-auto overscroll-contain p-4" 
       style={{
-        WebkitOverflowScrolling: 'touch',
+      WebkitOverflowScrolling: 'touch',
         touchAction: 'pan-y'
       }}
     >
@@ -207,7 +207,7 @@ export const Shop: React.FC = () => {
         {/* Двигатели */}
         <div>
           <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 text-[#00ff88]">Двигатели</h3>
-          <div className="space-y-3 sm:space-y-4">
+        <div className="space-y-3 sm:space-y-4">
             {COMPONENTS.ENGINES.map((engine) => renderItem('engine', engine, engineLevel))}
           </div>
         </div>
@@ -215,7 +215,7 @@ export const Shop: React.FC = () => {
         {/* Коробки передач */}
         <div>
           <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 text-[#00ff88]">Коробки передач</h3>
-          <div className="space-y-3 sm:space-y-4">
+        <div className="space-y-3 sm:space-y-4">
             {COMPONENTS.GEARBOXES.map((gearbox) => renderItem('gearbox', gearbox, gearboxLevel))}
           </div>
         </div>
@@ -223,7 +223,7 @@ export const Shop: React.FC = () => {
         {/* Батареи */}
         <div>
           <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 text-[#00ff88]">Батареи</h3>
-          <div className="space-y-3 sm:space-y-4">
+        <div className="space-y-3 sm:space-y-4">
             {COMPONENTS.BATTERIES.map((battery) => renderItem('battery', battery, batteryLevel))}
           </div>
         </div>
@@ -231,7 +231,7 @@ export const Shop: React.FC = () => {
         {/* Гипердвигатели */}
         <div>
           <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 text-[#00ff88]">Гипердвигатели</h3>
-          <div className="space-y-3 sm:space-y-4">
+        <div className="space-y-3 sm:space-y-4">
             {COMPONENTS.HYPERDRIVES.map((hyperdrive) => renderItem('hyperdrive', hyperdrive, hyperdriveLevel))}
           </div>
         </div>
@@ -239,7 +239,7 @@ export const Shop: React.FC = () => {
         {/* Энергосети */}
         <div>
           <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 text-[#00ff88]">Энергосети</h3>
-          <div className="space-y-3 sm:space-y-4">
+        <div className="space-y-3 sm:space-y-4">
             {COMPONENTS.POWER_GRIDS.map((powerGrid) => renderItem('powerGrid', powerGrid, powerGridLevel))}
           </div>
         </div>
