@@ -154,20 +154,106 @@ export const useGameStore = create<GameStore>()(
             });
           }
           
-          // Загружаем лидерборд с токенами
-          const dbLeaderboard = await apiService.getLeaderboard();
-          const leaderboard: LeaderboardEntry[] = dbLeaderboard.map(entry => ({
-            id: entry._id.toString(),
-            userId: entry.userId,
-            username: entry.telegramFirstName || entry.telegramUsername || entry.username || `Игрок ${entry.userId.slice(-4)}`,
-            level: Math.floor((entry.tokens || 0) / 1000) + 1, // Уровень на основе токенов
-            score: entry.tokens || 0, // Используем tokens
-            tokens: entry.tokens || 0, // Отображаем токены
-            maxGear: 'M' as Gear,
-            rank: entry.rank,
-            updatedAt: entry.updatedAt
-          }));
-          set({ leaderboard });
+          // Загружаем лидерборд с обработкой ошибок
+          try {
+            console.log('🏆 Загрузка лидерборда...');
+            const dbLeaderboard = await apiService.getLeaderboard();
+            
+            if (dbLeaderboard && dbLeaderboard.length > 0) {
+              const leaderboard: LeaderboardEntry[] = dbLeaderboard.map(entry => ({
+                id: entry._id.toString(),
+                userId: entry.userId,
+                username: entry.telegramFirstName || entry.telegramUsername || entry.username || `Игрок ${entry.userId.slice(-4)}`,
+                level: Math.floor((entry.tokens || 0) / 1000) + 1, // Уровень на основе токенов
+                score: entry.tokens || 0, // Используем tokens
+                tokens: entry.tokens || 0, // Отображаем токены
+                maxGear: 'M' as Gear,
+                rank: entry.rank,
+                updatedAt: entry.updatedAt
+              }));
+              
+              console.log(`✅ Загружен лидерборд: ${leaderboard.length} участников`);
+              set({ leaderboard });
+            } else {
+              console.log('⚠️ Лидерборд пуст, создаём mock данные...');
+              // Создаём моковые данные для демонстрации
+              const mockLeaderboard: LeaderboardEntry[] = [
+                {
+                  id: 'mock-1',
+                  userId: 'test-user-1',
+                  username: 'Никита',
+                  level: 16,
+                  score: 15420,
+                  tokens: 15420,
+                  maxGear: 'M' as Gear,
+                  rank: 1,
+                  updatedAt: new Date(),
+                  telegramFirstName: 'Никита',
+                  telegramLastName: 'Киберов'
+                },
+                {
+                  id: 'mock-2',
+                  userId: 'test-user-2',
+                  username: 'Анна',
+                  level: 13,
+                  score: 12300,
+                  tokens: 12300,
+                  maxGear: 'M' as Gear,
+                  rank: 2,
+                  updatedAt: new Date(),
+                  telegramFirstName: 'Анна',
+                  telegramLastName: 'Токенова'
+                },
+                {
+                  id: 'mock-3',
+                  userId: 'test-user-3',
+                  username: 'Максим',
+                  level: 10,
+                  score: 9850,
+                  tokens: 9850,
+                  maxGear: 'M' as Gear,
+                  rank: 3,
+                  updatedAt: new Date(),
+                  telegramFirstName: 'Максим',
+                  telegramLastName: 'Тапперович'
+                },
+                {
+                  id: 'mock-4',
+                  userId: 'test-user-4',
+                  username: 'Елена',
+                  level: 8,
+                  score: 7200,
+                  tokens: 7200,
+                  maxGear: 'M' as Gear,
+                  rank: 4,
+                  updatedAt: new Date(),
+                  telegramFirstName: 'Елена',
+                  telegramLastName: 'Киберская'
+                },
+                {
+                  id: 'mock-5',
+                  userId: 'test-user-5',
+                  username: 'Дмитрий',
+                  level: 6,
+                  score: 5600,
+                  tokens: 5600,
+                  maxGear: 'M' as Gear,
+                  rank: 5,
+                  updatedAt: new Date(),
+                  telegramFirstName: 'Дмитрий',
+                  telegramLastName: 'Флексов'
+                }
+              ];
+              
+              set({ leaderboard: mockLeaderboard });
+              console.log('📊 Установлен mock лидерборд');
+            }
+          } catch (leaderboardError) {
+            console.error('❌ Ошибка загрузки лидерборда:', leaderboardError);
+            // В случае ошибки используем пустой массив
+            set({ leaderboard: [] });
+          }
+          
         } catch (error) {
           set({ error: (error as Error).message });
         } finally {
@@ -459,25 +545,40 @@ export const useGameStore = create<GameStore>()(
             const state = get();
             if (state.profile?.userId && state.tokens >= 0) {
               console.log('🔄 Автосинхронизация лидерборда...');
-              await get().syncGameState();
+              
+              // Синхронизируем состояние игры
+              try {
+                await get().syncGameState();
+              } catch (syncError) {
+                console.error('⚠️ Ошибка синхронизации gameState:', syncError);
+              }
               
               // Обновляем лидерборд
-              const dbLeaderboard = await apiService.getLeaderboard();
-              const leaderboard = dbLeaderboard.map(entry => ({
-                id: entry._id.toString(),
-                userId: entry.userId,
-                username: entry.telegramFirstName || entry.telegramUsername || entry.username || `Игрок ${entry.userId.slice(-4)}`,
-                level: Math.floor((entry.tokens || 0) / 1000) + 1,
-                score: entry.tokens || 0,
-                tokens: entry.tokens || 0,
-                maxGear: 'M' as Gear,
-                rank: entry.rank,
-                updatedAt: entry.updatedAt
-              }));
-              set({ leaderboard });
+              try {
+                const dbLeaderboard = await apiService.getLeaderboard();
+                if (dbLeaderboard && dbLeaderboard.length > 0) {
+                  const leaderboard = dbLeaderboard.map(entry => ({
+                    id: entry._id.toString(),
+                    userId: entry.userId,
+                    username: entry.telegramFirstName || entry.telegramUsername || entry.username || `Игрок ${entry.userId.slice(-4)}`,
+                    level: Math.floor((entry.tokens || 0) / 1000) + 1,
+                    score: entry.tokens || 0,
+                    tokens: entry.tokens || 0,
+                    maxGear: 'M' as Gear,
+                    rank: entry.rank,
+                    updatedAt: entry.updatedAt
+                  }));
+                  set({ leaderboard });
+                  console.log(`✅ Автосинхронизация: обновлён лидерборд (${leaderboard.length} участников)`);
+                } else {
+                  console.log('⚠️ Автосинхронизация: лидерборд пуст');
+                }
+              } catch (leaderboardError) {
+                console.error('⚠️ Ошибка автосинхронизации лидерборда:', leaderboardError);
+              }
             }
           } catch (error) {
-            console.error('Ошибка автосинхронизации:', error);
+            console.error('❌ Ошибка автосинхронизации:', error);
           }
         }, 30000); // 30 секунд
 
