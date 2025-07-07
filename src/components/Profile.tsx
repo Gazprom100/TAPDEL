@@ -16,7 +16,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     leaderboard,
     withdrawTokens,
     depositTokens,
-    initializeUser,
+    refreshLeaderboard,
     profile
   } = useGameStore();
 
@@ -25,12 +25,13 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     let interval: NodeJS.Timeout;
 
     const updateLeaderboard = async () => {
-      if (activeTab === 'leaderboard' && profile?.userId) {
+      if (activeTab === 'leaderboard') {
         setIsLeaderboardLoading(true);
         try {
-          await initializeUser(profile.userId);
+          console.log('🔄 Profile: Обновление лидерборда...');
+          await refreshLeaderboard();
         } catch (error) {
-          console.error('Error updating leaderboard:', error);
+          console.error('❌ Profile: Ошибка обновления лидерборда:', error);
         } finally {
           setIsLeaderboardLoading(false);
         }
@@ -47,7 +48,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         clearInterval(interval);
       }
     };
-  }, [activeTab, profile?.userId, initializeUser]);
+  }, [activeTab, refreshLeaderboard]);
 
   const handleWithdraw = async () => {
     const amount = Number(withdrawAmount);

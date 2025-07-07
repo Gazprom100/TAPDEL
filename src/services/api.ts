@@ -100,7 +100,22 @@ export class ApiService {
   }
 
   async getLeaderboard(limit: number = 100): Promise<ApiLeaderboard[]> {
-    return await this.request<ApiLeaderboard[]>(`/leaderboard?limit=${limit}`);
+    console.log(`🔍 API: Запрос лидерборда с лимитом ${limit}`);
+    try {
+      const result = await this.request<ApiLeaderboard[]>(`/leaderboard?limit=${limit}`);
+      console.log(`✅ API: Получен лидерборд:`, {
+        count: result.length,
+        firstUser: result[0] ? {
+          username: result[0].username,
+          tokens: result[0].tokens,
+          telegramFirstName: result[0].telegramFirstName
+        } : null
+      });
+      return result;
+    } catch (error) {
+      console.error('❌ API: Ошибка загрузки лидерборда:', error);
+      throw error;
+    }
   }
 
   async getUserRank(userId: string): Promise<number | null> {

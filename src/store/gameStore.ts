@@ -64,6 +64,9 @@ interface GameActions {
   // Автоматическая синхронизация
   startAutoSync: () => void;
   stopAutoSync: () => void;
+  
+  // Обновление только лидерборда
+  refreshLeaderboard: () => Promise<void>;
 }
 
 type GameStore = ExtendedGameState & GameActions;
@@ -590,6 +593,32 @@ export const useGameStore = create<GameStore>()(
         if ((window as any).tapdel_sync_interval) {
           clearInterval((window as any).tapdel_sync_interval);
           (window as any).tapdel_sync_interval = null;
+        }
+      },
+
+      // Обновление только лидерборда
+      refreshLeaderboard: async () => {
+        try {
+          const dbLeaderboard = await apiService.getLeaderboard();
+          if (dbLeaderboard && dbLeaderboard.length > 0) {
+            const leaderboard = dbLeaderboard.map(entry => ({
+              id: entry._id.toString(),
+              userId: entry.userId,
+              username: entry.telegramFirstName || entry.telegramUsername || entry.username || `Игрок ${entry.userId.slice(-4)}`,
+              level: Math.floor((entry.tokens || 0) / 1000) + 1,
+              score: entry.tokens || 0,
+              tokens: entry.tokens || 0,
+              maxGear: 'M' as Gear,
+              rank: entry.rank,
+              updatedAt: entry.updatedAt
+            }));
+            set({ leaderboard });
+            console.log(`✅ Обновлен лидерборд (${leaderboard.length} участников)`);
+          } else {
+            console.log('⚠️ Обновление лидерборда: лидерборд пуст');
+          }
+        } catch (error) {
+          console.error('❌ Ошибка обновления лидерборда:', error);
         }
       }
     }),
