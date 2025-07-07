@@ -2,7 +2,18 @@ const express = require('express');
 const { MongoClient } = require('mongodb');
 const router = express.Router();
 
-const MONGODB_URI = process.env.MONGODB_URI;
+// Функция для генерации чистого MongoDB URI
+const generateCleanMongoURI = () => {
+  const username = 'TAPDEL';
+  const password = 'fpz%sE62KPzmHfM';
+  const cluster = 'cluster0.ejo8obw.mongodb.net';
+  const database = 'tapdel';
+  
+  const encodedPassword = encodeURIComponent(password);
+  return `mongodb+srv://${username}:${encodedPassword}@${cluster}/${database}?retryWrites=true&w=majority&appName=Cluster0`;
+};
+
+const MONGODB_URI = process.env.MONGODB_URI || generateCleanMongoURI();
 const MONGODB_DB = process.env.MONGODB_DB || 'tapdel';
 
 let client = null;
@@ -11,18 +22,33 @@ let db = null;
 // Инициализация подключения к MongoDB
 const connectToDatabase = async () => {
   if (!client) {
-    client = new MongoClient(MONGODB_URI);
-    await client.connect();
-    db = client.db(MONGODB_DB);
-    
-    // Создаем индексы
-    await Promise.all([
-      db.collection('users').createIndex({ userId: 1 }, { unique: true }),
-      db.collection('users').createIndex({ telegramId: 1 }, { sparse: true }),
-      db.collection('leaderboard').createIndex({ tokens: -1 }),
-      db.collection('leaderboard').createIndex({ userId: 1 }, { unique: true }),
-      db.collection('leaderboard').createIndex({ telegramId: 1 }, { sparse: true })
-    ]);
+    try {
+      console.log('🔗 Подключение к MongoDB...');
+      console.log('📍 URI маска:', MONGODB_URI.replace(/\/\/.*@/, '//***:***@'));
+      
+      client = new MongoClient(MONGODB_URI);
+      await client.connect();
+      
+      // Проверяем подключение
+      await client.db().admin().ping();
+      console.log('✅ MongoDB подключение активно');
+      
+      db = client.db(MONGODB_DB);
+      
+      // Создаем индексы
+      await Promise.all([
+        db.collection('users').createIndex({ userId: 1 }, { unique: true }),
+        db.collection('users').createIndex({ telegramId: 1 }, { sparse: true }),
+        db.collection('leaderboard').createIndex({ tokens: -1 }),
+        db.collection('leaderboard').createIndex({ userId: 1 }, { unique: true }),
+        db.collection('leaderboard').createIndex({ telegramId: 1 }, { sparse: true })
+      ]);
+      
+      console.log('📊 Индексы созданы успешно');
+    } catch (error) {
+      console.error('❌ Ошибка подключения к MongoDB:', error);
+      throw error;
+    }
   }
   return db;
 };
@@ -76,6 +102,8 @@ router.put('/users/:userId/gamestate', async (req, res) => {
   try {
     const { userId } = req.params;
     const gameState = req.body;
+    console.log(`🎮 Обновление gameState для пользователя ${userId}, токены: ${gameState.tokens}`);
+    
     const database = await connectToDatabase();
     
     // Обновляем состояние игры
@@ -98,12 +126,13 @@ router.put('/users/:userId/gamestate', async (req, res) => {
     
     // Автоматически обновляем лидерборд если есть токены
     if (user && gameState.tokens !== undefined) {
+      console.log(`🏆 Автообновление лидерборда для ${userId} с ${gameState.tokens} токенами`);
       await updateUserInLeaderboard(database, user, gameState.tokens);
     }
     
     res.json({ message: 'Game state updated successfully' });
   } catch (error) {
-    console.error('Error updating game state:', error);
+    console.error('❌ Error updating game state:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -156,19 +185,33 @@ router.get('/users/:userId/rank', async (req, res) => {
 // Получить таблицу лидеров (обновлено для работы с токенами)
 router.get('/leaderboard', async (req, res) => {
   try {
+    console.log('📊 Запрос лидерборда...');
     const limit = parseInt(req.query.limit) || 100;
     const database = await connectToDatabase();
     
+    console.log('🔍 Ищем пользователей в лидерборде...');
     const leaderboard = await database.collection('leaderboard')
       .find()
       .sort({ tokens: -1 }) // Сортируем по токенам вместо score
       .limit(limit)
       .toArray();
     
+    console.log(`✅ Найдено ${leaderboard.length} пользователей в лидерборде`);
+    
+    if (leaderboard.length === 0) {
+      console.log('⚠️ Лидерборд пуст, возвращаем пустой массив');
+    } else {
+      console.log('🏆 Топ-3:', leaderboard.slice(0, 3).map(u => `${u.telegramFirstName || u.username}: ${u.tokens}`));
+    }
+    
     res.json(leaderboard);
   } catch (error) {
-    console.error('Error getting leaderboard:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    console.error('❌ Error getting leaderboard:', error);
+    res.status(500).json({ 
+      message: 'Internal server error',
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
