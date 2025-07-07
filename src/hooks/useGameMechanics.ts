@@ -97,9 +97,10 @@ export const useGameMechanics = () => {
         const newCharge = Math.max(HYPERDRIVE_MECHANICS.MIN_CHARGE, 
           prev - HYPERDRIVE_MECHANICS.CONSUMPTION_PER_TAP);
         
-        // Автоматически выключаем гипердвигатель при разрядке ниже порога активации
-        if (newCharge < currentHyperdrive.activationThreshold) {
+        // ⚡ ИСПРАВЛЕНИЕ: Отключаем гипердвигатель только при ПОЛНОМ РАЗРЯДЕ (0%)
+        if (newCharge <= HYPERDRIVE_MECHANICS.MIN_CHARGE) {
           setIsHyperdriveActive(false);
+          console.log('🔋 Гипердвигатель отключен - аккумулятор полностью разряжен при тапе');
         }
         
         return newCharge;
@@ -133,6 +134,7 @@ export const useGameMechanics = () => {
     // Только активация, если заряд достаточен и гипердвигатель не активен
     if (!isHyperdriveActive && hyperdriveCharge >= currentHyperdrive.activationThreshold) {
       setIsHyperdriveActive(true);
+      console.log('⚡ Гипердвигатель активирован! Заряд:', hyperdriveCharge.toFixed(1) + '%');
     }
     // Убираем возможность ручного выключения
   }, [isHyperdriveActive, hyperdriveCharge, currentHyperdrive.activationThreshold]);
@@ -155,9 +157,10 @@ export const useGameMechanics = () => {
           const newCharge = Math.max(HYPERDRIVE_MECHANICS.MIN_CHARGE, 
             prev - HYPERDRIVE_MECHANICS.BASE_CONSUMPTION_RATE);
           
-          // Автоматически выключаем гипердвигатель при разрядке ниже порога активации
-          if (newCharge < currentHyperdrive.activationThreshold) {
+          // ⚡ ИСПРАВЛЕНИЕ: Отключаем гипердвигатель только при ПОЛНОМ РАЗРЯДЕ (0%)
+          if (newCharge <= HYPERDRIVE_MECHANICS.MIN_CHARGE) {
             setIsHyperdriveActive(false);
+            console.log('🔋 Гипердвигатель отключен - аккумулятор полностью разряжен по времени');
           }
           
           return newCharge;
@@ -166,7 +169,7 @@ export const useGameMechanics = () => {
     }, 1000); // Обновляем каждую секунду
 
     return () => clearInterval(interval);
-  }, [lastTapTime, isHyperdriveActive, currentHyperdrive.activationThreshold]);
+  }, [lastTapTime, isHyperdriveActive]); // ⚡ УБРАЛИ зависимость от activationThreshold
 
   return {
     fuelLevel,
@@ -186,4 +189,4 @@ export const useGameMechanics = () => {
       return 'rgb(255, 0, 0)'; // Минимальный заряд - красный
     }
   };
-}; 
+};
