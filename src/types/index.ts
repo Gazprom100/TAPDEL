@@ -10,6 +10,11 @@ export interface UserProfile {
   experience: number;
   createdAt: Date;
   lastLogin: Date;
+  // Telegram данные
+  telegramId?: string;
+  telegramUsername?: string;
+  telegramFirstName?: string;
+  telegramLastName?: string;
 }
 
 export interface LeaderboardEntry {
@@ -22,6 +27,11 @@ export interface LeaderboardEntry {
   maxGear: Gear;
   rank: number;
   updatedAt: Date;
+  // Telegram данные
+  telegramId?: string;
+  telegramUsername?: string;
+  telegramFirstName?: string;
+  telegramLastName?: string;
 }
 
 export interface ShopItem {
@@ -43,4 +53,24 @@ export interface Transaction {
     type: 'engine' | 'gearbox' | 'battery' | 'hyperdrive' | 'powerGrid';
     level: string;
   };
+}
+
+// Telegram WebApp типы
+declare global {
+  interface Window {
+    Telegram?: {
+      WebApp?: {
+        initDataUnsafe?: {
+          user?: {
+            id: number;
+            first_name?: string;
+            last_name?: string;
+            username?: string;
+            language_code?: string;
+            is_premium?: boolean;
+          };
+        };
+      };
+    };
+  }
 } 

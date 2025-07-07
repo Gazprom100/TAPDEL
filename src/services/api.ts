@@ -20,9 +20,14 @@ export interface ApiLeaderboard {
   _id: string;
   userId: string;
   username: string;
-  score: number;
+  tokens: number; // Изменено с score на tokens
   rank: number;
   updatedAt: Date;
+  // Telegram данные
+  telegramId?: string;
+  telegramUsername?: string;
+  telegramFirstName?: string;
+  telegramLastName?: string;
 }
 
 export class ApiService {

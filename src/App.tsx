@@ -87,7 +87,25 @@ const App: React.FC = () => {
       userId = 'demo-user-' + Math.random().toString(36).substr(2, 9);
       localStorage.setItem('userId', userId);
     }
-    initializeUser(userId);
+    
+    // Инициализируем пользователя
+    initializeUser(userId).then(() => {
+      // Запускаем автосинхронизацию лидерборда каждые 30 секунд
+      const startAutoSync = useGameStore.getState().startAutoSync;
+      if (startAutoSync) {
+        console.log('🚀 Запуск автосинхронизации лидерборда каждые 30 сек');
+        startAutoSync();
+      }
+    });
+
+    // Останавливаем автосинхронизацию при закрытии компонента
+    return () => {
+      const stopAutoSync = useGameStore.getState().stopAutoSync;
+      if (stopAutoSync) {
+        console.log('🛑 Остановка автосинхронизации лидерборда');
+        stopAutoSync();
+      }
+    };
   }, [initializeUser]);
 
   return (

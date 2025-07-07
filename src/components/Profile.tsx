@@ -327,11 +327,13 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                             {entry.username}
                             {entry.userId === profile?.userId && ' (вы)'}
                           </div>
-                          <div className="text-xs sm:text-sm opacity-70">Уровень: {entry.level}</div>
+                          <div className="text-xs sm:text-sm opacity-70">
+                            Уровень: {entry.level} • Токены: {Math.floor(entry.tokens)}
+                          </div>
                         </div>
                       </div>
                       <div className="cyber-text text-sm sm:text-base font-bold whitespace-nowrap ml-2">
-                        {Math.floor(entry.score)} очков
+                        {Math.floor(entry.tokens)} DEL
                       </div>
                     </div>
                   ))

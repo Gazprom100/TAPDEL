@@ -60,6 +60,10 @@ interface GameActions {
   setCoolingTimer: (time: number) => void;
   setHyperdriveActive: (state: boolean) => void;
   setError: (error: string | null) => void;
+  
+  // Автоматическая синхронизация
+  startAutoSync: () => void;
+  stopAutoSync: () => void;
 }
 
 type GameStore = ExtendedGameState & GameActions;
@@ -97,6 +101,8 @@ export const useGameStore = create<GameStore>()(
       initializeUser: async (userId) => {
         try {
           set({ isLoading: true, error: null });
+          
+          // Получаем данные пользователя
           const user = await apiService.getUser(userId);
           
           if (user) {
@@ -112,17 +118,52 @@ export const useGameStore = create<GameStore>()(
               profile,
               transactions
             });
+          } else {
+            // Создаем нового пользователя с Telegram данными если возможно
+            const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+            const newProfile: UserProfile = {
+              userId,
+              username: telegramUser?.username || `Игрок ${userId.slice(-4)}`,
+              maxEnergy: 100,
+              energyRecoveryRate: 1,
+              maxGear: 'M' as Gear,
+              level: 1,
+              experience: 0,
+              createdAt: new Date(),
+              lastLogin: new Date(),
+              telegramId: telegramUser?.id?.toString(),
+              telegramUsername: telegramUser?.username,
+              telegramFirstName: telegramUser?.first_name,
+              telegramLastName: telegramUser?.last_name
+            };
+            
+            set({ profile: newProfile });
+            
+            // Сохраняем нового пользователя
+            await apiService.updateUser(userId, { 
+              profile: newProfile,
+              gameState: {
+                tokens: 0,
+                highScore: 0,
+                engineLevel: 'Mk I',
+                gearboxLevel: 'L1',
+                batteryLevel: 'B1',
+                hyperdriveLevel: 'H1',
+                powerGridLevel: 'P1'
+              }
+            });
           }
           
+          // Загружаем лидерборд с токенами
           const dbLeaderboard = await apiService.getLeaderboard();
           const leaderboard: LeaderboardEntry[] = dbLeaderboard.map(entry => ({
             id: entry._id.toString(),
             userId: entry.userId,
-            username: entry.username,
-            level: Math.floor(entry.score / 1000) + 1, // Уровень на основе очков: каждая 1000 очков = 1 уровень
-            score: entry.score,
-            tokens: entry.score, // Используем score как tokens для отображения
-            maxGear: 'M' as Gear, // TODO: Get from user data
+            username: entry.telegramFirstName || entry.telegramUsername || entry.username || `Игрок ${entry.userId.slice(-4)}`,
+            level: Math.floor((entry.tokens || 0) / 1000) + 1, // Уровень на основе токенов
+            score: entry.tokens || 0, // Используем tokens
+            tokens: entry.tokens || 0, // Отображаем токены
+            maxGear: 'M' as Gear,
             rank: entry.rank,
             updatedAt: entry.updatedAt
           }));
@@ -139,6 +180,7 @@ export const useGameStore = create<GameStore>()(
           const state = get();
           if (!state.profile?.userId) return;
 
+          // Обновляем состояние игры (автоматически обновит лидерборд через API)
           await apiService.updateGameState(state.profile.userId, {
             tokens: state.tokens,
             highScore: state.highScore,
@@ -150,17 +192,22 @@ export const useGameStore = create<GameStore>()(
             lastSaved: new Date()
           });
 
+          // Дополнительно обновляем лидерборд с Telegram данными
           await apiService.updateLeaderboard({
             userId: state.profile.userId,
-            username: state.profile.username,
-            score: state.highScore
+            username: state.profile.telegramFirstName || state.profile.telegramUsername || state.profile.username,
+            telegramId: state.profile.telegramId,
+            telegramUsername: state.profile.telegramUsername,
+            telegramFirstName: state.profile.telegramFirstName,
+            telegramLastName: state.profile.telegramLastName,
+            tokens: state.tokens // Отправляем токены вместо score
           });
         } catch (error) {
           set({ error: (error as Error).message });
         }
       },
 
-      // Действия с токенами
+      // Действия с токенами (с автоматическим обновлением лидерборда)
       addTokens: async (amount) => {
         try {
           const state = get();
@@ -172,6 +219,7 @@ export const useGameStore = create<GameStore>()(
             highScore: newHighScore
           });
 
+          // Автоматически синхронизируем с сервером и лидербордом
           await get().syncGameState();
         } catch (error) {
           set({ error: (error as Error).message });
@@ -384,8 +432,12 @@ export const useGameStore = create<GameStore>()(
           if (state.profile?.userId) {
             await apiService.updateLeaderboard({
               userId: state.profile.userId,
-              username: state.profile.username,
-              score: state.highScore
+              username: state.profile.telegramFirstName || state.profile.telegramUsername || state.profile.username,
+              telegramId: state.profile.telegramId,
+              telegramUsername: state.profile.telegramUsername,
+              telegramFirstName: state.profile.telegramFirstName,
+              telegramLastName: state.profile.telegramLastName,
+              tokens: state.tokens // Используем tokens вместо score
             });
           }
         } catch (error) {
@@ -398,7 +450,47 @@ export const useGameStore = create<GameStore>()(
       setPowerLevel: (level: number) => set({ powerLevel: level }),
       setIsOverheated: (state: boolean) => set({ isOverheated: state }),
       setCoolingTimer: (time: number) => set({ coolingTimer: time }),
-      setHyperdriveActive: (state: boolean) => set({ hyperdriveActive: state })
+      setHyperdriveActive: (state: boolean) => set({ hyperdriveActive: state }),
+
+      // Автоматическая синхронизация каждые 30 секунд
+      startAutoSync: () => {
+        const interval = setInterval(async () => {
+          try {
+            const state = get();
+            if (state.profile?.userId && state.tokens >= 0) {
+              console.log('🔄 Автосинхронизация лидерборда...');
+              await get().syncGameState();
+              
+              // Обновляем лидерборд
+              const dbLeaderboard = await apiService.getLeaderboard();
+              const leaderboard = dbLeaderboard.map(entry => ({
+                id: entry._id.toString(),
+                userId: entry.userId,
+                username: entry.telegramFirstName || entry.telegramUsername || entry.username || `Игрок ${entry.userId.slice(-4)}`,
+                level: Math.floor((entry.tokens || 0) / 1000) + 1,
+                score: entry.tokens || 0,
+                tokens: entry.tokens || 0,
+                maxGear: 'M' as Gear,
+                rank: entry.rank,
+                updatedAt: entry.updatedAt
+              }));
+              set({ leaderboard });
+            }
+          } catch (error) {
+            console.error('Ошибка автосинхронизации:', error);
+          }
+        }, 30000); // 30 секунд
+
+        // Сохраняем interval ID для очистки
+        (window as any).tapdel_sync_interval = interval;
+      },
+
+      stopAutoSync: () => {
+        if ((window as any).tapdel_sync_interval) {
+          clearInterval((window as any).tapdel_sync_interval);
+          (window as any).tapdel_sync_interval = null;
+        }
+      }
     }),
     {
       name: 'tapdel-storage',
