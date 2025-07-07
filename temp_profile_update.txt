@@ -1,0 +1,44 @@
+                    <div
+                      key={entry.id}
+                      className={`cyber-card flex justify-between items-center p-3 sm:p-4 ${
+                        entry.userId === profile?.userId 
+                          ? 'border-[#00ff88] bg-gradient-to-r from-[#00ff88]/20 via-[#00ff88]/10 to-[#00ff88]/20 shadow-lg shadow-[#00ff88]/30 ring-2 ring-[#00ff88]/50' 
+                          : ''
+                      }`}
+                      style={entry.userId === profile?.userId ? {
+                        boxShadow: '0 0 20px rgba(0, 255, 136, 0.4), inset 0 0 20px rgba(0, 255, 136, 0.1)',
+                        animation: 'pulse 2s infinite'
+                      } : {}}
+                    >
+                      <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
+                        <div className={`cyber-text text-lg sm:text-xl font-bold ${
+                          entry.userId === profile?.userId ? 'text-[#00ff88]' : ''
+                        }`} style={{
+                          minWidth: '32px'
+                        }}>
+                          #{index + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className={`cyber-text text-sm sm:text-base truncate ${
+                            entry.userId === profile?.userId ? 'text-[#00ff88] font-bold' : ''
+                          }`}>
+                            {entry.username}
+                            {entry.userId === profile?.userId && (
+                              <span className="ml-2 px-2 py-1 text-xs bg-[#00ff88] text-black rounded-full font-bold animate-pulse">
+                                ВЫ
+                              </span>
+                            )}
+                          </div>
+                          <div className={`text-xs sm:text-sm ${
+                            entry.userId === profile?.userId ? 'text-[#00ff88]/80' : 'opacity-70'
+                          }`}>
+                            Уровень: {entry.level} • Токены: {Math.floor(entry.tokens)}
+                          </div>
+                        </div>
+                      </div>
+                      <div className={`cyber-text text-sm sm:text-base font-bold whitespace-nowrap ml-2 ${
+                        entry.userId === profile?.userId ? 'text-[#00ff88]' : ''
+                      }`}>
+                        {Math.floor(entry.tokens)} DEL
+                      </div>
+                    </div>

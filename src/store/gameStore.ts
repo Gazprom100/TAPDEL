@@ -201,7 +201,7 @@ export const useGameStore = create<GameStore>()(
               const leaderboard: LeaderboardEntry[] = dbLeaderboard.map(entry => ({
                 id: entry._id.toString(),
                 userId: entry.userId,
-                username: entry.telegramFirstName || entry.telegramUsername || entry.username || `Игрок ${entry.userId.slice(-4)}`,
+                username: entry.telegramUsername ? `@${entry.telegramUsername}` : entry.telegramFirstName || entry.username || `Игрок ${entry.userId.slice(-4)}`,
                 level: Math.floor((entry.tokens || 0) / 1000) + 1, // Уровень на основе токенов
                 score: entry.tokens || 0, // Используем tokens
                 tokens: entry.tokens || 0, // Отображаем токены
@@ -616,7 +616,7 @@ export const useGameStore = create<GameStore>()(
                   const leaderboard = dbLeaderboard.map(entry => ({
                     id: entry._id.toString(),
                     userId: entry.userId,
-                    username: entry.telegramFirstName || entry.telegramUsername || entry.username || `Игрок ${entry.userId.slice(-4)}`,
+                    username: entry.telegramUsername ? `@${entry.telegramUsername}` : entry.telegramFirstName || entry.username || `Игрок ${entry.userId.slice(-4)}`,
                     level: Math.floor((entry.tokens || 0) / 1000) + 1,
                     score: entry.tokens || 0,
                     tokens: entry.tokens || 0,
@@ -657,7 +657,7 @@ export const useGameStore = create<GameStore>()(
             const leaderboard = dbLeaderboard.map(entry => ({
               id: entry._id.toString(),
               userId: entry.userId,
-              username: entry.telegramFirstName || entry.telegramUsername || entry.username || `Игрок ${entry.userId.slice(-4)}`,
+              username: entry.telegramUsername ? `@${entry.telegramUsername}` : entry.telegramFirstName || entry.username || `Игрок ${entry.userId.slice(-4)}`,
               level: Math.floor((entry.tokens || 0) / 1000) + 1,
               score: entry.tokens || 0,
               tokens: entry.tokens || 0,

@@ -84,7 +84,7 @@ const App: React.FC = () => {
   useEffect(() => {
     let userId = localStorage.getItem('userId');
     if (!userId) {
-      userId = 'demo-user-' + Math.random().toString(36).substr(2, 9);
+      userId = 'demo-user-main;
       localStorage.setItem('userId', userId);
     }
     
