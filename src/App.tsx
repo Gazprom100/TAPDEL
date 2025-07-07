@@ -84,7 +84,34 @@ const App: React.FC = () => {
   useEffect(() => {
     let userId = localStorage.getItem('userId');
     if (!userId) {
-      userId = 'demo-user-main';
+      // Получаем реальные данные пользователя из Telegram WebApp
+      const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+      
+      if (telegramUser?.id) {
+        // Используем реальный Telegram ID
+        userId = `telegram-${telegramUser.id}`;
+        
+        // Сохраняем дополнительные данные пользователя
+        const userData = {
+          userId: userId,
+          username: telegramUser.username || `${telegramUser.first_name} ${telegramUser.last_name}`.trim(),
+          telegramFirstName: telegramUser.first_name || '',
+          telegramLastName: telegramUser.last_name || '',
+          telegramUsername: telegramUser.username || '',
+          telegramId: telegramUser.id
+        };
+        
+        // Сохраняем в localStorage
+        localStorage.setItem('userId', userId);
+        localStorage.setItem('telegramUserData', JSON.stringify(userData));
+        
+        console.log('📱 Получены реальные Telegram данные:', userData);
+      } else {
+        // Fallback для тестирования вне Telegram
+        userId = 'demo-user-main';
+        console.log('⚠️ Telegram WebApp не доступен, используем demo-user');
+      }
+      
       localStorage.setItem('userId', userId);
     }
     

@@ -123,10 +123,37 @@ export const useGameStore = create<GameStore>()(
             });
           } else {
             // Создаем нового пользователя с Telegram данными если возможно
-            const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+            let telegramUserData = null;
+            
+            // Пытаемся получить данные из localStorage сначала
+            try {
+              const storedData = localStorage.getItem('telegramUserData');
+              if (storedData) {
+                telegramUserData = JSON.parse(storedData);
+                console.log('📱 Используем сохраненные Telegram данные:', telegramUserData);
+              }
+            } catch (error) {
+              console.warn('⚠️ Ошибка парсинга Telegram данных из localStorage:', error);
+            }
+            
+            // Если в localStorage нет данных, получаем из Telegram WebApp
+            if (!telegramUserData) {
+              const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+              if (telegramUser?.id) {
+                telegramUserData = {
+                  telegramId: telegramUser.id.toString(),
+                  telegramUsername: telegramUser.username,
+                  telegramFirstName: telegramUser.first_name,
+                  telegramLastName: telegramUser.last_name,
+                  username: telegramUser.username || `${telegramUser.first_name} ${telegramUser.last_name}`.trim()
+                };
+                console.log('📱 Получены свежие Telegram данные:', telegramUserData);
+              }
+            }
+            
             const newProfile: UserProfile = {
               userId,
-              username: telegramUser?.username || `Игрок ${userId.slice(-4)}`,
+              username: telegramUserData?.telegramUsername || telegramUserData?.username || `Игрок ${userId.slice(-4)}`,
               maxEnergy: 100,
               energyRecoveryRate: 1,
               maxGear: 'M' as Gear,
@@ -134,10 +161,10 @@ export const useGameStore = create<GameStore>()(
               experience: 0,
               createdAt: new Date(),
               lastLogin: new Date(),
-              telegramId: telegramUser?.id?.toString(),
-              telegramUsername: telegramUser?.username,
-              telegramFirstName: telegramUser?.first_name,
-              telegramLastName: telegramUser?.last_name
+              telegramId: telegramUserData?.telegramId,
+              telegramUsername: telegramUserData?.telegramUsername,
+              telegramFirstName: telegramUserData?.telegramFirstName,
+              telegramLastName: telegramUserData?.telegramLastName
             };
             
             set({ profile: newProfile });
