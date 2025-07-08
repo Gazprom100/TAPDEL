@@ -79,6 +79,14 @@ router.put('/users/:userId', async (req, res) => {
     const userData = req.body;
     const database = await connectToDatabase();
     
+    // Инициализируем gameBalance если его нет
+    if (userData.gameBalance === undefined) {
+      const existingUser = await database.collection('users').findOne({ userId });
+      if (!existingUser || existingUser.gameBalance === undefined) {
+        userData.gameBalance = 0;
+      }
+    }
+    
     await database.collection('users').updateOne(
       { userId },
       { 

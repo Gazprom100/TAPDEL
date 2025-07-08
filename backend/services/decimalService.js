@@ -1,0 +1,326 @@
+const { Web3 } = require('web3');
+const redis = require('redis');
+const config = require('../config/decimal');
+
+class DecimalService {
+  constructor() {
+    this.web3 = new Web3(config.RPC_URL);
+    this.redis = null;
+    this.isWatching = false;
+    this.watchInterval = null;
+    this.confirmInterval = null;
+    this.withdrawInterval = null;
+  }
+
+  async initialize() {
+    try {
+      // Подключаемся к Redis
+      this.redis = redis.createClient({ url: config.REDIS_URL });
+      await this.redis.connect();
+      console.log('✅ DecimalService: Redis подключен');
+      
+      // Проверяем подключение к DecimalChain
+      const blockNumber = await this.web3.eth.getBlockNumber();
+      console.log(`✅ DecimalService: Подключен к DecimalChain, блок: ${blockNumber}`);
+      
+      return true;
+    } catch (error) {
+      console.error('❌ DecimalService: Ошибка инициализации:', error);
+      throw error;
+    }
+  }
+
+  // === РАБОТА С БАЛАНСАМИ ===
+  
+  async getBalance(address) {
+    try {
+      const wei = await this.web3.eth.getBalance(this.web3.utils.toChecksumAddress(address));
+      return parseFloat(this.web3.utils.fromWei(wei, 'ether'));
+    } catch (error) {
+      console.error('❌ DecimalService: Ошибка получения баланса:', error);
+      throw error;
+    }
+  }
+
+  async getWorkingBalance() {
+    return this.getBalance(config.WORKING_ADDRESS);
+  }
+
+  // === РАБОТА С NONCE ===
+  
+  async getNonce(address, ttl = 30) {
+    const key = `DECIMAL_NONCE_${address.toLowerCase()}`;
+    
+    try {
+      const cached = await this.redis.get(key);
+      let nonce;
+      
+      if (cached !== null) {
+        nonce = parseInt(cached) + 1;
+      } else {
+        nonce = await this.web3.eth.getTransactionCount(
+          this.web3.utils.toChecksumAddress(address)
+        );
+      }
+      
+      await this.redis.setEx(key, ttl, nonce);
+      return nonce;
+    } catch (error) {
+      console.error('❌ DecimalService: Ошибка получения nonce:', error);
+      throw error;
+    }
+  }
+
+  // === ОТПРАВКА ТРАНЗАКЦИЙ ===
+  
+  async signAndSend(toAddress, amount) {
+    try {
+      const privateKey = config.getPrivateKey();
+      const fromAddress = config.WORKING_ADDRESS;
+      
+      // Получаем nonce
+      const nonce = await this.getNonce(fromAddress);
+      
+      // Создаем транзакцию
+      const transaction = {
+        from: this.web3.utils.toChecksumAddress(fromAddress),
+        to: this.web3.utils.toChecksumAddress(toAddress),
+        value: this.web3.utils.toWei(amount.toString(), 'ether'),
+        gas: config.GAS_LIMIT,
+        gasPrice: this.web3.utils.toWei(config.GAS_PRICE.toString(), 'gwei'),
+        nonce: nonce,
+        chainId: config.CHAIN_ID
+      };
+
+      // Подписываем транзакцию
+      const signedTx = await this.web3.eth.accounts.signTransaction(transaction, privateKey);
+      
+      // Очищаем приватный ключ из памяти
+      privateKey.split('').forEach((char, index) => {
+        privateKey[index] = '0';
+      });
+      
+      // Отправляем транзакцию
+      const receipt = await this.web3.eth.sendSignedTransaction(signedTx.rawTransaction);
+      
+      console.log(`✅ DecimalService: Транзакция отправлена: ${receipt.transactionHash}`);
+      return receipt.transactionHash;
+      
+    } catch (error) {
+      console.error('❌ DecimalService: Ошибка отправки транзакции:', error);
+      throw error;
+    }
+  }
+
+  // === МОНИТОРИНГ ДЕПОЗИТОВ ===
+  
+  async startWatching(database) {
+    if (this.isWatching) {
+      console.log('⚠️ DecimalService: Мониторинг уже запущен');
+      return;
+    }
+
+    this.isWatching = true;
+    console.log('🔍 DecimalService: Запуск мониторинга депозитов...');
+
+    // Запускаем все воркеры
+    this.startDepositWatcher(database);
+    this.startConfirmationUpdater(database);
+    this.startWithdrawalWorker(database);
+  }
+
+  async startDepositWatcher(database) {
+    const pollInterval = 10000; // 10 секунд
+    
+    this.watchInterval = setInterval(async () => {
+      try {
+        // Получаем последний обработанный блок
+        const lastBlockKey = 'DECIMAL_LAST_BLOCK';
+        let lastBlock = await this.redis.get(lastBlockKey);
+        
+        if (!lastBlock) {
+          const currentBlock = await this.web3.eth.getBlockNumber();
+          lastBlock = currentBlock - 5; // Начинаем с 5 блоков назад
+        } else {
+          lastBlock = parseInt(lastBlock);
+        }
+
+        const latestBlock = await this.web3.eth.getBlockNumber();
+        
+        // Обрабатываем новые блоки
+        for (let blockNum = lastBlock + 1; blockNum <= latestBlock; blockNum++) {
+          await this.processBlock(blockNum, database);
+          await this.redis.set(lastBlockKey, blockNum);
+        }
+        
+      } catch (error) {
+        console.error('❌ DecimalService: Ошибка мониторинга депозитов:', error);
+      }
+    }, pollInterval);
+  }
+
+  async processBlock(blockNumber, database) {
+    try {
+      const block = await this.web3.eth.getBlock(blockNumber, true);
+      
+      if (!block.transactions) return;
+
+      for (const tx of block.transactions) {
+        if (tx.to && tx.to.toLowerCase() === config.WORKING_ADDRESS.toLowerCase()) {
+          const value = parseFloat(this.web3.utils.fromWei(tx.value, 'ether'));
+          
+          // Ищем депозит с такой уникальной суммой
+          const deposit = await database.collection('deposits').findOne({
+            uniqueAmount: value,
+            matched: false
+          });
+
+          if (deposit) {
+            // Обновляем депозит
+            await database.collection('deposits').updateOne(
+              { _id: deposit._id },
+              {
+                $set: {
+                  txHash: tx.hash,
+                  matched: true,
+                  confirmations: 1,
+                  matchedAt: new Date()
+                }
+              }
+            );
+
+            // Обновляем баланс пользователя
+            await database.collection('users').updateOne(
+              { userId: deposit.userId },
+              {
+                $inc: { gameBalance: deposit.amountRequested }
+              }
+            );
+
+            console.log(`💰 DecimalService: Депозит найден! ${deposit.userId}: ${deposit.amountRequested} DEL`);
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`❌ DecimalService: Ошибка обработки блока ${blockNumber}:`, error);
+    }
+  }
+
+  async startConfirmationUpdater(database) {
+    this.confirmInterval = setInterval(async () => {
+      try {
+        // Находим депозиты ожидающие подтверждения
+        const pendingDeposits = await database.collection('deposits').find({
+          matched: true,
+          confirmations: { $lt: config.CONFIRMATIONS }
+        }).toArray();
+
+        const currentBlock = await this.web3.eth.getBlockNumber();
+
+        for (const deposit of pendingDeposits) {
+          if (deposit.txHash) {
+            try {
+              const receipt = await this.web3.eth.getTransactionReceipt(deposit.txHash);
+              if (receipt) {
+                const confirmations = currentBlock - receipt.blockNumber + 1;
+                
+                await database.collection('deposits').updateOne(
+                  { _id: deposit._id },
+                  { $set: { confirmations: Math.max(0, confirmations) } }
+                );
+              }
+            } catch (error) {
+              console.error(`❌ DecimalService: Ошибка обновления подтверждений для ${deposit.txHash}:`, error);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('❌ DecimalService: Ошибка обновления подтверждений:', error);
+      }
+    }, 15000); // 15 секунд
+  }
+
+  async startWithdrawalWorker(database) {
+    this.withdrawInterval = setInterval(async () => {
+      try {
+        // Находим ожидающий вывод
+        const withdrawal = await database.collection('withdrawals').findOne({
+          status: 'queued'
+        });
+
+        if (withdrawal) {
+          try {
+            const txHash = await this.signAndSend(withdrawal.toAddress, withdrawal.amount);
+            
+            await database.collection('withdrawals').updateOne(
+              { _id: withdrawal._id },
+              {
+                $set: {
+                  txHash: txHash,
+                  status: 'sent',
+                  processedAt: new Date()
+                }
+              }
+            );
+
+            console.log(`💸 DecimalService: Вывод обработан: ${withdrawal.amount} DEL → ${withdrawal.toAddress}`);
+            
+          } catch (error) {
+            await database.collection('withdrawals').updateOne(
+              { _id: withdrawal._id },
+              {
+                $set: {
+                  status: 'failed',
+                  processedAt: new Date(),
+                  error: error.message
+                }
+              }
+            );
+            
+            // Возвращаем средства пользователю
+            await database.collection('users').updateOne(
+              { userId: withdrawal.userId },
+              { $inc: { gameBalance: withdrawal.amount } }
+            );
+            
+            console.error(`❌ DecimalService: Ошибка вывода для ${withdrawal.userId}:`, error);
+          }
+        }
+      } catch (error) {
+        console.error('❌ DecimalService: Ошибка воркера выводов:', error);
+      }
+    }, 5000); // 5 секунд
+  }
+
+  async stopWatching() {
+    this.isWatching = false;
+    
+    if (this.watchInterval) {
+      clearInterval(this.watchInterval);
+      this.watchInterval = null;
+    }
+    
+    if (this.confirmInterval) {
+      clearInterval(this.confirmInterval);
+      this.confirmInterval = null;
+    }
+    
+    if (this.withdrawInterval) {
+      clearInterval(this.withdrawInterval);
+      this.withdrawInterval = null;
+    }
+    
+    console.log('🛑 DecimalService: Мониторинг остановлен');
+  }
+
+  async disconnect() {
+    await this.stopWatching();
+    
+    if (this.redis) {
+      await this.redis.disconnect();
+      console.log('🔒 DecimalService: Redis отключен');
+    }
+  }
+}
+
+module.exports = new DecimalService(); 

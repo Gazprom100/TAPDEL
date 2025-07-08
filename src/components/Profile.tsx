@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { Shop } from './Shop';
+import Wallet from './Wallet';
 
 type Tab = 'balance' | 'shop' | 'transactions' | 'leaderboard';
 
@@ -9,6 +10,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [depositAmount, setDepositAmount] = useState('');
   const [isLeaderboardLoading, setIsLeaderboardLoading] = useState(false);
+  const [isWalletOpen, setIsWalletOpen] = useState(false);
   
   const {
     tokens,
@@ -17,7 +19,8 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     withdrawTokens,
     depositTokens,
     refreshLeaderboard,
-    profile
+    profile,
+    delBalance
   } = useGameStore();
 
   // Периодическое обновление таблицы лидеров
@@ -152,6 +155,24 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             >
               <div className="space-y-4 sm:space-y-6 p-4">
                 <div className="cyber-text text-lg sm:text-xl">Баланс: {Math.floor(tokens)} токенов</div>
+                
+                {/* DEL кошелек */}
+                <div className="cyber-panel space-y-3 sm:space-y-4 p-3 sm:p-4">
+                  <div className="flex justify-between items-center">
+                    <div className="cyber-text text-sm sm:text-base">DEL Кошелек</div>
+                    <div className="text-cyan-400 font-mono">{delBalance.toFixed(6)} DEL</div>
+                  </div>
+                  <button
+                    onClick={() => setIsWalletOpen(true)}
+                    className="cyber-button w-full text-sm sm:text-base px-4 py-2"
+                    style={{
+                      minHeight: '40px',
+                      pointerEvents: 'auto'
+                    }}
+                  >
+                    💳 Управление кошельком
+                  </button>
+                </div>
                 
                 <div className="cyber-panel space-y-3 sm:space-y-4 p-3 sm:p-4">
                   <div className="cyber-text text-sm sm:text-base">Вывод токенов</div>
@@ -366,6 +387,12 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           )}
         </div>
       </div>
+      
+      {/* Wallet Modal */}
+      <Wallet 
+        isOpen={isWalletOpen} 
+        onClose={() => setIsWalletOpen(false)} 
+      />
     </div>
   );
 }; 

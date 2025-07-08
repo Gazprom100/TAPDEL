@@ -19,6 +19,7 @@ interface ExtendedGameState extends GameStateBase {
   leaderboard: LeaderboardEntry[];
   isLoading: boolean;
   error: string | null;
+  delBalance: number; // DEL баланс пользователя
 }
 
 interface GameActions {
@@ -67,6 +68,10 @@ interface GameActions {
   
   // Обновление только лидерборда
   refreshLeaderboard: () => Promise<void>;
+  
+  // DEL баланс
+  updateDelBalance: (amount: number) => void;
+  refreshDelBalance: () => Promise<void>;
 }
 
 type GameStore = ExtendedGameState & GameActions;
@@ -97,6 +102,7 @@ export const useGameStore = create<GameStore>()(
       leaderboard: [],
       isLoading: false,
       error: null,
+      delBalance: 0,
 
       // Системные действия
       setError: (error) => set({ error }),
@@ -710,6 +716,23 @@ export const useGameStore = create<GameStore>()(
         } catch (error) {
           console.error('❌ Ошибка обновления лидерборда:', error);
         }
+      },
+
+      // DEL баланс
+      updateDelBalance: (amount: number) => set({ delBalance: amount }),
+      
+      refreshDelBalance: async () => {
+        try {
+          const state = get();
+          if (!state.profile?.userId) return;
+          
+          const { decimalApi } = await import('../services/decimalApi');
+          const balance = await decimalApi.getUserBalance(state.profile.userId);
+          set({ delBalance: balance.gameBalance });
+          console.log(`💰 Обновлен DEL баланс: ${balance.gameBalance} DEL`);
+        } catch (error) {
+          console.error('❌ Ошибка обновления DEL баланса:', error);
+        }
       }
     }),
     {
@@ -739,6 +762,9 @@ export const useGameStore = create<GameStore>()(
         
         // Временные метки для синхронизации
         lastTapTimestamp: state.lastTapTimestamp,
+        
+        // DEL баланс
+        delBalance: state.delBalance,
         
         // Для отслеживания изменений в Telegram WebApp
         lastSyncTime: Date.now()
