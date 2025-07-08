@@ -219,10 +219,17 @@ router.get('/leaderboard', async (req, res) => {
 router.post('/leaderboard', async (req, res) => {
   try {
     const entry = req.body;
+    console.log(`🏆 API: Обновление лидерборда для ${entry.userId}:`, {
+      username: entry.username,
+      telegramFirstName: entry.telegramFirstName,
+      telegramUsername: entry.telegramUsername,
+      tokens: entry.tokens
+    });
+    
     const database = await connectToDatabase();
     
     // Обновляем запись пользователя (теперь с токенами)
-    await database.collection('leaderboard').updateOne(
+    const result = await database.collection('leaderboard').updateOne(
       { userId: entry.userId },
       {
         $set: {
@@ -239,12 +246,23 @@ router.post('/leaderboard', async (req, res) => {
       { upsert: true }
     );
 
+    console.log(`✅ API: Пользователь ${entry.userId} ${result.upsertedCount ? 'добавлен' : 'обновлен'} в лидерборде`);
+
     // Обновляем ранги для всех пользователей на основе токенов
     await updateAllRanks(database);
     
+    // Проверяем результат
+    const updatedUser = await database.collection('leaderboard').findOne({ userId: entry.userId });
+    console.log(`🎯 API: Пользователь в лидерборде:`, {
+      userId: updatedUser.userId,
+      username: updatedUser.username,
+      tokens: updatedUser.tokens,
+      rank: updatedUser.rank
+    });
+    
     res.json({ message: 'Leaderboard updated successfully' });
   } catch (error) {
-    console.error('Error updating leaderboard:', error);
+    console.error('❌ API: Error updating leaderboard:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 });

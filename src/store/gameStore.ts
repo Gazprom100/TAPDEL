@@ -212,10 +212,11 @@ export const useGameStore = create<GameStore>()(
             }
           }
           
-          // Убеждаемся что текущий пользователь есть в лидерборде
+          // Сразу добавляем текущего пользователя в лидерборд
           const currentState = get();
-          if (currentState.profile?.userId && currentState.tokens >= 0) {
+          if (currentState.profile?.userId) {
             try {
+              console.log(`🏆 Добавляем текущего пользователя в лидерборд с ${currentState.tokens} токенами`);
               await apiService.updateLeaderboard({
                 userId: currentState.profile.userId,
                 username: currentState.profile.telegramFirstName || currentState.profile.telegramUsername || currentState.profile.username,
@@ -225,9 +226,9 @@ export const useGameStore = create<GameStore>()(
                 telegramLastName: currentState.profile.telegramLastName,
                 tokens: currentState.tokens
               });
-              console.log(`✅ Текущий пользователь обновлён в лидерборде с ${currentState.tokens} токенами`);
+              console.log(`✅ Пользователь добавлен в лидерборд`);
             } catch (error) {
-              console.error('⚠️ Ошибка обновления текущего пользователя в лидерборде:', error);
+              console.error('❌ Ошибка добавления в лидерборд:', error);
             }
           }
           
@@ -346,9 +347,9 @@ export const useGameStore = create<GameStore>()(
             return;
           }
 
-          console.log(`🔄 Синхронизация состояния для ${state.profile.userId} (${state.tokens} токенов)`);
+          console.log(`🔄 Синхронизация gameState для ${state.profile.userId}`);
 
-          // Обновляем состояние игры
+          // Обновляем только состояние игры, БЕЗ лидерборда
           await apiService.updateGameState(state.profile.userId, {
             tokens: state.tokens,
             highScore: state.highScore,
@@ -360,25 +361,14 @@ export const useGameStore = create<GameStore>()(
             lastSaved: new Date()
           });
 
-          // Обновляем лидерборд с Telegram данными
-          await apiService.updateLeaderboard({
-            userId: state.profile.userId,
-            username: state.profile.telegramFirstName || state.profile.telegramUsername || state.profile.username,
-            telegramId: state.profile.telegramId,
-            telegramUsername: state.profile.telegramUsername,
-            telegramFirstName: state.profile.telegramFirstName,
-            telegramLastName: state.profile.telegramLastName,
-            tokens: state.tokens
-          });
-
-          console.log(`✅ Синхронизация завершена: ${state.profile.username} (${state.tokens} токенов)`);
+          console.log(`✅ GameState синхронизирован`);
         } catch (error) {
-          console.error('❌ Ошибка синхронизации:', error);
+          console.error('❌ Ошибка синхронизации gameState:', error);
           set({ error: (error as Error).message });
         }
       },
 
-      // Действия с токенами (с автоматическим обновлением лидерборда)
+      // Действия с токенами (НОВАЯ УПРОЩЕННАЯ СИСТЕМА)
       addTokens: async (amount) => {
         try {
           const state = get();
@@ -392,13 +382,27 @@ export const useGameStore = create<GameStore>()(
             highScore: newHighScore
           });
 
-          // Немедленная синхронизация с сервером
-          console.log(`🔄 Начинаем синхронизацию токенов для ${state.profile?.userId}`);
-          await get().syncGameState();
-          console.log(`✅ Синхронизация токенов завершена`);
+          // Обновляем лидерборд ТОЛЬКО если есть профиль
+          if (state.profile?.userId) {
+            try {
+              console.log(`🏆 Обновляем лидерборд для ${state.profile.userId}`);
+              await apiService.updateLeaderboard({
+                userId: state.profile.userId,
+                username: state.profile.telegramFirstName || state.profile.telegramUsername || state.profile.username,
+                telegramId: state.profile.telegramId,
+                telegramUsername: state.profile.telegramUsername,
+                telegramFirstName: state.profile.telegramFirstName,
+                telegramLastName: state.profile.telegramLastName,
+                tokens: newTokens
+              });
+              console.log(`✅ Лидерборд обновлен: ${newTokens} токенов`);
+            } catch (leaderboardError) {
+              console.error('❌ Ошибка обновления лидерборда:', leaderboardError);
+            }
+          }
           
         } catch (error) {
-          console.error('❌ Ошибка синхронизации токенов:', error);
+          console.error('❌ Ошибка addTokens:', error);
           set({ error: (error as Error).message });
         }
       },
@@ -634,65 +638,44 @@ export const useGameStore = create<GameStore>()(
         const interval = setInterval(async () => {
           try {
             const state = get();
-            if (state.profile?.userId && state.tokens >= 0) {
-              console.log(`🔄 Автосинхронизация: пользователь ${state.profile.userId}, токены: ${state.tokens}`);
-              
-              // Синхронизируем состояние игры
-              try {
-                await get().syncGameState();
-              } catch (syncError) {
-                console.error('⚠️ Ошибка синхронизации gameState:', syncError);
-              }
-              
-              // Обновляем лидерборд
-              try {
-                const dbLeaderboard = await apiService.getLeaderboard();
-                if (dbLeaderboard && dbLeaderboard.length > 0) {
-                  const leaderboard = dbLeaderboard.map(entry => ({
-                    id: entry._id.toString(),
-                    userId: entry.userId,
-                    username: entry.telegramUsername ? `@${entry.telegramUsername}` : entry.telegramFirstName || entry.username || `Игрок ${entry.userId.slice(-4)}`,
-                    level: Math.floor((entry.tokens || 0) / 1000) + 1,
-                    score: entry.tokens || 0,
-                    tokens: entry.tokens || 0,
-                    maxGear: 'M' as Gear,
-                    rank: entry.rank,
-                    updatedAt: entry.updatedAt
-                  }));
-                  set({ leaderboard });
-                  
-                  // Проверяем есть ли текущий пользователь в лидерборде
-                  const currentUserInLeaderboard = leaderboard.find(entry => entry.userId === state.profile?.userId);
-                  if (currentUserInLeaderboard) {
-                    console.log(`✅ Автосинхронизация: найден в лидерборде (ранг ${currentUserInLeaderboard.rank}, токены ${currentUserInLeaderboard.tokens})`);
-                  } else {
-                    console.log(`⚠️ Автосинхронизация: НЕ найден в лидерборде! Принудительно добавляем...`);
-                    // Принудительно добавляем пользователя в лидерборд
-                    await apiService.updateLeaderboard({
-                      userId: state.profile.userId,
-                      username: state.profile.telegramFirstName || state.profile.telegramUsername || state.profile.username,
-                      telegramId: state.profile.telegramId,
-                      telegramUsername: state.profile.telegramUsername,
-                      telegramFirstName: state.profile.telegramFirstName,
-                      telegramLastName: state.profile.telegramLastName,
-                      tokens: state.tokens
-                    });
-                  }
-                  
-                  console.log(`✅ Автосинхронизация: обновлён лидерборд (${leaderboard.length} участников)`);
+            if (!state.profile?.userId) return;
+
+            console.log(`🔄 Автообновление лидерборда...`);
+            
+            // Только загружаем лидерборд, НЕ обновляем
+            try {
+              const dbLeaderboard = await apiService.getLeaderboard();
+              if (dbLeaderboard && dbLeaderboard.length > 0) {
+                const leaderboard = dbLeaderboard.map(entry => ({
+                  id: entry._id.toString(),
+                  userId: entry.userId,
+                  username: entry.telegramUsername ? `@${entry.telegramUsername}` : entry.telegramFirstName || entry.username || `Игрок ${entry.userId.slice(-4)}`,
+                  level: Math.floor((entry.tokens || 0) / 1000) + 1,
+                  score: entry.tokens || 0,
+                  tokens: entry.tokens || 0,
+                  maxGear: 'M' as Gear,
+                  rank: entry.rank,
+                  updatedAt: entry.updatedAt
+                }));
+                set({ leaderboard });
+                
+                // Проверяем есть ли мы в лидерборде
+                const currentUser = leaderboard.find(entry => entry.userId === state.profile?.userId);
+                if (currentUser) {
+                  console.log(`✅ Найдены в лидерборде: ранг ${currentUser.rank}, токены ${currentUser.tokens}`);
                 } else {
-                  console.log('⚠️ Автосинхронизация: лидерборд пуст');
+                  console.log(`⚠️ НЕ найдены в лидерборде`);
                 }
-              } catch (leaderboardError) {
-                console.error('⚠️ Ошибка автосинхронизации лидерборда:', leaderboardError);
               }
+            } catch (error) {
+              console.error('❌ Ошибка загрузки лидерборда:', error);
             }
+            
           } catch (error) {
             console.error('❌ Ошибка автосинхронизации:', error);
           }
-        }, 10000); // 10 секунд (увеличена частота)
+        }, 15000); // 15 секунд
 
-        // Сохраняем interval ID для очистки
         (window as any).tapdel_sync_interval = interval;
       },
 
