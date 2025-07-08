@@ -111,6 +111,24 @@ export const useGameStore = create<GameStore>()(
           console.log(`🏁 gameStore.initializeUser запущен для userId: ${userId}`);
           set({ isLoading: true, error: null });
           
+          // Проверяем нужна ли миграция данных
+          const oldUserId = localStorage.getItem('oldUserId');
+          if (oldUserId && oldUserId !== userId) {
+            console.log(`🔄 Обнаружена необходимость миграции: ${oldUserId} -> ${userId}`);
+            try {
+              const migrationResult = await apiService.migrateUser(userId, oldUserId);
+              if (migrationResult.migrated) {
+                console.log(`✅ Миграция выполнена успешно, токены: ${migrationResult.tokens}`);
+                // Очищаем старый userId из localStorage
+                localStorage.removeItem('oldUserId');
+              } else {
+                console.log(`⚠️ Миграция не выполнена или не требуется`);
+              }
+            } catch (error) {
+              console.error('❌ Ошибка миграции:', error);
+            }
+          }
+          
           // Получаем данные пользователя
           console.log(`🔍 Ищем пользователя в базе данных...`);
           const user = await apiService.getUser(userId);

@@ -120,9 +120,42 @@ const App: React.FC = () => {
         console.log('📱 Получены реальные Telegram данные:', userData);
         console.log('✅ Сохранено в localStorage как telegramUserData');
       } else {
-        // Fallback для тестирования вне Telegram
-        userId = 'demo-user-main';
-        console.log('⚠️ Telegram WebApp не доступен, используем demo-user');
+        // Проверяем есть ли сохраненные Telegram данные
+        const storedTelegramData = localStorage.getItem('telegramUserData');
+        if (storedTelegramData) {
+          try {
+            const parsedData = JSON.parse(storedTelegramData);
+            if (parsedData.telegramId) {
+              userId = `telegram-${parsedData.telegramId}`;
+              console.log('📱 Используем сохраненный Telegram ID:', userId);
+            }
+          } catch (error) {
+            console.warn('⚠️ Ошибка парсинга сохраненных Telegram данных:', error);
+          }
+        }
+        
+        // Если все еще нет userId, создаем уникальный для веб-версии
+        if (!userId) {
+          // Генерируем уникальный ID на основе браузера и времени
+          const browserFingerprint = [
+            navigator.userAgent,
+            navigator.language,
+            screen.width,
+            screen.height,
+            new Date().toDateString() // Используем дату для группировки по дням
+          ].join('|');
+          
+          // Простой хеш функция
+          let hash = 0;
+          for (let i = 0; i < browserFingerprint.length; i++) {
+            const char = browserFingerprint.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Конвертируем в 32-битное число
+          }
+          
+          userId = `web-user-${Math.abs(hash)}`;
+          console.log('🌐 Создан уникальный веб ID:', userId);
+        }
       }
       
       localStorage.setItem('userId', userId);
@@ -133,6 +166,29 @@ const App: React.FC = () => {
       // Проверим есть ли telegramUserData
       const storedTelegramData = localStorage.getItem('telegramUserData');
       console.log('📱 telegramUserData в localStorage:', storedTelegramData);
+      
+      // Если есть Telegram данные сейчас, но userId не telegram-, обновляем
+      const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+      if (telegramUser?.id && !userId.startsWith('telegram-')) {
+        const newUserId = `telegram-${telegramUser.id}`;
+        console.log('🔄 Обновляем userId с', userId, 'на', newUserId);
+        
+        // Сохраняем старый userId для возможной миграции данных
+        localStorage.setItem('oldUserId', userId);
+        localStorage.setItem('userId', newUserId);
+        userId = newUserId;
+        
+        // Сохраняем Telegram данные
+        const userData = {
+          userId: userId,
+          username: telegramUser.username || `${telegramUser.first_name} ${telegramUser.last_name}`.trim(),
+          telegramFirstName: telegramUser.first_name || '',
+          telegramLastName: telegramUser.last_name || '',
+          telegramUsername: telegramUser.username || '',
+          telegramId: telegramUser.id
+        };
+        localStorage.setItem('telegramUserData', JSON.stringify(userData));
+      }
     }
     
     console.log('🔄 Вызываем initializeUser с userId:', userId);

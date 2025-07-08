@@ -343,6 +343,92 @@ router.post('/admin/reset-leaderboard', async (req, res) => {
   }
 });
 
+// Миграция данных пользователя
+router.post('/users/:userId/migrate', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { oldUserId } = req.body;
+    
+    if (!oldUserId || oldUserId === userId) {
+      return res.status(400).json({ message: 'Invalid migration request' });
+    }
+    
+    const database = await connectToDatabase();
+    
+    console.log(`🔄 Запрос миграции данных: ${oldUserId} -> ${userId}`);
+    
+    // Найти старого пользователя
+    const oldUser = await database.collection('users').findOne({ userId: oldUserId });
+    const newUser = await database.collection('users').findOne({ userId });
+    
+    if (!oldUser) {
+      return res.status(404).json({ message: 'Old user not found' });
+    }
+    
+    // Если новый пользователь уже существует и имеет прогресс, не мигрируем
+    if (newUser && newUser.gameState && newUser.gameState.tokens > 0) {
+      console.log(`⚠️ Новый пользователь уже имеет прогресс, миграция отменена`);
+      return res.json({ 
+        message: 'Migration skipped - new user already has progress',
+        migrated: false 
+      });
+    }
+    
+    // Мигрируем данные
+    const migratedUser = {
+      ...oldUser,
+      userId, // Обновляем ID
+      updatedAt: new Date(),
+      migratedFrom: oldUserId,
+      migrationDate: new Date()
+    };
+    
+    // Сохраняем мигрированного пользователя
+    await database.collection('users').updateOne(
+      { userId },
+      { $set: migratedUser },
+      { upsert: true }
+    );
+    
+    // Мигрируем данные в лидерборде
+    const oldLeaderboardEntry = await database.collection('leaderboard').findOne({ userId: oldUserId });
+    if (oldLeaderboardEntry) {
+      const migratedLeaderboardEntry = {
+        ...oldLeaderboardEntry,
+        userId,
+        updatedAt: new Date()
+      };
+      
+      await database.collection('leaderboard').updateOne(
+        { userId },
+        { $set: migratedLeaderboardEntry },
+        { upsert: true }
+      );
+      
+      // Удаляем старую запись из лидерборда
+      await database.collection('leaderboard').deleteOne({ userId: oldUserId });
+    }
+    
+    // Удаляем старого пользователя
+    await database.collection('users').deleteOne({ userId: oldUserId });
+    
+    // Обновляем ранги в лидерборде
+    await updateAllRanks(database);
+    
+    console.log(`✅ Миграция завершена: ${oldUserId} -> ${userId}`);
+    
+    res.json({ 
+      message: 'User data migrated successfully',
+      migrated: true,
+      tokens: oldUser.gameState?.tokens || 0
+    });
+    
+  } catch (error) {
+    console.error('Error migrating user:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 // Вспомогательная функция для обновления пользователя в лидерборде
 async function updateUserInLeaderboard(database, user, tokens) {
   try {

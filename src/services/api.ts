@@ -136,6 +136,18 @@ export class ApiService {
       return null;
     }
   }
+
+  async migrateUser(newUserId: string, oldUserId: string): Promise<{ migrated: boolean; tokens?: number }> {
+    try {
+      return await this.request<{ migrated: boolean; tokens?: number }>(`/users/${newUserId}/migrate`, {
+        method: 'POST',
+        body: JSON.stringify({ oldUserId }),
+      });
+    } catch (error) {
+      console.error('Migration failed:', error);
+      return { migrated: false };
+    }
+  }
 }
 
 export const apiService = new ApiService(); 
