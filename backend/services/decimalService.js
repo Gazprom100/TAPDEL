@@ -14,6 +14,11 @@ class DecimalService {
 
   async initialize() {
     try {
+      // Проверяем конфигурацию
+      if (!config.isConfigured()) {
+        throw new Error('DecimalChain конфигурация неполная. Проверьте переменные окружения.');
+      }
+
       // Подключаемся к Redis
       this.redis = redis.createClient({ url: config.REDIS_URL });
       await this.redis.connect();
@@ -23,9 +28,20 @@ class DecimalService {
       const blockNumber = await this.web3.eth.getBlockNumber();
       console.log(`✅ DecimalService: Подключен к DecimalChain, блок: ${blockNumber}`);
       
+      // Проверяем рабочий кошелек
+      const balance = await this.getWorkingBalance();
+      console.log(`💰 DecimalService: Баланс рабочего кошелька: ${balance} DEL`);
+      
       return true;
     } catch (error) {
       console.error('❌ DecimalService: Ошибка инициализации:', error);
+      // Очищаем ресурсы при ошибке
+      if (this.redis) {
+        try {
+          await this.redis.disconnect();
+        } catch (e) {}
+        this.redis = null;
+      }
       throw error;
     }
   }

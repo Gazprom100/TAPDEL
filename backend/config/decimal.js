@@ -20,6 +20,11 @@ module.exports = {
   // Redis настройки
   REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379/0',
   
+  // Проверка готовности конфигурации
+  isConfigured() {
+    return !!(this.WORKING_ADDRESS && this.WORKING_PRIVKEY_ENC && this.KEY_PASSPHRASE && this.REDIS_URL);
+  },
+
   // Расшифровка приватного ключа
   getPrivateKey() {
     if (!this.WORKING_PRIVKEY_ENC || !this.KEY_PASSPHRASE) {

@@ -72,20 +72,33 @@ class DecimalApi {
   }
 
   async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      ...options,
-    });
+    try {
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+        ...options,
+      });
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Network error' }));
-      throw new Error(error.error || `HTTP ${response.status}`);
+      if (!response.ok) {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const error = await response.json().catch(() => ({ error: 'Network error' }));
+          throw new Error(error.error || `HTTP ${response.status}`);
+        } else {
+          // Если вернулся HTML вместо JSON, значит сервис недоступен
+          throw new Error('DecimalChain сервис временно недоступен');
+        }
+      }
+
+      return response.json();
+    } catch (error) {
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new Error('Ошибка сети. Проверьте подключение к интернету.');
+      }
+      throw error;
     }
-
-    return response.json();
   }
 
   // === СИСТЕМНАЯ ИНФОРМАЦИЯ ===
