@@ -17,12 +17,35 @@ module.exports = {
   UNIQUE_SCALE: parseFloat(process.env.DECIMAL_UNIQUE_SCALE || '0.000001'),
   MAX_USER_MOD: 0.000999,
   
-  // Redis настройки
+  // Redis настройки (поддержка Upstash с TLS)
   REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379/0',
   
   // Проверка готовности конфигурации
   isConfigured() {
     return !!(this.WORKING_ADDRESS && this.WORKING_PRIVKEY_ENC && this.KEY_PASSPHRASE && this.REDIS_URL);
+  },
+
+  // Проверка использования Upstash (определяем по URL)
+  isUpstash() {
+    return this.REDIS_URL.includes('upstash.io');
+  },
+
+  // Получение конфигурации Redis
+  getRedisConfig() {
+    if (this.isUpstash()) {
+      // Для Upstash Redis нужен TLS
+      const url = new URL(this.REDIS_URL);
+      return {
+        url: this.REDIS_URL,
+        socket: {
+          tls: true,
+          rejectUnauthorized: false // Upstash использует самоподписанные сертификаты
+        }
+      };
+    } else {
+      // Для обычного Redis
+      return { url: this.REDIS_URL };
+    }
   },
 
   // Расшифровка приватного ключа

@@ -19,29 +19,37 @@ class DecimalService {
         throw new Error('DecimalChain конфигурация неполная. Проверьте переменные окружения.');
       }
 
-      // Подключаемся к Redis
-      this.redis = redis.createClient({ url: config.REDIS_URL });
+      // Подключаемся к Redis с правильной конфигурацией
+      const redisConfig = config.getRedisConfig();
+      console.log(`🔗 Подключаемся к Redis: ${config.isUpstash() ? 'Upstash (TLS)' : 'Local'}`);
+      
+      this.redis = redis.createClient(redisConfig);
+      
+      // Обработка ошибок Redis
+      this.redis.on('error', (err) => {
+        console.error('❌ Redis ошибка:', err);
+      });
+      
       await this.redis.connect();
       console.log('✅ DecimalService: Redis подключен');
+      
+      // Тестируем Redis командой ping
+      const pong = await this.redis.ping();
+      console.log(`✅ Redis ping: ${pong}`);
       
       // Проверяем подключение к DecimalChain
       const blockNumber = await this.web3.eth.getBlockNumber();
       console.log(`✅ DecimalService: Подключен к DecimalChain, блок: ${blockNumber}`);
       
-      // Проверяем рабочий кошелек
-      const balance = await this.getWorkingBalance();
-      console.log(`💰 DecimalService: Баланс рабочего кошелька: ${balance} DEL`);
-      
       return true;
     } catch (error) {
       console.error('❌ DecimalService: Ошибка инициализации:', error);
-      // Очищаем ресурсы при ошибке
-      if (this.redis) {
-        try {
-          await this.redis.disconnect();
-        } catch (e) {}
-        this.redis = null;
-      }
+      console.error('📋 Детали ошибки:', {
+        message: error.message,
+        code: error.code,
+        redis_configured: !!config.REDIS_URL,
+        upstash: config.isUpstash()
+      });
       throw error;
     }
   }

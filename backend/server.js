@@ -21,28 +21,7 @@ app.use(express.static(path.join(__dirname, '../dist')));
 app.use('/api/telegram', telegramRoutes);
 app.use('/api', apiRoutes);
 
-// DecimalChain routes with fallback
-try {
-  app.use('/api/decimal', decimalRoutes);
-} catch (error) {
-  console.error('❌ Не удалось подключить DecimalChain роуты:', error);
-  // Добавляем fallback роуты для DecimalChain
-  app.get('/api/decimal/*', (req, res) => {
-    res.status(503).json({ 
-      error: 'DecimalChain сервис временно недоступен',
-      details: 'Проверьте конфигурацию Redis и переменные окружения',
-      status: 'service_unavailable'
-    });
-  });
-  
-  app.post('/api/decimal/*', (req, res) => {
-    res.status(503).json({ 
-      error: 'DecimalChain сервис временно недоступен',
-      details: 'Проверьте конфигурацию Redis и переменные окружения',
-      status: 'service_unavailable'
-    });
-  });
-}
+// DecimalChain роуты будут подключены после инициализации сервиса
 
 // Serve SPA
 app.get('*', (req, res) => {
@@ -59,17 +38,49 @@ const startServer = () => {
       // Initialize DecimalChain service
       let decimalInitialized = false;
       try {
+        console.log('🔄 Инициализируем DecimalChain сервис...');
+        console.log('📋 Проверяем переменные окружения:');
+        console.log(`   REDIS_URL: ${process.env.REDIS_URL ? 'Установлен' : 'НЕ УСТАНОВЛЕН'}`);
+        console.log(`   DECIMAL_WORKING_ADDRESS: ${process.env.DECIMAL_WORKING_ADDRESS ? 'Установлен' : 'НЕ УСТАНОВЛЕН'}`);
+        console.log(`   DECIMAL_WORKING_PRIVKEY_ENC: ${process.env.DECIMAL_WORKING_PRIVKEY_ENC ? 'Установлен' : 'НЕ УСТАНОВЛЕН'}`);
+        console.log(`   DECIMAL_KEY_PASSPHRASE: ${process.env.DECIMAL_KEY_PASSPHRASE ? 'Установлен' : 'НЕ УСТАНОВЛЕН'}`);
+        
         await decimalService.initialize();
         decimalInitialized = true;
         console.log('✅ DecimalChain сервис инициализирован');
+        
+        // Подключаем DecimalChain роуты после успешной инициализации
+        app.use('/api/decimal', decimalRoutes);
+        console.log('🔗 DecimalChain API роуты подключены');
+        
       } catch (error) {
         console.error('⚠️ DecimalChain сервис недоступен:', error.message);
+        console.error('📋 Подробности ошибки:', error);
         console.log('ℹ️ Сервер запустится без DecimalChain функционала');
         console.log('🔧 Для активации DecimalChain настройте:');
-        console.log('   - REDIS_URL');
+        console.log('   - REDIS_URL (Upstash Redis URL с TLS)');
         console.log('   - DECIMAL_WORKING_ADDRESS');
         console.log('   - DECIMAL_WORKING_PRIVKEY_ENC');
         console.log('   - DECIMAL_KEY_PASSPHRASE');
+        
+        // Добавляем fallback роуты для DecimalChain
+        app.get('/api/decimal/*', (req, res) => {
+          res.status(503).json({ 
+            error: 'DecimalChain сервис временно недоступен',
+            details: 'Проверьте конфигурацию Redis и переменные окружения',
+            status: 'service_unavailable',
+            configured: false
+          });
+        });
+        
+        app.post('/api/decimal/*', (req, res) => {
+          res.status(503).json({ 
+            error: 'DecimalChain сервис временно недоступен',
+            details: 'Проверьте конфигурацию Redis и переменные окружения',
+            status: 'service_unavailable',
+            configured: false
+          });
+        });
       }
 
       const server = app.listen(PORT, async () => {
