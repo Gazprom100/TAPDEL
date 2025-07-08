@@ -385,16 +385,20 @@ export const useGameStore = create<GameStore>()(
           const newTokens = state.tokens + amount;
           const newHighScore = Math.max(state.highScore, newTokens);
           
+          console.log(`💰 Добавляем токены: ${amount} (было: ${state.tokens}, станет: ${newTokens})`);
+          
           set({
             tokens: newTokens,
             highScore: newHighScore
           });
 
-          // Синхронизируем только один раз (syncGameState уже включает updateLeaderboard)
+          // Немедленная синхронизация с сервером
+          console.log(`🔄 Начинаем синхронизацию токенов для ${state.profile?.userId}`);
           await get().syncGameState();
+          console.log(`✅ Синхронизация токенов завершена`);
           
         } catch (error) {
-          console.error('⚠️ Ошибка синхронизации токенов:', error);
+          console.error('❌ Ошибка синхронизации токенов:', error);
           set({ error: (error as Error).message });
         }
       },
@@ -625,13 +629,13 @@ export const useGameStore = create<GameStore>()(
       setCoolingTimer: (time: number) => set({ coolingTimer: time }),
       setHyperdriveActive: (state: boolean) => set({ hyperdriveActive: state }),
 
-      // Автоматическая синхронизация каждые 30 секунд
+      // Автоматическая синхронизация каждые 10 секунд (увеличена частота)
       startAutoSync: () => {
         const interval = setInterval(async () => {
           try {
             const state = get();
             if (state.profile?.userId && state.tokens >= 0) {
-              console.log('🔄 Автосинхронизация лидерборда...');
+              console.log(`🔄 Автосинхронизация: пользователь ${state.profile.userId}, токены: ${state.tokens}`);
               
               // Синхронизируем состояние игры
               try {
@@ -656,6 +660,25 @@ export const useGameStore = create<GameStore>()(
                     updatedAt: entry.updatedAt
                   }));
                   set({ leaderboard });
+                  
+                  // Проверяем есть ли текущий пользователь в лидерборде
+                  const currentUserInLeaderboard = leaderboard.find(entry => entry.userId === state.profile?.userId);
+                  if (currentUserInLeaderboard) {
+                    console.log(`✅ Автосинхронизация: найден в лидерборде (ранг ${currentUserInLeaderboard.rank}, токены ${currentUserInLeaderboard.tokens})`);
+                  } else {
+                    console.log(`⚠️ Автосинхронизация: НЕ найден в лидерборде! Принудительно добавляем...`);
+                    // Принудительно добавляем пользователя в лидерборд
+                    await apiService.updateLeaderboard({
+                      userId: state.profile.userId,
+                      username: state.profile.telegramFirstName || state.profile.telegramUsername || state.profile.username,
+                      telegramId: state.profile.telegramId,
+                      telegramUsername: state.profile.telegramUsername,
+                      telegramFirstName: state.profile.telegramFirstName,
+                      telegramLastName: state.profile.telegramLastName,
+                      tokens: state.tokens
+                    });
+                  }
+                  
                   console.log(`✅ Автосинхронизация: обновлён лидерборд (${leaderboard.length} участников)`);
                 } else {
                   console.log('⚠️ Автосинхронизация: лидерборд пуст');
@@ -667,7 +690,7 @@ export const useGameStore = create<GameStore>()(
           } catch (error) {
             console.error('❌ Ошибка автосинхронизации:', error);
           }
-        }, 30000); // 30 секунд
+        }, 10000); // 10 секунд (увеличена частота)
 
         // Сохраняем interval ID для очистки
         (window as any).tapdel_sync_interval = interval;

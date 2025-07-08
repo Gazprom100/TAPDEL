@@ -192,6 +192,24 @@ const App: React.FC = () => {
         </div>
       </div>
 
+      {/* Кнопка принудительной синхронизации для отладки */}
+      <div className="absolute top-2 right-2 z-30">
+        <button
+          onClick={async () => {
+            const { syncGameState } = useGameStore.getState();
+            console.log('🔴 ПРИНУДИТЕЛЬНАЯ СИНХРОНИЗАЦИЯ');
+            await syncGameState();
+          }}
+          className="cyber-panel px-2 py-1 text-xs"
+          style={{ 
+            color: '#ff0066',
+            border: '1px solid #ff0066'
+          }}
+        >
+          SYNC
+        </button>
+      </div>
+
       {/* 2. Счетчик натапанных DEL - растянут на всю ширину с отступами от шкал */}
       <div className="absolute top-12 sm:top-16 md:top-20 z-20" style={{
         left: '70px',
