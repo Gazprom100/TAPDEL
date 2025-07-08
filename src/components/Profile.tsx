@@ -14,10 +14,9 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     tokens,
     transactions,
     leaderboard,
-    withdrawTokens,
-    depositTokens,
     refreshLeaderboard,
-    profile
+    profile,
+    refreshBalance
   } = useGameStore();
 
   // Периодическое обновление таблицы лидеров
@@ -52,20 +51,73 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
   const handleWithdraw = async () => {
     const amount = Number(withdrawAmount);
-    if (amount > 0) {
-      const success = await withdrawTokens(amount);
-      if (success) {
+    if (amount > 0 && profile?.userId) {
+      try {
+        // Проверяем баланс
+        if (amount > tokens) {
+          alert('Недостаточно средств');
+          return;
+        }
+
+        // Запрашиваем адрес для вывода
+        const address = prompt('Введите адрес DecimalChain для вывода (xdc... или 0x...):');
+        if (!address) return;
+
+        // Проверяем формат адреса
+        if (!address.match(/^(xdc|0x)[0-9a-fA-F]{40}$/)) {
+          alert('Неверный формат адреса');
+          return;
+        }
+
+        const { decimalApi } = await import('../services/decimalApi');
+        await decimalApi.createWithdrawal({
+          userId: profile.userId,
+          toAddress: address,
+          amount: amount
+        });
+
         setWithdrawAmount('');
+        alert('Запрос на вывод создан');
+        
+        // Обновляем баланс
+        await refreshBalance();
+        
+      } catch (error) {
+        console.error('Ошибка вывода:', error);
+        alert('Ошибка создания вывода: ' + (error instanceof Error ? error.message : 'Неизвестная ошибка'));
       }
     }
   };
 
   const handleDeposit = async () => {
     const amount = Number(depositAmount);
-    if (amount > 0) {
-      const success = await depositTokens(amount);
-      if (success) {
+    if (amount > 0 && profile?.userId) {
+      try {
+        if (amount < 0.001) {
+          alert('Минимальная сумма депозита: 0.001 DEL');
+          return;
+        }
+
+        const { decimalApi } = await import('../services/decimalApi');
+        const deposit = await decimalApi.createDeposit({
+          userId: profile.userId,
+          baseAmount: amount
+        });
+
         setDepositAmount('');
+        
+        // Показываем инструкции для депозита
+        alert(`Депозит создан!
+        
+Отправьте точно ${deposit.uniqueAmount} DEL на адрес:
+${deposit.address}
+
+Депозит будет автоматически зачислен после подтверждения в блокчейне.
+Срок действия: 30 минут`);
+        
+      } catch (error) {
+        console.error('Ошибка депозита:', error);
+        alert('Ошибка создания депозита: ' + (error instanceof Error ? error.message : 'Неизвестная ошибка'));
       }
     }
   };
