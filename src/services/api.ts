@@ -37,27 +37,37 @@ export class ApiService {
     this.baseUrl = import.meta.env.VITE_API_URL || '/api';
   }
 
-  private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  private async request<T>(endpoint: string, options?: RequestInit, retries = 3): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
     
-    try {
-      const response = await fetch(url, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...options?.headers,
-        },
-        ...options,
-      });
+    for (let i = 0; i <= retries; i++) {
+      try {
+        const response = await fetch(url, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...options?.headers,
+          },
+          ...options,
+        });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        return await response.json();
+      } catch (error) {
+        console.error(`API request failed (attempt ${i + 1}/${retries + 1}):`, error);
+        
+        if (i === retries) {
+          throw error;
+        }
+        
+        // Задержка между попытками для Telegram WebApp
+        await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
       }
-
-      return await response.json();
-    } catch (error) {
-      console.error('API request failed:', error);
-      throw error;
     }
+    
+    throw new Error('All retry attempts failed');
   }
 
   async getUser(userId: string): Promise<ApiUser | null> {

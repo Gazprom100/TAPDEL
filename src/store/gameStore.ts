@@ -329,9 +329,14 @@ export const useGameStore = create<GameStore>()(
       syncGameState: async () => {
         try {
           const state = get();
-          if (!state.profile?.userId) return;
+          if (!state.profile?.userId) {
+            console.warn('⚠️ Синхронизация пропущена: нет userId');
+            return;
+          }
 
-          // Обновляем состояние игры (автоматически обновит лидерборд через API)
+          console.log(`🔄 Синхронизация состояния для ${state.profile.userId} (${state.tokens} токенов)`);
+
+          // Обновляем состояние игры
           await apiService.updateGameState(state.profile.userId, {
             tokens: state.tokens,
             highScore: state.highScore,
@@ -343,7 +348,7 @@ export const useGameStore = create<GameStore>()(
             lastSaved: new Date()
           });
 
-          // Дополнительно обновляем лидерборд с Telegram данными
+          // Обновляем лидерборд с Telegram данными
           await apiService.updateLeaderboard({
             userId: state.profile.userId,
             username: state.profile.telegramFirstName || state.profile.telegramUsername || state.profile.username,
@@ -351,9 +356,12 @@ export const useGameStore = create<GameStore>()(
             telegramUsername: state.profile.telegramUsername,
             telegramFirstName: state.profile.telegramFirstName,
             telegramLastName: state.profile.telegramLastName,
-            tokens: state.tokens // Отправляем токены вместо score
+            tokens: state.tokens
           });
+
+          console.log(`✅ Синхронизация завершена: ${state.profile.username} (${state.tokens} токенов)`);
         } catch (error) {
+          console.error('❌ Ошибка синхронизации:', error);
           set({ error: (error as Error).message });
         }
       },
@@ -370,27 +378,11 @@ export const useGameStore = create<GameStore>()(
             highScore: newHighScore
           });
 
-          // Автоматически синхронизируем с сервером и лидербордом
+          // Синхронизируем только один раз (syncGameState уже включает updateLeaderboard)
           await get().syncGameState();
           
-          // Дополнительно обновляем лидерборд
-          if (state.profile?.userId) {
-            try {
-              await apiService.updateLeaderboard({
-                userId: state.profile.userId,
-                username: state.profile.telegramFirstName || state.profile.telegramUsername || state.profile.username,
-                telegramId: state.profile.telegramId,
-                telegramUsername: state.profile.telegramUsername,
-                telegramFirstName: state.profile.telegramFirstName,
-                telegramLastName: state.profile.telegramLastName,
-                tokens: newTokens
-              });
-              console.log(`🏆 Лидерборд обновлён: ${state.profile.username} теперь имеет ${newTokens} токенов`);
-            } catch (error) {
-              console.error('⚠️ Ошибка обновления лидерборда при добавлении токенов:', error);
-            }
-          }
         } catch (error) {
+          console.error('⚠️ Ошибка синхронизации токенов:', error);
           set({ error: (error as Error).message });
         }
       },
@@ -728,7 +720,10 @@ export const useGameStore = create<GameStore>()(
         powerLevel: state.powerLevel,
         
         // Временные метки для синхронизации
-        lastTapTimestamp: state.lastTapTimestamp
+        lastTapTimestamp: state.lastTapTimestamp,
+        
+        // Для отслеживания изменений в Telegram WebApp
+        lastSyncTime: Date.now()
       })
     }
   )

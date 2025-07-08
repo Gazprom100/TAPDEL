@@ -66,7 +66,7 @@ export const useGameMechanics = () => {
   }, []);
 
   // Обработка тапа
-  const handleTap = useCallback(() => {
+  const handleTap = useCallback(async () => {
     const now = Date.now();
     setLastTapTime(now);
     
@@ -125,7 +125,7 @@ export const useGameMechanics = () => {
     const reward = baseReward * gearMultiplier * engineBonus * gearboxBonus * gridEfficiency * hyperdriveBonus;
     
     // Добавляем токены
-    addTokens(reward);
+    await addTokens(reward);
     
   }, [taps, calculateGear, fuelLevel, isHyperdriveActive, currentEngine, currentGearbox, currentPowerGrid, currentHyperdrive, addTokens]);
 

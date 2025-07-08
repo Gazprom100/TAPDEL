@@ -62,7 +62,7 @@ export const TapButton: React.FC = () => {
   }, []);
 
   // Накопление энергии для гипердвигателя от тапов
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+  const handleTouchStart = useCallback(async (e: React.TouchEvent) => {
     e.preventDefault();
     const now = Date.now();
     const touchCount = Math.min(e.touches.length, GAME_MECHANICS.TAP.MAX_FINGERS);
@@ -124,7 +124,7 @@ export const TapButton: React.FC = () => {
     setIsCharging(false);
     
     // Добавляем токены
-    addTokens(reward);
+    await addTokens(reward);
     
     // Обновляем температуру
     const tempIncrease = (touchCount * gearMultiplier) / currentEngine.fuelEfficiency;
