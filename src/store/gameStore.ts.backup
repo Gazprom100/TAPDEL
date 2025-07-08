@@ -111,27 +111,20 @@ export const useGameStore = create<GameStore>()(
           console.log(`🏁 gameStore.initializeUser запущен для userId: ${userId}`);
           set({ isLoading: true, error: null });
           
-          // Проверяем если пользователь тот же - не сбрасываем данные
-          const existingState = get();
-          const isSameUser = existingState.profile?.userId === userId;
-
-          if (!isSameUser) {
-            console.log(`🔄 Новый пользователь (${userId}), сброс локального состояния...`);
-            set({
-              tokens: 0,
-              highScore: 0,
-              engineLevel: COMPONENTS.ENGINES[0].level as EngineMark,
-              gearboxLevel: COMPONENTS.GEARBOXES[0].level as GearboxLevel,
-              batteryLevel: COMPONENTS.BATTERIES[0].level as BatteryLevel,
-              hyperdriveLevel: COMPONENTS.HYPERDRIVES[0].level as HyperdriveLevel,
-              powerGridLevel: COMPONENTS.POWER_GRIDS[0].level as PowerGridLevel,
-              profile: null,
-              transactions: [],
-              leaderboard: []
-            });
-          } else {
-            console.log(`✅ Тот же пользователь (${userId}), проверяем актуальность данных...`);
-          }
+          // ВСЕГДА сбрасываем локальные данные и загружаем из MongoDB
+          console.log(`🔄 Сброс локального состояния и загрузка из MongoDB...`);
+          set({
+            tokens: 0,
+            highScore: 0,
+            engineLevel: COMPONENTS.ENGINES[0].level as EngineMark,
+            gearboxLevel: COMPONENTS.GEARBOXES[0].level as GearboxLevel,
+            batteryLevel: COMPONENTS.BATTERIES[0].level as BatteryLevel,
+            hyperdriveLevel: COMPONENTS.HYPERDRIVES[0].level as HyperdriveLevel,
+            powerGridLevel: COMPONENTS.POWER_GRIDS[0].level as PowerGridLevel,
+            profile: null,
+            transactions: [],
+            leaderboard: []
+          });
           
           // Проверяем нужна ли миграция данных
           const oldUserId = localStorage.getItem('oldUserId');
@@ -744,19 +737,10 @@ export const useGameStore = create<GameStore>()(
     {
       name: 'tapdel-storage',
       partialize: (state) => ({
-        // КРИТИЧЕСКИ ВАЖНЫЕ данные для восстановления сессии
-        profile: state.profile, // ОБЯЗАТЕЛЬНО для идентификации пользователя
-
-        // Основные игровые данные (кеш для быстрого запуска)
-        tokens: state.tokens,
-        highScore: state.highScore,
-        engineLevel: state.engineLevel,
-        gearboxLevel: state.gearboxLevel,
-        batteryLevel: state.batteryLevel,
-        hyperdriveLevel: state.hyperdriveLevel,
-        powerGridLevel: state.powerGridLevel,
-
-        // Временные игровые параметры для плавной работы интерфейса
+        // Сохраняем локально только самые необходимые данные для работы UI
+        // ВСЕ основные данные загружаются из MongoDB при каждой инициализации
+        
+        // Только временные игровые параметры для плавной работы интерфейса
         fuelLevel: state.fuelLevel,
         currentGear: state.currentGear,
         temperature: state.temperature,
@@ -765,11 +749,17 @@ export const useGameStore = create<GameStore>()(
         coolingTimer: state.coolingTimer,
         lastTapTimestamp: state.lastTapTimestamp,
         hyperdriveActive: state.hyperdriveActive,
-
+        
         // Метка времени для отслеживания синхронизации
         lastSyncTime: Date.now()
-
-        // Принцип: Сохраняем для быстрого старта, MongoDB остается источником истины
+        
+        // НЕ сохраняем локально:
+        // - tokens (загружается из MongoDB)
+        // - profile (загружается из MongoDB) 
+        // - transactions (загружается из MongoDB)
+        // - leaderboard (загружается из MongoDB)
+        // - все апгрейды (загружается из MongoDB)
+        // - highScore (загружается из MongoDB)
       })
     }
   )
