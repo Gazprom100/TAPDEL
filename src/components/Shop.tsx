@@ -188,7 +188,7 @@ export const Shop: React.FC = () => {
               minWidth: '80px'
             }}
           >
-            {isOwned ? 'Установлено' : `${item.cost} токенов`}
+            {isOwned ? 'Установлено' : `${item.cost} DEL`}
           </button>
         </div>
       </div>

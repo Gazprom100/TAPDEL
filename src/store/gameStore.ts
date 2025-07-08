@@ -19,7 +19,7 @@ interface ExtendedGameState extends GameStateBase {
   leaderboard: LeaderboardEntry[];
   isLoading: boolean;
   error: string | null;
-  delBalance: number; // DEL баланс пользователя
+  // Убираем отдельный delBalance - используем только tokens как DEL
 }
 
 interface GameActions {
@@ -69,9 +69,8 @@ interface GameActions {
   // Обновление только лидерборда
   refreshLeaderboard: () => Promise<void>;
   
-  // DEL баланс
-  updateDelBalance: (amount: number) => void;
-  refreshDelBalance: () => Promise<void>;
+  // Обновление DEL баланса (теперь это единственная валюта)
+  refreshBalance: () => Promise<void>;
 }
 
 type GameStore = ExtendedGameState & GameActions;
@@ -102,7 +101,7 @@ export const useGameStore = create<GameStore>()(
       leaderboard: [],
       isLoading: false,
       error: null,
-      delBalance: 0,
+      // Убираем delBalance - используем только tokens как DEL
 
       // Системные действия
       setError: (error) => set({ error }),
@@ -338,6 +337,14 @@ export const useGameStore = create<GameStore>()(
             set({ leaderboard: [] });
           }
           
+          // Инициализируем DEL баланс
+          try {
+            console.log('💰 Инициализация DEL баланса...');
+            await get().refreshBalance();
+          } catch (delBalanceError) {
+            console.warn('⚠️ Не удалось загрузить DEL баланс (нормально для новых пользователей):', delBalanceError);
+          }
+          
         } catch (error) {
           set({ error: (error as Error).message });
         } finally {
@@ -391,19 +398,12 @@ export const useGameStore = create<GameStore>()(
           // Обновляем лидерборд ТОЛЬКО если есть профиль
           if (state.profile?.userId) {
             try {
-              console.log(`🏆 Обновляем лидерборд для ${state.profile.userId}`);
-              await apiService.updateLeaderboard({
-                userId: state.profile.userId,
-                username: state.profile.telegramFirstName || state.profile.telegramUsername || state.profile.username,
-                telegramId: state.profile.telegramId,
-                telegramUsername: state.profile.telegramUsername,
-                telegramFirstName: state.profile.telegramFirstName,
-                telegramLastName: state.profile.telegramLastName,
-                tokens: newTokens
-              });
-              console.log(`✅ Лидерборд обновлен: ${newTokens} токенов`);
+              console.log(`🏆 Обновляем общий рейтинг для ${state.profile.userId}`);
+              // Обновляем общий рейтинг (игровые токены + DEL баланс)
+              await get().refreshBalance();
+              console.log(`✅ Общий рейтинг обновлен`);
             } catch (leaderboardError) {
-              console.error('❌ Ошибка обновления лидерборда:', leaderboardError);
+              console.error('❌ Ошибка обновления рейтинга:', leaderboardError);
             }
           }
           
@@ -718,18 +718,20 @@ export const useGameStore = create<GameStore>()(
         }
       },
 
-      // DEL баланс
-      updateDelBalance: (amount: number) => set({ delBalance: amount }),
-      
-      refreshDelBalance: async () => {
+      // Обновление DEL баланса (теперь это единственная валюта)
+      refreshBalance: async () => {
         try {
           const state = get();
           if (!state.profile?.userId) return;
           
           const { decimalApi } = await import('../services/decimalApi');
           const balance = await decimalApi.getUserBalance(state.profile.userId);
-          set({ delBalance: balance.gameBalance });
+          set({ tokens: balance.gameBalance }); // Загружаем DEL баланс в основное поле tokens
           console.log(`💰 Обновлен DEL баланс: ${balance.gameBalance} DEL`);
+          
+          // Автоматически обновляем рейтинг
+          await get().refreshLeaderboard();
+          
         } catch (error) {
           console.error('❌ Ошибка обновления DEL баланса:', error);
         }
@@ -764,7 +766,7 @@ export const useGameStore = create<GameStore>()(
         lastTapTimestamp: state.lastTapTimestamp,
         
         // DEL баланс
-        delBalance: state.delBalance,
+        // Убираем delBalance - используем только tokens как DEL
         
         // Для отслеживания изменений в Telegram WebApp
         lastSyncTime: Date.now()
