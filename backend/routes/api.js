@@ -483,3 +483,13 @@ process.on('SIGINT', async () => {
 });
 
 module.exports = router; 
+// Временный роут для очистки localStorage (удалить после исправления)
+router.post('/emergency-clear-old-userid', async (req, res) => {
+  try {
+    res.json({ 
+      script: 'localStorage.removeItem("oldUserId"); console.log("✅ oldUserId очищен из localStorage");',
+      message: 'Выполните этот скрипт в консоли браузера для остановки бесконечной миграции'
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }

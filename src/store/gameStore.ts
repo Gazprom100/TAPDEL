@@ -145,6 +145,8 @@ export const useGameStore = create<GameStore>()(
                 localStorage.removeItem('oldUserId');
               } else {
                 console.log(`⚠️ Миграция не выполнена или не требуется`);
+                // Очищаем oldUserId даже если миграция не нужна, чтобы избежать повторных попыток
+                localStorage.removeItem('oldUserId');
               }
             } catch (error) {
               console.error('❌ Ошибка миграции:', error);

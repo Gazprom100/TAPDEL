@@ -173,8 +173,14 @@ const App: React.FC = () => {
         const newUserId = `telegram-${telegramUser.id}`;
         console.log('🔄 Обновляем userId с', userId, 'на', newUserId);
         
-        // Сохраняем старый userId для возможной миграции данных
-        localStorage.setItem('oldUserId', userId);
+        // Сохраняем старый userId для возможной миграции данных ТОЛЬКО если его еще нет
+        const existingOldUserId = localStorage.getItem('oldUserId');
+        if (!existingOldUserId || existingOldUserId !== userId) {
+          localStorage.setItem('oldUserId', userId);
+          console.log('💾 Сохранен oldUserId для миграции:', userId);
+        } else {
+          console.log('⚠️ oldUserId уже установлен, пропускаем');
+        }
         localStorage.setItem('userId', newUserId);
         userId = newUserId;
         
