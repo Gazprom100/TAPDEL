@@ -4,7 +4,7 @@ let bot: TelegramBot | null = null;
 
 const API_URL = import.meta.env.MODE === 'production'
   ? '/api/telegram' 
-  : 'http://localhost:10000/api/telegram';
+  : 'http://localhost:3000/api/telegram';
 
 // Получение токена из переменных окружения
 export const getTelegramToken = (): string => {

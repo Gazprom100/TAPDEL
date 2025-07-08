@@ -36,7 +36,7 @@ export class ApiService {
   constructor() {
     this.baseUrl = import.meta.env.MODE === 'production'
       ? '/api' 
-      : 'http://localhost:10000/api';
+      : 'http://localhost:3000/api';
   }
 
   private async request<T>(endpoint: string, options?: RequestInit, retries = 3): Promise<T> {
