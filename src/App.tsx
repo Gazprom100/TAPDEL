@@ -82,8 +82,20 @@ const App: React.FC = () => {
 
   // Инициализация пользователя при загрузке приложения
   useEffect(() => {
+    console.log('🚀 App.tsx useEffect - начало инициализации');
+    
     let userId = localStorage.getItem('userId');
+    console.log('💾 localStorage userId:', userId);
+    
     if (!userId) {
+      console.log('🔍 userId не найден, получаем данные из Telegram...');
+      
+      // Логируем доступность Telegram WebApp
+      console.log('📱 window.Telegram:', !!window.Telegram);
+      console.log('📱 window.Telegram.WebApp:', !!window.Telegram?.WebApp);
+      console.log('📱 window.Telegram.WebApp.initDataUnsafe:', !!window.Telegram?.WebApp?.initDataUnsafe);
+      console.log('📱 window.Telegram.WebApp.initDataUnsafe.user:', window.Telegram?.WebApp?.initDataUnsafe?.user);
+      
       // Получаем реальные данные пользователя из Telegram WebApp
       const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
       
@@ -106,6 +118,7 @@ const App: React.FC = () => {
         localStorage.setItem('telegramUserData', JSON.stringify(userData));
         
         console.log('📱 Получены реальные Telegram данные:', userData);
+        console.log('✅ Сохранено в localStorage как telegramUserData');
       } else {
         // Fallback для тестирования вне Telegram
         userId = 'demo-user-main';
@@ -113,16 +126,29 @@ const App: React.FC = () => {
       }
       
       localStorage.setItem('userId', userId);
+      console.log('💾 Установлен userId:', userId);
+    } else {
+      console.log('✅ userId найден в localStorage:', userId);
+      
+      // Проверим есть ли telegramUserData
+      const storedTelegramData = localStorage.getItem('telegramUserData');
+      console.log('📱 telegramUserData в localStorage:', storedTelegramData);
     }
+    
+    console.log('🔄 Вызываем initializeUser с userId:', userId);
     
     // Инициализируем пользователя
     initializeUser(userId).then(() => {
+      console.log('✅ initializeUser завершён успешно');
+      
       // Запускаем автосинхронизацию лидерборда каждые 30 секунд
       const startAutoSync = useGameStore.getState().startAutoSync;
       if (startAutoSync) {
         console.log('🚀 Запуск автосинхронизации лидерборда каждые 30 сек');
         startAutoSync();
       }
+    }).catch(error => {
+      console.error('❌ Ошибка initializeUser:', error);
     });
 
     // Останавливаем автосинхронизацию при закрытии компонента

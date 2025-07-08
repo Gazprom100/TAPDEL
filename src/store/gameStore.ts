@@ -103,12 +103,20 @@ export const useGameStore = create<GameStore>()(
       
       initializeUser: async (userId) => {
         try {
+          console.log(`🏁 gameStore.initializeUser запущен для userId: ${userId}`);
           set({ isLoading: true, error: null });
           
           // Получаем данные пользователя
+          console.log(`🔍 Ищем пользователя в базе данных...`);
           const user = await apiService.getUser(userId);
           
           if (user) {
+            console.log(`✅ Пользователь найден в базе:`, {
+              userId: user.userId,
+              profileUsername: user.profile?.username,
+              telegramUsername: user.profile?.telegramUsername,
+              tokens: user.gameState?.tokens
+            });
             const { gameState, profile, transactions } = user;
             set({
               tokens: gameState.tokens,
@@ -121,7 +129,8 @@ export const useGameStore = create<GameStore>()(
               profile,
               transactions
             });
-          } else {
+                      } else {
+            console.log(`❌ Пользователь НЕ найден в базе, создаём нового...`);
             // Создаем нового пользователя с Telegram данными если возможно
             let telegramUserData = null;
             
@@ -185,7 +194,7 @@ export const useGameStore = create<GameStore>()(
             
             // Добавляем нового пользователя в лидерборд
             try {
-              await apiService.updateLeaderboard({
+              const leaderboardData = {
                 userId: userId,
                 username: newProfile.telegramFirstName || newProfile.telegramUsername || newProfile.username,
                 telegramId: newProfile.telegramId,
@@ -193,7 +202,10 @@ export const useGameStore = create<GameStore>()(
                 telegramFirstName: newProfile.telegramFirstName,
                 telegramLastName: newProfile.telegramLastName,
                 tokens: 0
-              });
+              };
+              console.log('🏆 Добавляем нового пользователя в лидерборд:', leaderboardData);
+              
+              await apiService.updateLeaderboard(leaderboardData);
               console.log('✅ Новый пользователь добавлен в лидерборд');
             } catch (error) {
               console.error('⚠️ Ошибка добавления в лидерборд:', error);
