@@ -275,6 +275,74 @@ router.post('/leaderboard', async (req, res) => {
   }
 });
 
+// Сброс рейтинга (только для администратора)
+router.post('/admin/reset-leaderboard', async (req, res) => {
+  try {
+    const { adminKey } = req.body;
+    
+    // Простая защита по ключу
+    if (adminKey !== 'tapdel-reset-2025') {
+      return res.status(403).json({ message: 'Доступ запрещен' });
+    }
+    
+    const database = await connectToDatabase();
+    
+    console.log('🧹 Начинаем сброс рейтинга...');
+    
+    // 1. Полная очистка коллекции leaderboard
+    const leaderboardResult = await database.collection('leaderboard').deleteMany({});
+    console.log(`✅ Удалено ${leaderboardResult.deletedCount} записей из leaderboard`);
+    
+    // 2. Сброс игрового состояния всех пользователей
+    const usersResult = await database.collection('users').updateMany(
+      {},
+      {
+        $set: {
+          'gameState.tokens': 0,
+          'gameState.highScore': 0,
+          'gameBalance': 0,
+          updatedAt: new Date()
+        }
+      }
+    );
+    console.log(`✅ Обновлено ${usersResult.modifiedCount} пользователей`);
+    
+    // 3. Очистка транзакций
+    const transactionsResult = await database.collection('users').updateMany(
+      {},
+      {
+        $set: {
+          transactions: []
+        }
+      }
+    );
+    console.log(`✅ Очищены транзакции у ${transactionsResult.modifiedCount} пользователей`);
+    
+    // 4. Очистка DecimalChain данных
+    const depositsResult = await database.collection('deposits').deleteMany({});
+    const withdrawalsResult = await database.collection('withdrawals').deleteMany({});
+    console.log(`✅ Удалено ${depositsResult.deletedCount} депозитов и ${withdrawalsResult.deletedCount} выводов`);
+    
+    res.json({
+      message: 'Рейтинг успешно сброшен',
+      results: {
+        leaderboardDeleted: leaderboardResult.deletedCount,
+        usersReset: usersResult.modifiedCount,
+        transactionsCleared: transactionsResult.modifiedCount,
+        depositsDeleted: depositsResult.deletedCount,
+        withdrawalsDeleted: withdrawalsResult.deletedCount
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Ошибка сброса рейтинга:', error);
+    res.status(500).json({ 
+      message: 'Ошибка сброса рейтинга',
+      error: error.message 
+    });
+  }
+});
+
 // Вспомогательная функция для обновления пользователя в лидерборде
 async function updateUserInLeaderboard(database, user, tokens) {
   try {
