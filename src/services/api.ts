@@ -34,7 +34,9 @@ export class ApiService {
   private baseUrl: string;
 
   constructor() {
-    this.baseUrl = import.meta.env.VITE_API_URL || '/api';
+    this.baseUrl = import.meta.env.MODE === 'production'
+      ? '/api' 
+      : 'http://localhost:10000/api';
   }
 
   private async request<T>(endpoint: string, options?: RequestInit, retries = 3): Promise<T> {
@@ -45,8 +47,11 @@ export class ApiService {
         const response = await fetch(url, {
           headers: {
             'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache', // Принудительно отключаем кеширование
+            'Pragma': 'no-cache',
             ...options?.headers,
           },
+          cache: 'no-store', // Отключаем кеш браузера
           ...options,
         });
 
@@ -62,7 +67,7 @@ export class ApiService {
           throw error;
         }
         
-        // Задержка между попытками для Telegram WebApp
+        // Задержка между попытками
         await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
       }
     }

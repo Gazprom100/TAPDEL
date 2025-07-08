@@ -276,78 +276,8 @@ export const useGameStore = create<GameStore>()(
               console.log(`✅ Загружен лидерборд: ${leaderboard.length} участников`);
               set({ leaderboard });
             } else {
-              console.log('⚠️ Лидерборд пуст, создаём mock данные...');
-              // Создаём моковые данные для демонстрации
-              const mockLeaderboard: LeaderboardEntry[] = [
-                {
-                  id: 'mock-1',
-                  userId: 'test-user-1',
-                  username: 'Никита',
-                  level: 16,
-                  score: 15420,
-                  tokens: 15420,
-                  maxGear: 'M' as Gear,
-                  rank: 1,
-                  updatedAt: new Date(),
-                  telegramFirstName: 'Никита',
-                  telegramLastName: 'Киберов'
-                },
-                {
-                  id: 'mock-2',
-                  userId: 'test-user-2',
-                  username: 'Анна',
-                  level: 13,
-                  score: 12300,
-                  tokens: 12300,
-                  maxGear: 'M' as Gear,
-                  rank: 2,
-                  updatedAt: new Date(),
-                  telegramFirstName: 'Анна',
-                  telegramLastName: 'Токенова'
-                },
-                {
-                  id: 'mock-3',
-                  userId: 'test-user-3',
-                  username: 'Максим',
-                  level: 10,
-                  score: 9850,
-                  tokens: 9850,
-                  maxGear: 'M' as Gear,
-                  rank: 3,
-                  updatedAt: new Date(),
-                  telegramFirstName: 'Максим',
-                  telegramLastName: 'Тапперович'
-                },
-                {
-                  id: 'mock-4',
-                  userId: 'test-user-4',
-                  username: 'Елена',
-                  level: 8,
-                  score: 7200,
-                  tokens: 7200,
-                  maxGear: 'M' as Gear,
-                  rank: 4,
-                  updatedAt: new Date(),
-                  telegramFirstName: 'Елена',
-                  telegramLastName: 'Киберская'
-                },
-                {
-                  id: 'mock-5',
-                  userId: 'test-user-5',
-                  username: 'Дмитрий',
-                  level: 6,
-                  score: 5600,
-                  tokens: 5600,
-                  maxGear: 'M' as Gear,
-                  rank: 5,
-                  updatedAt: new Date(),
-                  telegramFirstName: 'Дмитрий',
-                  telegramLastName: 'Флексов'
-                }
-              ];
-              
-              set({ leaderboard: mockLeaderboard });
-              console.log('📊 Установлен mock лидерборд');
+              console.log('📊 Лидерборд пуст - ожидаем первых игроков');
+              set({ leaderboard: [] });
             }
           } catch (leaderboardError) {
             console.error('❌ Ошибка загрузки лидерборда:', leaderboardError);

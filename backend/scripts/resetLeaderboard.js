@@ -84,30 +84,8 @@ async function resetLeaderboard() {
     // 5. Создание тестовых данных (опционально)
     console.log('📊 Создание начальных тестовых данных...');
     
-    const testUsers = [
-      {
-        userId: 'demo-user-main',
-        username: 'Евгений',
-        telegramFirstName: 'Евгений',
-        telegramLastName: 'Краснов',
-        telegramUsername: 'evgenik',
-        tokens: 0
-      }
-    ];
-    
-    for (const user of testUsers) {
-      await db.collection('leaderboard').updateOne(
-        { userId: user.userId },
-        {
-          $set: {
-            ...user,
-            rank: 1,
-            updatedAt: new Date()
-          }
-        },
-        { upsert: true }
-      );
-    }
+    // Больше не создаем тестовых пользователей для production
+    console.log('✅ Тестовые данные отключены для production');
     
     // 6. Пересчет рангов
     console.log('🔢 Пересчет рангов...');

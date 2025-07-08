@@ -7,10 +7,18 @@ export class CacheService {
   private static instance: CacheService;
   private cache: Map<string, CacheEntry<any>>;
   private readonly defaultTTL: number = 5 * 60 * 1000; // 5 minutes
+  private readonly isProduction: boolean;
 
   private constructor() {
     this.cache = new Map();
-    this.startCleanupInterval();
+    this.isProduction = import.meta.env.MODE === 'production';
+    
+    if (!this.isProduction) {
+      this.startCleanupInterval();
+      console.log('🔧 CacheService: Memory кеширование включено (dev режим)');
+    } else {
+      console.log('🚀 CacheService: Memory кеширование отключено (production режим)');
+    }
   }
 
   public static getInstance(): CacheService {
@@ -36,6 +44,11 @@ export class CacheService {
   }
 
   public set<T>(key: string, data: T, ttl: number = this.defaultTTL): void {
+    // В production режиме не кешируем в памяти
+    if (this.isProduction) {
+      return;
+    }
+    
     this.cache.set(key, {
       data,
       timestamp: Date.now()
@@ -48,6 +61,11 @@ export class CacheService {
   }
 
   public get<T>(key: string): T | null {
+    // В production режиме всегда возвращаем null (нет кеша)
+    if (this.isProduction) {
+      return null;
+    }
+    
     const entry = this.cache.get(key);
     if (!entry) return null;
 
@@ -61,16 +79,20 @@ export class CacheService {
   }
 
   public delete(key: string): void {
-    this.cache.delete(key);
+    if (!this.isProduction) {
+      this.cache.delete(key);
+    }
   }
 
   public clear(): void {
-    this.cache.clear();
+    if (!this.isProduction) {
+      this.cache.clear();
+    }
   }
 
   // Специальные методы для часто используемых данных
   public setLeaderboard(data: any[]): void {
-    this.set('leaderboard', data, 60 * 1000); // 1 минута для таблицы лидеров
+    this.set('leaderboard', data, 30 * 1000); // 30 секунд для таблицы лидеров
   }
 
   public getLeaderboard(): any[] | null {
@@ -78,7 +100,7 @@ export class CacheService {
   }
 
   public setUserProfile(userId: string, data: any): void {
-    this.set(`user:${userId}`, data, 5 * 60 * 1000); // 5 минут для профиля
+    this.set(`user:${userId}`, data, 60 * 1000); // 1 минута для профиля
   }
 
   public getUserProfile(userId: string): any | null {
@@ -86,7 +108,7 @@ export class CacheService {
   }
 
   public setGameState(userId: string, data: any): void {
-    this.set(`gameState:${userId}`, data, 30 * 1000); // 30 секунд для состояния игры
+    this.set(`gameState:${userId}`, data, 10 * 1000); // 10 секунд для состояния игры
   }
 
   public getGameState(userId: string): any | null {
