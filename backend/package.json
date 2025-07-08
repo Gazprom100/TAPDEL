@@ -7,7 +7,8 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "encrypt-key": "node scripts/encryptPrivateKey.js",
-    "test-decimal": "node scripts/testDecimal.js"
+    "test-decimal": "node scripts/testDecimal.js",
+    "test-redis": "node scripts/testRedis.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

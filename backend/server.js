@@ -23,11 +23,6 @@ app.use('/api', apiRoutes);
 
 // DecimalChain роуты будут подключены после инициализации сервиса
 
-// Serve SPA
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../dist/index.html'));
-});
-
 // Start server
 const startServer = () => {
   return new Promise(async (resolve, reject) => {
@@ -82,6 +77,11 @@ const startServer = () => {
           });
         });
       }
+
+      // Serve SPA - должен быть последним роутом
+      app.get('*', (req, res) => {
+        res.sendFile(path.join(__dirname, '../dist/index.html'));
+      });
 
       const server = app.listen(PORT, async () => {
         console.log('==> Server Configuration:');
