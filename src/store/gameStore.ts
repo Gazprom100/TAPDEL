@@ -111,6 +111,21 @@ export const useGameStore = create<GameStore>()(
           console.log(`🏁 gameStore.initializeUser запущен для userId: ${userId}`);
           set({ isLoading: true, error: null });
           
+          // ВСЕГДА сбрасываем локальные данные и загружаем из MongoDB
+          console.log(`🔄 Сброс локального состояния и загрузка из MongoDB...`);
+          set({
+            tokens: 0,
+            highScore: 0,
+            engineLevel: COMPONENTS.ENGINES[0].level as EngineMark,
+            gearboxLevel: COMPONENTS.GEARBOXES[0].level as GearboxLevel,
+            batteryLevel: COMPONENTS.BATTERIES[0].level as BatteryLevel,
+            hyperdriveLevel: COMPONENTS.HYPERDRIVES[0].level as HyperdriveLevel,
+            powerGridLevel: COMPONENTS.POWER_GRIDS[0].level as PowerGridLevel,
+            profile: null,
+            transactions: [],
+            leaderboard: []
+          });
+          
           // Проверяем нужна ли миграция данных
           const oldUserId = localStorage.getItem('oldUserId');
           if (oldUserId && oldUserId !== userId) {
@@ -129,8 +144,8 @@ export const useGameStore = create<GameStore>()(
             }
           }
           
-          // Получаем данные пользователя
-          console.log(`🔍 Ищем пользователя в базе данных...`);
+          // ОБЯЗАТЕЛЬНО загружаем данные пользователя из MongoDB
+          console.log(`🔍 Загружаем актуальные данные пользователя из MongoDB...`);
           const user = await apiService.getUser(userId);
           
           if (user) {
@@ -308,12 +323,18 @@ export const useGameStore = create<GameStore>()(
             return;
           }
 
-          console.log(`🔄 Синхронизация gameState для ${state.profile.userId}`);
+          console.log(`🔄 Синхронизация ВСЕХ данных с MongoDB для ${state.profile.userId}`);
+          
+          // Обновляем highScore если нужно
+          const newHighScore = Math.max(state.highScore, state.tokens);
+          if (newHighScore !== state.highScore) {
+            set({ highScore: newHighScore });
+          }
 
-          // Обновляем только состояние игры, БЕЗ лидерборда
+          // Сохраняем полное состояние игры в MongoDB
           await apiService.updateGameState(state.profile.userId, {
             tokens: state.tokens,
-            highScore: state.highScore,
+            highScore: newHighScore,
             engineLevel: state.engineLevel,
             gearboxLevel: state.gearboxLevel,
             batteryLevel: state.batteryLevel,
@@ -322,7 +343,23 @@ export const useGameStore = create<GameStore>()(
             lastSaved: new Date()
           });
 
-          console.log(`✅ GameState синхронизирован`);
+          // Автоматически обновляем лидерборд с новыми данными
+          try {
+            await apiService.updateLeaderboard({
+              userId: state.profile.userId,
+              username: state.profile.telegramFirstName || state.profile.telegramUsername || state.profile.username,
+              telegramId: state.profile.telegramId,
+              telegramUsername: state.profile.telegramUsername,
+              telegramFirstName: state.profile.telegramFirstName,
+              telegramLastName: state.profile.telegramLastName,
+              tokens: state.tokens
+            });
+            console.log(`🏆 Лидерборд обновлен с ${state.tokens} токенами`);
+          } catch (leaderboardError) {
+            console.warn('⚠️ Ошибка обновления лидерборда:', leaderboardError);
+          }
+
+          console.log(`✅ Полная синхронизация завершена`);
         } catch (error) {
           console.error('❌ Ошибка синхронизации gameState:', error);
           set({ error: (error as Error).message });
@@ -332,31 +369,12 @@ export const useGameStore = create<GameStore>()(
       // Действия с токенами (НОВАЯ УПРОЩЕННАЯ СИСТЕМА)
       addTokens: async (amount) => {
         try {
-          const state = get();
-          const newTokens = state.tokens + amount;
-          const newHighScore = Math.max(state.highScore, newTokens);
+          set((state) => ({ tokens: state.tokens + amount }));
           
-          console.log(`💰 Добавляем токены: ${amount} (было: ${state.tokens}, станет: ${newTokens})`);
-          
-          set({
-            tokens: newTokens,
-            highScore: newHighScore
-          });
-
-          // Обновляем лидерборд ТОЛЬКО если есть профиль
-          if (state.profile?.userId) {
-            try {
-              console.log(`🏆 Обновляем общий рейтинг для ${state.profile.userId}`);
-              // Обновляем общий рейтинг (игровые токены + DEL баланс)
-              await get().refreshBalance();
-              console.log(`✅ Общий рейтинг обновлен`);
-            } catch (leaderboardError) {
-              console.error('❌ Ошибка обновления рейтинга:', leaderboardError);
-            }
-          }
-          
+          // НЕМЕДЛЕННАЯ синхронизация с MongoDB
+          await get().syncGameState();
+          console.log(`💰 Добавлено ${amount} токенов, данные синхронизированы с MongoDB`);
         } catch (error) {
-          console.error('❌ Ошибка addTokens:', error);
           set({ error: (error as Error).message });
         }
       },
@@ -366,6 +384,7 @@ export const useGameStore = create<GameStore>()(
           const state = get();
           if (state.tokens < amount) return false;
           
+          // Обновляем локальное состояние
           const newTransaction = {
             id: Date.now().toString(),
             type: 'purchase' as const,
@@ -380,6 +399,7 @@ export const useGameStore = create<GameStore>()(
             transactions: [newTransaction, ...state.transactions]
           }));
 
+          // НЕМЕДЛЕННО сохраняем транзакцию в MongoDB
           if (state.profile?.userId) {
             await apiService.addTransaction(state.profile.userId, {
               type: newTransaction.type,
@@ -389,7 +409,9 @@ export const useGameStore = create<GameStore>()(
             });
           }
 
+          // НЕМЕДЛЕННО синхронизируем состояние с MongoDB
           await get().syncGameState();
+          console.log(`💸 Потрачено ${amount} токенов, данные синхронизированы с MongoDB`);
           return true;
         } catch (error) {
           set({ error: (error as Error).message });
@@ -465,26 +487,31 @@ export const useGameStore = create<GameStore>()(
       // Действия с компонентами
       upgradeEngine: async (level) => {
         set({ engineLevel: level });
+        console.log(`🔧 Апгрейд двигателя до ${level}`);
         await get().syncGameState();
       },
       
       upgradeGearbox: async (level) => {
         set({ gearboxLevel: level });
+        console.log(`⚙️ Апгрейд коробки передач до ${level}`);
         await get().syncGameState();
       },
       
       upgradeBattery: async (level) => {
         set({ batteryLevel: level });
+        console.log(`🔋 Апгрейд батареи до ${level}`);
         await get().syncGameState();
       },
       
       upgradeHyperdrive: async (level) => {
         set({ hyperdriveLevel: level });
+        console.log(`🚀 Апгрейд гипердвигателя до ${level}`);
         await get().syncGameState();
       },
       
       upgradePowerGrid: async (level) => {
         set({ powerGridLevel: level });
+        console.log(`⚡ Апгрейд энергосети до ${level}`);
         await get().syncGameState();
       },
 
@@ -594,9 +621,31 @@ export const useGameStore = create<GameStore>()(
             const state = get();
             if (!state.profile?.userId) return;
 
-            console.log(`🔄 Автообновление лидерборда...`);
+            console.log(`🔄 Автосинхронизация: обновление данных из MongoDB...`);
             
-            // Только загружаем лидерборд, НЕ обновляем
+            // Перезагружаем актуальные данные пользователя из MongoDB
+            try {
+              const user = await apiService.getUser(state.profile.userId);
+              if (user) {
+                const { gameState, profile, transactions } = user;
+                set({
+                  tokens: gameState.tokens,
+                  highScore: gameState.highScore,
+                  engineLevel: gameState.engineLevel as EngineMark,
+                  gearboxLevel: gameState.gearboxLevel as GearboxLevel,
+                  batteryLevel: gameState.batteryLevel as BatteryLevel,
+                  hyperdriveLevel: gameState.hyperdriveLevel as HyperdriveLevel,
+                  powerGridLevel: gameState.powerGridLevel as PowerGridLevel,
+                  profile,
+                  transactions
+                });
+                console.log(`✅ Данные пользователя обновлены: ${gameState.tokens} токенов`);
+              }
+            } catch (error) {
+              console.warn('⚠️ Ошибка загрузки данных пользователя:', error);
+            }
+            
+            // Загружаем свежий лидерборд
             try {
               const dbLeaderboard = await apiService.getLeaderboard();
               if (dbLeaderboard && dbLeaderboard.length > 0) {
@@ -628,7 +677,7 @@ export const useGameStore = create<GameStore>()(
           } catch (error) {
             console.error('❌ Ошибка автосинхронизации:', error);
           }
-        }, 15000); // 15 секунд
+        }, 10000); // 10 секунд для более частого обновления
 
         (window as any).tapdel_sync_interval = interval;
       },
@@ -688,36 +737,29 @@ export const useGameStore = create<GameStore>()(
     {
       name: 'tapdel-storage',
       partialize: (state) => ({
-        // Игровое состояние
-        tokens: state.tokens,
-        highScore: state.highScore,
-        engineLevel: state.engineLevel,
-        gearboxLevel: state.gearboxLevel,
-        batteryLevel: state.batteryLevel,
-        hyperdriveLevel: state.hyperdriveLevel,
-        powerGridLevel: state.powerGridLevel,
+        // Сохраняем локально только самые необходимые данные для работы UI
+        // ВСЕ основные данные загружаются из MongoDB при каждой инициализации
         
-        // Профиль пользователя
-        profile: state.profile,
-        
-        // Транзакции и лидерборд (последние данные)
-        transactions: state.transactions,
-        leaderboard: state.leaderboard,
-        
-        // Игровые параметры
+        // Только временные игровые параметры для плавной работы интерфейса
         fuelLevel: state.fuelLevel,
         currentGear: state.currentGear,
         temperature: state.temperature,
         powerLevel: state.powerLevel,
-        
-        // Временные метки для синхронизации
+        isOverheated: state.isOverheated,
+        coolingTimer: state.coolingTimer,
         lastTapTimestamp: state.lastTapTimestamp,
+        hyperdriveActive: state.hyperdriveActive,
         
-        // DEL баланс
-        // Убираем delBalance - используем только tokens как DEL
-        
-        // Для отслеживания изменений в Telegram WebApp
+        // Метка времени для отслеживания синхронизации
         lastSyncTime: Date.now()
+        
+        // НЕ сохраняем локально:
+        // - tokens (загружается из MongoDB)
+        // - profile (загружается из MongoDB) 
+        // - transactions (загружается из MongoDB)
+        // - leaderboard (загружается из MongoDB)
+        // - все апгрейды (загружается из MongoDB)
+        // - highScore (загружается из MongoDB)
       })
     }
   )
