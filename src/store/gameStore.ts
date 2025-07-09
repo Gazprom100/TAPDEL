@@ -20,7 +20,7 @@ interface ExtendedGameState extends GameStateBase {
   isLoading: boolean;
   error: string | null;
   lastSyncTime: number; // Добавляем поле для отслеживания синхронизации
-  // Убираем отдельный delBalance - используем только tokens как DEL
+  // tokens = единственный DEL баланс (рейтинг + покупки)
 }
 
 interface GameActions {
@@ -472,14 +472,14 @@ export const useGameStore = create<GameStore>()(
         }
       },
 
-      // Действия с токенами (НОВАЯ УПРОЩЕННАЯ СИСТЕМА)
+      // Действия с токенами (DEL - единственная валюта)
       addTokens: async (amount) => {
         try {
           set((state) => ({ tokens: state.tokens + amount }));
           
           // НЕМЕДЛЕННАЯ синхронизация с MongoDB
           await get().syncGameState();
-          console.log(`💰 Добавлено ${amount} токенов, данные синхронизированы с MongoDB`);
+          console.log(`💰 Добавлено ${amount} DEL, данные синхронизированы с MongoDB`);
         } catch (error) {
           set({ error: (error as Error).message });
         }
@@ -488,7 +488,11 @@ export const useGameStore = create<GameStore>()(
       spendTokens: async (amount, itemInfo?: { type: 'engine' | 'gearbox' | 'battery' | 'hyperdrive' | 'powerGrid'; level: string }) => {
         try {
           const state = get();
-          if (state.tokens < amount) return false;
+          
+          if (state.tokens < amount) {
+            console.warn(`❌ Недостаточно средств: нужно ${amount}, доступно ${state.tokens} DEL`);
+            return false;
+          }
           
           // Обновляем локальное состояние
           const newTransaction = {
@@ -517,7 +521,7 @@ export const useGameStore = create<GameStore>()(
 
           // НЕМЕДЛЕННО синхронизируем состояние с MongoDB
           await get().syncGameState();
-          console.log(`💸 Потрачено ${amount} токенов, данные синхронизированы с MongoDB`);
+          console.log(`💸 Потрачено ${amount} DEL, данные синхронизированы с MongoDB`);
           return true;
         } catch (error) {
           set({ error: (error as Error).message });
@@ -846,7 +850,7 @@ export const useGameStore = create<GameStore>()(
         }
       },
 
-      // Обновление DEL баланса (теперь это единственная валюта)
+      // Обновление DEL баланса (единственная валюта)
       refreshBalance: async () => {
         try {
           const state = get();
@@ -854,8 +858,8 @@ export const useGameStore = create<GameStore>()(
           
           const { decimalApi } = await import('../services/decimalApi');
           const balance = await decimalApi.getUserBalance(state.profile.userId);
-          set({ tokens: balance.gameBalance }); // Загружаем DEL баланс в основное поле tokens
-          console.log(`�� Обновлен DEL баланс: ${balance.gameBalance} DEL`);
+          set({ tokens: balance.gameBalance }); // DEL баланс = tokens
+          console.log(`💰 Обновлен DEL баланс: ${balance.gameBalance} DEL`);
           
           // Автоматически обновляем рейтинг
           await get().refreshLeaderboard();

@@ -59,7 +59,7 @@ export const Shop: React.FC = () => {
     cost: number
   ) => {
     if (tokens < cost || purchaseInProgress || !isItemAvailable(type, level)) {
-      console.warn(`❌ Покупка невозможна: токены=${tokens}, стоимость=${cost}, прогресс=${purchaseInProgress}, доступность=${isItemAvailable(type, level)}`);
+      console.warn(`❌ Покупка невозможна: игровые токены=${tokens}, прогресс=${purchaseInProgress}, доступность=${isItemAvailable(type, level)}`);
       return;
     }
 
