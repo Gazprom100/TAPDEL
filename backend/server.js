@@ -78,8 +78,12 @@ const startServer = () => {
         });
       }
 
-      // Serve SPA - должен быть последним роутом
+      // Serve SPA - только для НЕ-API роутов
       app.get('*', (req, res) => {
+        // Проверяем что это не API запрос
+        if (req.path.startsWith('/api/')) {
+          return res.status(404).json({ error: 'API endpoint not found', path: req.path });
+        }
         res.sendFile(path.join(__dirname, '../dist/index.html'));
       });
 

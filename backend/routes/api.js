@@ -16,6 +16,39 @@ const generateCleanMongoURI = () => {
 const MONGODB_URI = process.env.MONGODB_URI || generateCleanMongoURI();
 const MONGODB_DB = process.env.MONGODB_DB || 'tapdel';
 
+// Health check роут
+router.get('/health', async (req, res) => {
+  try {
+    const database = await connectToDatabase();
+    const userCount = await database.collection('users').countDocuments();
+    const leaderboardCount = await database.collection('leaderboard').countDocuments();
+    
+    res.json({
+      status: 'OK',
+      mongodb: 'connected',
+      userCount,
+      leaderboardCount,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'ERROR',
+      mongodb: 'disconnected',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Тестовый роут
+router.get('/test', (req, res) => {
+  res.json({
+    message: 'API работает!',
+    timestamp: new Date().toISOString(),
+    endpoint: '/api/test'
+  });
+});
+
 let client = null;
 let db = null;
 
@@ -482,14 +515,4 @@ process.on('SIGINT', async () => {
   }
 });
 
-module.exports = router; 
-// Временный роут для очистки localStorage (удалить после исправления)
-router.post('/emergency-clear-old-userid', async (req, res) => {
-  try {
-    res.json({ 
-      script: 'localStorage.removeItem("oldUserId"); console.log("✅ oldUserId очищен из localStorage");',
-      message: 'Выполните этот скрипт в консоли браузера для остановки бесконечной миграции'
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+module.exports = router;
