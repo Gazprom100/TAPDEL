@@ -58,35 +58,56 @@ export const Shop: React.FC = () => {
     level: string,
     cost: number
   ) => {
-    if (tokens < cost || purchaseInProgress || !isItemAvailable(type, level)) return;
+    if (tokens < cost || purchaseInProgress || !isItemAvailable(type, level)) {
+      console.warn(`❌ Покупка невозможна: токены=${tokens}, стоимость=${cost}, прогресс=${purchaseInProgress}, доступность=${isItemAvailable(type, level)}`);
+      return;
+    }
 
     try {
+      console.log(`🛒 Начинаем покупку ${type} ${level} за ${cost} токенов`);
       setPurchaseInProgress(true);
+      
+      // Сначала тратим токены и проверяем успех
       const success = await spendTokens(cost, { type, level });
       
       if (success) {
+        console.log(`✅ Токены потрачены успешно, применяем апгрейд ${type} до ${level}`);
         setPurchaseAnimation(level);
+        
+        // Применяем апгрейд ТОЛЬКО после успешной траты токенов
         switch (type) {
           case 'engine':
-            upgradeEngine(level as any);
+            await upgradeEngine(level as any);
+            console.log(`🔧 Апгрейд двигателя до ${level} завершен`);
             break;
           case 'gearbox':
-            upgradeGearbox(level as any);
+            await upgradeGearbox(level as any);
+            console.log(`⚙️ Апгрейд коробки передач до ${level} завершен`);
             break;
           case 'battery':
-            upgradeBattery(level as any);
+            await upgradeBattery(level as any);
+            console.log(`🔋 Апгрейд батареи до ${level} завершен`);
             break;
           case 'hyperdrive':
-            upgradeHyperdrive(level as any);
+            await upgradeHyperdrive(level as any);
+            console.log(`🚀 Апгрейд гипердвигателя до ${level} завершен`);
             break;
           case 'powerGrid':
-            upgradePowerGrid(level as any);
+            await upgradePowerGrid(level as any);
+            console.log(`⚡ Апгрейд энергосети до ${level} завершен`);
             break;
         }
+        
+        // Анимация покупки
         setTimeout(() => setPurchaseAnimation(null), 1000);
+        console.log(`🎉 Покупка ${type} ${level} полностью завершена`);
+      } else {
+        console.error(`❌ Не удалось потратить токены для покупки ${type} ${level}`);
+        alert(`Ошибка покупки ${type} ${level}. Попробуйте снова.`);
       }
     } catch (error) {
-      console.error('Purchase failed:', error);
+      console.error('❌ Ошибка при покупке:', error);
+      alert(`Ошибка при покупке: ${(error as Error).message}`);
     } finally {
       setPurchaseInProgress(false);
     }

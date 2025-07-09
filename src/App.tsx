@@ -264,6 +264,43 @@ const App: React.FC = () => {
     };
   }, [initializeUser]);
 
+  // Принудительная синхронизация при фокусе на окне (смена устройств)
+  useEffect(() => {
+    const handleWindowFocus = async () => {
+      console.log('👁️ Окно получило фокус - принудительная синхронизация');
+      const { syncGameState, refreshLeaderboard } = useGameStore.getState();
+      try {
+        await syncGameState();
+        await refreshLeaderboard();
+        console.log('✅ Принудительная синхронизация при фокусе завершена');
+      } catch (error) {
+        console.error('❌ Ошибка принудительной синхронизации при фокусе:', error);
+      }
+    };
+
+    const handleVisibilityChange = async () => {
+      if (!document.hidden) {
+        console.log('👁️ Страница стала видимой - принудительная синхронизация');
+        const { syncGameState, refreshLeaderboard } = useGameStore.getState();
+        try {
+          await syncGameState();
+          await refreshLeaderboard();
+          console.log('✅ Принудительная синхронизация при показе страницы завершена');
+        } catch (error) {
+          console.error('❌ Ошибка принудительной синхронизации при показе страницы:', error);
+        }
+      }
+    };
+
+    window.addEventListener('focus', handleWindowFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', handleWindowFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
   return (
     <div 
       className={`cyber-container gear-${gear} ${isHyperdriveActive ? 'hyperdrive-active' : ''}`}

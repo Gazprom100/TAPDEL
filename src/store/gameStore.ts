@@ -806,7 +806,7 @@ export const useGameStore = create<GameStore>()(
           } catch (error) {
             console.error('❌ Ошибка автосинхронизации:', error);
           }
-        }, 10000); // 10 секунд для более частого обновления
+        }, 3000); // 3 секунды для очень быстрой синхронизации между устройствами
 
         (window as any).tapdel_sync_interval = interval;
       },
