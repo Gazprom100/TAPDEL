@@ -279,10 +279,12 @@ router.put('/users/:userId/gamestate', async (req, res) => {
     // Получаем обновленного пользователя для лидерборда
     const user = await database.collection('users').findOne({ userId });
     
-    // Автоматически обновляем лидерборд если есть highScore (рейтинг)
-    if (user && gameState.highScore !== undefined) {
-      console.log(`🏆 Автообновление лидерборда для ${userId} с ${gameState.highScore} рейтингом (токены: ${gameState.tokens || 'неизвестно'})`);
-      await updateUserInLeaderboard(database, user, gameState.highScore);
+    // Автоматически обновляем лидерборд ВСЕГДА при обновлении gameState
+    // Используем highScore из gameState если есть, иначе из user данных
+    if (user) {
+      const ratingScore = gameState.highScore !== undefined ? gameState.highScore : user.gameState?.highScore || 0;
+      console.log(`🏆 Автообновление лидерборда для ${userId} с ${ratingScore} рейтингом (текущие токены: ${gameState.tokens || 'неизвестно'})`);
+      await updateUserInLeaderboard(database, user, ratingScore);
     }
     
     res.json({ message: 'Game state updated successfully' });
