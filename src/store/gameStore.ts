@@ -13,6 +13,30 @@ import {
 } from '../types/game';
 import { apiService } from '../services/api';
 
+// Вспомогательная функция для безопасного формирования имени пользователя
+const formatUserName = (
+  username?: string | null, 
+  telegramFirstName?: string | null, 
+  telegramLastName?: string | null, 
+  telegramUsername?: string | null,
+  userId?: string
+): string => {
+  // Проверяем что значения не null и не 'null' строка
+  const isValidValue = (value: string | null | undefined): value is string => 
+    value !== null && value !== undefined && value !== 'null' && value.trim() !== '';
+
+  if (isValidValue(username)) return username;
+  
+  if (isValidValue(telegramFirstName) && isValidValue(telegramLastName)) {
+    return `${telegramFirstName} ${telegramLastName}`;
+  }
+  
+  if (isValidValue(telegramFirstName)) return telegramFirstName;
+  if (isValidValue(telegramUsername)) return telegramUsername;
+  
+  return `Игрок ${userId?.slice(-4) || '0000'}`;
+};
+
 interface ExtendedGameState extends GameStateBase {
   profile: UserProfile | null;
   transactions: Transaction[];
@@ -248,12 +272,7 @@ export const useGameStore = create<GameStore>()(
             
             const newProfile: UserProfile = {
               userId,
-              username: telegramUserData?.username || 
-                       (telegramUserData?.telegramFirstName && telegramUserData?.telegramLastName) ? 
-                       `${telegramUserData.telegramFirstName} ${telegramUserData.telegramLastName}` :
-                       telegramUserData?.telegramFirstName || 
-                       telegramUserData?.telegramUsername || 
-                       `Игрок ${userId.slice(-4)}`,
+              username: formatUserName(telegramUserData?.username, telegramUserData?.telegramFirstName, telegramUserData?.telegramLastName, telegramUserData?.telegramUsername, userId),
               maxEnergy: 100,
               energyRecoveryRate: 1,
               maxGear: 'M' as Gear,
@@ -358,9 +377,7 @@ export const useGameStore = create<GameStore>()(
               console.log(`🏆 Добавляем текущего пользователя в лидерборд с ${currentState.highScore} рейтингом`);
               await apiService.updateLeaderboard({
                 userId: currentState.profile.userId,
-                username: currentState.profile.username ||
-                       (currentState.profile.telegramFirstName && currentState.profile.telegramLastName) ? `${currentState.profile.telegramFirstName} ${currentState.profile.telegramLastName}` :
-                       currentState.profile.telegramFirstName || currentState.profile.telegramUsername || `Игрок ${currentState.profile.userId.slice(-4)}`,
+                username: formatUserName(currentState.profile.username, currentState.profile.telegramFirstName, currentState.profile.telegramLastName, currentState.profile.telegramUsername, currentState.profile.userId),
                 telegramId: currentState.profile.telegramId,
                 telegramUsername: currentState.profile.telegramUsername,
                 telegramFirstName: currentState.profile.telegramFirstName,
@@ -382,9 +399,7 @@ export const useGameStore = create<GameStore>()(
           const leaderboard: LeaderboardEntry[] = dbLeaderboard.map(entry => ({
             id: entry._id.toString(),
             userId: entry.userId,
-                username: entry.username || 
-                         (entry.telegramFirstName && entry.telegramLastName) ? `${entry.telegramFirstName} ${entry.telegramLastName}` :
-                         entry.telegramFirstName || entry.telegramUsername || `Игрок ${entry.userId.slice(-4)}`,
+                username: formatUserName(entry.username, entry.telegramFirstName, entry.telegramLastName, entry.telegramUsername, entry.userId),
                 level: Math.floor((entry.tokens || 0) / 1000) + 1, // Уровень на основе рейтинга
                 score: entry.tokens || 0, // Рейтинг (натапанное всего за все время)
                 tokens: entry.userId === currentState.profile?.userId ? currentState.tokens : entry.tokens, // Текущий баланс для себя, рейтинг для других
@@ -449,9 +464,7 @@ export const useGameStore = create<GameStore>()(
           try {
           await apiService.updateLeaderboard({
             userId: state.profile.userId,
-              username: state.profile.username ||
-                       (state.profile.telegramFirstName && state.profile.telegramLastName) ? `${state.profile.telegramFirstName} ${state.profile.telegramLastName}` :
-                       state.profile.telegramFirstName || state.profile.telegramUsername || `Игрок ${state.profile.userId.slice(-4)}`,
+              username: formatUserName(state.profile.username, state.profile.telegramFirstName, state.profile.telegramLastName, state.profile.telegramUsername, state.profile.userId),
               telegramId: state.profile.telegramId,
               telegramUsername: state.profile.telegramUsername,
               telegramFirstName: state.profile.telegramFirstName,
@@ -742,9 +755,7 @@ export const useGameStore = create<GameStore>()(
           if (state.profile?.userId) {
             await apiService.updateLeaderboard({
               userId: state.profile.userId,
-              username: state.profile.username ||
-                       (state.profile.telegramFirstName && state.profile.telegramLastName) ? `${state.profile.telegramFirstName} ${state.profile.telegramLastName}` :
-                       state.profile.telegramFirstName || state.profile.telegramUsername || `Игрок ${state.profile.userId.slice(-4)}`,
+              username: formatUserName(state.profile.username, state.profile.telegramFirstName, state.profile.telegramLastName, state.profile.telegramUsername, state.profile.userId),
               telegramId: state.profile.telegramId,
               telegramUsername: state.profile.telegramUsername,
               telegramFirstName: state.profile.telegramFirstName,
@@ -821,9 +832,7 @@ export const useGameStore = create<GameStore>()(
                 const leaderboard = dbLeaderboard.map(entry => ({
                   id: entry._id.toString(),
                   userId: entry.userId,
-                  username: entry.username ||
-                           (entry.telegramFirstName && entry.telegramLastName) ? `${entry.telegramFirstName} ${entry.telegramLastName}` :
-                           entry.telegramFirstName || entry.telegramUsername || `Игрок ${entry.userId.slice(-4)}`,
+                  username: formatUserName(entry.username, entry.telegramFirstName, entry.telegramLastName, entry.telegramUsername, entry.userId),
                   level: Math.floor((entry.tokens || 0) / 1000) + 1,
                   score: entry.tokens || 0, // Рейтинг (натапанное всего за все время)
                   tokens: entry.userId === state.profile?.userId ? state.tokens : entry.tokens, // Текущий баланс для себя, рейтинг для других
@@ -869,9 +878,7 @@ export const useGameStore = create<GameStore>()(
             const leaderboard = dbLeaderboard.map(entry => ({
               id: entry._id.toString(),
               userId: entry.userId,
-              username: entry.username ||
-                       (entry.telegramFirstName && entry.telegramLastName) ? `${entry.telegramFirstName} ${entry.telegramLastName}` :
-                       entry.telegramFirstName || entry.telegramUsername || `Игрок ${entry.userId.slice(-4)}`,
+              username: formatUserName(entry.username, entry.telegramFirstName, entry.telegramLastName, entry.telegramUsername, entry.userId),
               level: Math.floor((entry.tokens || 0) / 1000) + 1,
               score: entry.tokens || 0, // Рейтинг (натапанное всего за все время)
               tokens: entry.userId === state.profile?.userId ? state.tokens : entry.tokens, // Текущий баланс для себя, рейтинг для других

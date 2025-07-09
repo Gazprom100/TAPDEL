@@ -1,8 +1,27 @@
 const express = require('express');
 const { MongoClient } = require('mongodb');
+require('dotenv').config();
 const router = express.Router();
 
-// Функция для генерации чистого MongoDB URI
+// Безопасная функция форматирования имени пользователя
+const formatUserName = (username, telegramFirstName, telegramLastName, telegramUsername, userId) => {
+  // Проверяем что значения не null, не undefined и не строка 'null'
+  const isValidValue = (value) => 
+    value !== null && value !== undefined && value !== 'null' && 
+    typeof value === 'string' && value.trim() !== '';
+
+  if (isValidValue(username)) return username;
+  
+  if (isValidValue(telegramFirstName) && isValidValue(telegramLastName)) {
+    return `${telegramFirstName} ${telegramLastName}`;
+  }
+  
+  if (isValidValue(telegramFirstName)) return telegramFirstName;
+  if (isValidValue(telegramUsername)) return telegramUsername;
+  
+  return `Игрок ${userId?.slice(-4) || '0000'}`;
+};
+
 const generateCleanMongoURI = () => {
   const username = 'TAPDEL';
   const password = 'fpz%sE62KPzmHfM';
@@ -194,7 +213,13 @@ router.post('/users/:userId/initialize', async (req, res) => {
     // Добавляем в лидерборд
     const leaderboardEntry = {
       userId: userId,
-      username: newUser.profile.username,
+      username: formatUserName(
+        newUser.profile.username,
+        newUser.profile.telegramFirstName,
+        newUser.profile.telegramLastName,
+        newUser.profile.telegramUsername,
+        userId
+      ),
       telegramId: newUser.profile.telegramId,
       telegramUsername: newUser.profile.telegramUsername,
       telegramFirstName: newUser.profile.telegramFirstName,
@@ -364,7 +389,13 @@ router.post('/leaderboard', async (req, res) => {
       {
         $set: {
           userId: entry.userId,
-          username: entry.username || `Игрок ${entry.userId.slice(-4)}`,
+          username: formatUserName(
+            entry.username,
+            entry.telegramFirstName,
+            entry.telegramLastName,
+            entry.telegramUsername,
+            entry.userId
+          ),
           telegramId: entry.telegramId,
           telegramUsername: entry.telegramUsername,
           telegramFirstName: entry.telegramFirstName,
@@ -556,11 +587,17 @@ async function updateUserInLeaderboard(database, user, tokens) {
   try {
     const leaderboardEntry = {
       userId: user.userId,
-      username: user.profile?.username || user.telegramFirstName || `Игрок ${user.userId.slice(-4)}`,
-      telegramId: user.telegramId,
-      telegramUsername: user.telegramUsername,
-      telegramFirstName: user.telegramFirstName,
-      telegramLastName: user.telegramLastName,
+      username: formatUserName(
+        user.profile?.username, 
+        user.profile?.telegramFirstName || user.telegramFirstName, 
+        user.profile?.telegramLastName || user.telegramLastName, 
+        user.profile?.telegramUsername || user.telegramUsername, 
+        user.userId
+      ),
+      telegramId: user.profile?.telegramId || user.telegramId,
+      telegramUsername: user.profile?.telegramUsername || user.telegramUsername,
+      telegramFirstName: user.profile?.telegramFirstName || user.telegramFirstName,
+      telegramLastName: user.profile?.telegramLastName || user.telegramLastName,
       tokens: tokens,
       updatedAt: new Date()
     };
