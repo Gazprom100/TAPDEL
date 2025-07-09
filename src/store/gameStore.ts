@@ -247,7 +247,12 @@ export const useGameStore = create<GameStore>()(
             
             const newProfile: UserProfile = {
               userId,
-              username: telegramUserData?.telegramUsername || telegramUserData?.username || `Игрок ${userId.slice(-4)}`,
+              username: telegramUserData?.username || 
+                       (telegramUserData?.telegramFirstName && telegramUserData?.telegramLastName) ? 
+                       `${telegramUserData.telegramFirstName} ${telegramUserData.telegramLastName}` :
+                       telegramUserData?.telegramFirstName || 
+                       telegramUserData?.telegramUsername || 
+                       `Игрок ${userId.slice(-4)}`,
               maxEnergy: 100,
               energyRecoveryRate: 1,
               maxGear: 'M' as Gear,
@@ -261,39 +266,87 @@ export const useGameStore = create<GameStore>()(
               telegramLastName: telegramUserData?.telegramLastName
             };
             
-            set({ profile: newProfile });
+            set({ profile: newProfile, lastSyncTime: Date.now() });
             
-            // Сохраняем нового пользователя
-            await apiService.updateUser(userId, { 
-              profile: newProfile,
-              gameState: {
-                tokens: 0,
-                highScore: 0,
-                engineLevel: 'Mk I',
-                gearboxLevel: 'L1',
-                batteryLevel: 'B1',
-                hyperdriveLevel: 'H1',
-                powerGridLevel: 'P1'
+            console.log('💾 Создаем нового пользователя:', newProfile);
+            
+            // ПРИНУДИТЕЛЬНО сохраняем нового пользователя в MongoDB
+            try {
+              const initResult = await apiService.initializeUser(userId, {
+                profile: newProfile,
+                gameState: {
+                  tokens: 0,
+                  highScore: 0,
+                  engineLevel: 'Mk I',
+                  gearboxLevel: 'L1',
+                  batteryLevel: 'B1',
+                  hyperdriveLevel: 'H1',
+                  powerGridLevel: 'P1',
+                  lastSaved: new Date()
+                },
+                telegramData: telegramUserData
+              });
+              
+              console.log(`✅ Пользователь ${userId} ${initResult.isNewUser ? 'создан' : 'обновлен'} через API инициализации`);
+              
+              // Обновляем состояние с данными от сервера
+              if (initResult.user) {
+                set({
+                  profile: initResult.user.profile,
+                  tokens: initResult.user.gameState.tokens,
+                  highScore: initResult.user.gameState.highScore,
+                  engineLevel: initResult.user.gameState.engineLevel as EngineMark,
+                  gearboxLevel: initResult.user.gameState.gearboxLevel as GearboxLevel,
+                  batteryLevel: initResult.user.gameState.batteryLevel as BatteryLevel,
+                  hyperdriveLevel: initResult.user.gameState.hyperdriveLevel as HyperdriveLevel,
+                  powerGridLevel: initResult.user.gameState.powerGridLevel as PowerGridLevel,
+                  transactions: initResult.user.transactions || [],
+                  lastSyncTime: Date.now()
+                });
               }
-            });
+              
+            } catch (initError) {
+              console.error('❌ Ошибка инициализации пользователя через API:', initError);
+              
+              // Fallback: используем старый метод
+              try {
+                await apiService.updateUser(userId, { 
+                  profile: newProfile,
+                  gameState: {
+                    tokens: 0,
+                    highScore: 0,
+                    engineLevel: 'Mk I',
+                    gearboxLevel: 'L1',
+                    batteryLevel: 'B1',
+                    hyperdriveLevel: 'H1',
+                    powerGridLevel: 'P1',
+                    lastSaved: new Date()
+                  },
+                  transactions: []
+                });
+                console.log('✅ Новый пользователь сохранен через fallback метод');
+              } catch (fallbackError) {
+                console.error('❌ Критическая ошибка: не удалось сохранить пользователя:', fallbackError);
+              }
+            }
             
-            // Добавляем нового пользователя в лидерборд
+            // ПРИНУДИТЕЛЬНО добавляем нового пользователя в лидерборд (дублирующий вызов для надежности)
             try {
               const leaderboardData = {
                 userId: userId,
-                username: newProfile.telegramFirstName || newProfile.telegramUsername || newProfile.username,
+                username: newProfile.username,
                 telegramId: newProfile.telegramId,
                 telegramUsername: newProfile.telegramUsername,
                 telegramFirstName: newProfile.telegramFirstName,
                 telegramLastName: newProfile.telegramLastName,
                 tokens: 0
               };
-              console.log('🏆 Добавляем нового пользователя в лидерборд:', leaderboardData);
+              console.log('🏆 Дополнительно добавляем пользователя в лидерборд:', leaderboardData);
               
               await apiService.updateLeaderboard(leaderboardData);
-              console.log('✅ Новый пользователь добавлен в лидерборд');
+              console.log('✅ Пользователь дополнительно добавлен в лидерборд');
             } catch (error) {
-              console.error('⚠️ Ошибка добавления в лидерборд:', error);
+              console.error('⚠️ Ошибка дополнительного добавления в лидерборд:', error);
             }
           }
           

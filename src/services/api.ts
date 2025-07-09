@@ -107,11 +107,32 @@ export class ApiService {
     });
   }
 
-  async updateLeaderboard(entry: Omit<ApiLeaderboard, '_id' | 'rank' | 'updatedAt'>): Promise<void> {
+  async updateLeaderboard(entry: { userId: string; username: string; telegramId?: string; telegramUsername?: string; telegramFirstName?: string; telegramLastName?: string; tokens: number; }): Promise<void> {
+    console.log(`🏆 API: Обновление лидерборда для ${entry.userId}`);
     await this.request('/leaderboard', {
       method: 'POST',
-      body: JSON.stringify(entry),
+      body: JSON.stringify(entry)
     });
+  }
+
+  // Новый метод: Инициализация пользователя
+  async initializeUser(userId: string, data: {
+    profile?: any;
+    gameState?: any;
+    telegramData?: any;
+  }): Promise<{ user: any; isNewUser: boolean }> {
+    console.log(`🆕 API: Инициализация пользователя ${userId}`);
+    try {
+      const result = await this.request<{ user: any; isNewUser: boolean }>(`/users/${userId}/initialize`, {
+        method: 'POST',
+        body: JSON.stringify(data)
+      });
+      console.log(`✅ API: Пользователь ${userId} ${result.isNewUser ? 'создан' : 'обновлен'}`);
+      return result;
+    } catch (error) {
+      console.error('❌ API: Ошибка инициализации пользователя:', error);
+      throw error;
+    }
   }
 
   async getLeaderboard(limit: number = 100): Promise<ApiLeaderboard[]> {
@@ -143,15 +164,11 @@ export class ApiService {
   }
 
   async migrateUser(newUserId: string, oldUserId: string): Promise<{ migrated: boolean; tokens?: number }> {
-    try {
-      return await this.request<{ migrated: boolean; tokens?: number }>(`/users/${newUserId}/migrate`, {
-        method: 'POST',
-        body: JSON.stringify({ oldUserId }),
-      });
-    } catch (error) {
-      console.error('Migration failed:', error);
-      return { migrated: false };
-    }
+    console.log(`🔄 API: Миграция пользователя ${oldUserId} -> ${newUserId}`);
+    return this.request(`/users/${newUserId}/migrate`, {
+      method: 'POST',
+      body: JSON.stringify({ oldUserId })
+    });
   }
 }
 

@@ -138,6 +138,95 @@ router.put('/users/:userId', async (req, res) => {
   }
 });
 
+// Создать нового пользователя (специальный роут для новых игроков)
+router.post('/users/:userId/initialize', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { profile, gameState, telegramData } = req.body;
+    const database = await connectToDatabase();
+    
+    console.log(`🆕 Инициализация нового пользователя: ${userId}`);
+    
+    // Проверяем существует ли пользователь
+    const existingUser = await database.collection('users').findOne({ userId });
+    if (existingUser) {
+      console.log(`⚠️ Пользователь ${userId} уже существует, обновляем данные`);
+    }
+    
+    // Создаем полный объект пользователя
+    const newUser = {
+      userId: userId,
+      profile: profile || {
+        userId: userId,
+        username: `Игрок ${userId.slice(-4)}`,
+        maxEnergy: 100,
+        energyRecoveryRate: 1,
+        maxGear: 'M',
+        level: 1,
+        experience: 0,
+        createdAt: new Date(),
+        lastLogin: new Date(),
+        ...telegramData
+      },
+      gameState: gameState || {
+        tokens: 0,
+        highScore: 0,
+        engineLevel: 'Mk I',
+        gearboxLevel: 'L1',
+        batteryLevel: 'B1',
+        hyperdriveLevel: 'H1',
+        powerGridLevel: 'P1',
+        lastSaved: new Date()
+      },
+      gameBalance: 0,
+      transactions: [],
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    // Сохраняем пользователя
+    await database.collection('users').updateOne(
+      { userId },
+      { $set: newUser },
+      { upsert: true }
+    );
+    
+    // Добавляем в лидерборд
+    const leaderboardEntry = {
+      userId: userId,
+      username: newUser.profile.username,
+      telegramId: newUser.profile.telegramId,
+      telegramUsername: newUser.profile.telegramUsername,
+      telegramFirstName: newUser.profile.telegramFirstName,
+      telegramLastName: newUser.profile.telegramLastName,
+      tokens: 0,
+      rank: 1,
+      updatedAt: new Date()
+    };
+    
+    await database.collection('leaderboard').updateOne(
+      { userId },
+      { $set: leaderboardEntry },
+      { upsert: true }
+    );
+    
+    // Обновляем ранги
+    await updateAllRanks(database);
+    
+    console.log(`✅ Пользователь ${userId} успешно инициализирован`);
+    
+    res.json({ 
+      message: 'User initialized successfully',
+      user: newUser,
+      isNewUser: !existingUser
+    });
+    
+  } catch (error) {
+    console.error('Error initializing user:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 // Обновить состояние игры И автоматически обновить лидерборд
 router.put('/users/:userId/gamestate', async (req, res) => {
   try {
