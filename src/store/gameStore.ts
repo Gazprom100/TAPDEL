@@ -30,6 +30,7 @@ interface GameActions {
   
   // Действия с токенами
   addTokens: (amount: number) => Promise<void>;
+  addDelFromDeposit: (amount: number) => Promise<void>; // Для ввода DEL извне (не тапанье)
   spendTokens: (amount: number, itemInfo?: { type: 'engine' | 'gearbox' | 'battery' | 'hyperdrive' | 'powerGrid'; level: string }) => Promise<boolean>;
   withdrawTokens: (amount: number) => Promise<boolean>;
   depositTokens: (amount: number) => Promise<boolean>;
@@ -429,16 +430,13 @@ export const useGameStore = create<GameStore>()(
 
           console.log(`🔄 Синхронизация ВСЕХ данных с MongoDB для ${state.profile.userId}`);
           
-          // Обновляем highScore если нужно
-          const newHighScore = Math.max(state.highScore, state.tokens);
-          if (newHighScore !== state.highScore) {
-            set({ highScore: newHighScore });
-          }
+          // highScore всегда только увеличивается (общее количество натапанного)
+          // НЕ обновляем highScore из tokens - это неправильно
 
           // Сохраняем полное состояние игры в MongoDB
           await apiService.updateGameState(state.profile.userId, {
             tokens: state.tokens,
-            highScore: newHighScore,
+            highScore: state.highScore,
             engineLevel: state.engineLevel,
             gearboxLevel: state.gearboxLevel,
             batteryLevel: state.batteryLevel,
@@ -475,11 +473,24 @@ export const useGameStore = create<GameStore>()(
       // Действия с токенами (DEL - единственная валюта)
       addTokens: async (amount) => {
         try {
-          set((state) => ({ tokens: state.tokens + amount }));
+          set((state) => ({ 
+            tokens: state.tokens + amount,
+            highScore: state.highScore + amount // highScore = все натапанное за всё время
+          }));
           
           // НЕМЕДЛЕННАЯ синхронизация с MongoDB
           await get().syncGameState();
-          console.log(`💰 Добавлено ${amount} DEL, данные синхронизированы с MongoDB`);
+          console.log(`💰 Добавлено ${amount} DEL (баланс: ${get().tokens}, натапано всего: ${get().highScore})`);
+        } catch (error) {
+          set({ error: (error as Error).message });
+        }
+      },
+
+      addDelFromDeposit: async (amount) => {
+        try {
+          set((state) => ({ tokens: state.tokens + amount }));
+          await get().syncGameState();
+          console.log(`💰 Добавлено ${amount} DEL из депозита (баланс: ${get().tokens})`);
         } catch (error) {
           set({ error: (error as Error).message });
         }
@@ -858,8 +869,12 @@ export const useGameStore = create<GameStore>()(
           
           const { decimalApi } = await import('../services/decimalApi');
           const balance = await decimalApi.getUserBalance(state.profile.userId);
-          set({ tokens: balance.gameBalance }); // DEL баланс = tokens
-          console.log(`💰 Обновлен DEL баланс: ${balance.gameBalance} DEL`);
+          
+          // ВАЖНО: Обновляем только tokens, НЕ трогаем highScore
+          const oldTokens = state.tokens;
+          set({ tokens: balance.gameBalance });
+          
+          console.log(`💰 Обновлен DEL баланс: ${balance.gameBalance} DEL (было: ${oldTokens}, highScore: ${state.highScore})`);
           
           // Автоматически обновляем рейтинг
           await get().refreshLeaderboard();
