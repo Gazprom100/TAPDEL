@@ -15,11 +15,13 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '../dist')));
 
-// Routes
+// Routes ПЕРЕД static middleware
 app.use('/api/telegram', telegramRoutes);
 app.use('/api', apiRoutes);
+
+// Static files ПОСЛЕ API роутов
+app.use(express.static(path.join(__dirname, '../dist')));
 
 // DecimalChain роуты будут подключены после инициализации сервиса
 
