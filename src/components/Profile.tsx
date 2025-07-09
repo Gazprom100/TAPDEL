@@ -7,6 +7,7 @@ type Tab = 'balance' | 'shop' | 'transactions' | 'leaderboard';
 export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [activeTab, setActiveTab] = useState<Tab>('shop');
   const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [withdrawAddress, setWithdrawAddress] = useState('');
   const [depositAmount, setDepositAmount] = useState('');
   const [isLeaderboardLoading, setIsLeaderboardLoading] = useState(false);
   
@@ -59,24 +60,27 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           return;
         }
 
-        // Запрашиваем адрес для вывода
-        const address = prompt('Введите адрес DecimalChain для вывода (xdc... или 0x...):');
-        if (!address) return;
+        // Проверяем что адрес введен
+        if (!withdrawAddress.trim()) {
+          alert('Введите адрес для вывода');
+          return;
+        }
 
         // Проверяем формат адреса
-        if (!address.match(/^(xdc|0x)[0-9a-fA-F]{40}$/)) {
-          alert('Неверный формат адреса');
+        if (!withdrawAddress.match(/^(xdc|0x)[0-9a-fA-F]{40}$/)) {
+          alert('Неверный формат адреса. Используйте формат: xdc... или 0x...');
           return;
         }
 
         const { decimalApi } = await import('../services/decimalApi');
         await decimalApi.createWithdrawal({
           userId: profile.userId,
-          toAddress: address,
+          toAddress: withdrawAddress,
           amount: amount
         });
 
         setWithdrawAmount('');
+        setWithdrawAddress('');
         alert('Запрос на вывод создан');
         
         // Обновляем баланс
@@ -207,7 +211,7 @@ ${deposit.address}
                 
                 <div className="cyber-panel space-y-3 sm:space-y-4 p-3 sm:p-4">
                   <div className="cyber-text text-sm sm:text-base">Вывод DEL</div>
-                  <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="space-y-2">
                     <input
                       type="number"
                       value={withdrawAmount}
@@ -215,8 +219,22 @@ ${deposit.address}
                       onTouchStart={(e) => {
                         e.stopPropagation();
                       }}
-                      className="cyber-input flex-1 text-sm sm:text-base"
-                      placeholder="Количество"
+                      className="cyber-input w-full text-sm sm:text-base"
+                      placeholder="Количество DEL для вывода"
+                      style={{
+                        minHeight: '40px',
+                        pointerEvents: 'auto'
+                      }}
+                    />
+                    <input
+                      type="text"
+                      value={withdrawAddress}
+                      onChange={(e) => setWithdrawAddress(e.target.value)}
+                      onTouchStart={(e) => {
+                        e.stopPropagation();
+                      }}
+                      className="cyber-input w-full text-sm sm:text-base"
+                      placeholder="Адрес DecimalChain (0x... или xdc...)"
                       style={{
                         minHeight: '40px',
                         pointerEvents: 'auto'
@@ -227,14 +245,13 @@ ${deposit.address}
                       onTouchStart={(e) => {
                         e.stopPropagation();
                       }}
-                      className="cyber-button text-sm sm:text-base px-4 py-2"
+                      className="cyber-button w-full text-sm sm:text-base px-4 py-2"
                       style={{
                         minHeight: '40px',
-                        minWidth: '80px',
                         pointerEvents: 'auto'
                       }}
                     >
-                      Вывести
+                      Вывести DEL
                     </button>
                   </div>
                 </div>
