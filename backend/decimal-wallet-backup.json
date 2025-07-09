@@ -1,0 +1,10 @@
+{
+  "address": "0x59888c4759503AdB6d9280d71999A1Db3Cf5fb43",
+  "privateKey": "0xa112a6c9c7815e6cb76feacf9937d224eefc25cb92c084ed5a5eda613bae3bd7",
+  "privateKeyWithout0x": "a112a6c9c7815e6cb76feacf9937d224eefc25cb92c084ed5a5eda613bae3bd7",
+  "passphrase": "PyL34X8rWaU6p2OwErGV",
+  "encryptedPrivateKey": "x435O9YfEK4jdApK2VSc0N8lu/LlWtjDpUmhjGat4AB/7U4eMsOxgBqQOYO/GUjGonYr1csAuwhgXqMw+HtByeUy0JiX50XLLyCTOTtFfrjgqlb6t4X2WIem+guMG00Q",
+  "createdAt": "2025-07-09T15:02:17.996Z",
+  "purpose": "TAPDEL DecimalChain integration",
+  "network": "DecimalChain Mainnet (Chain ID: 75)"
+}
