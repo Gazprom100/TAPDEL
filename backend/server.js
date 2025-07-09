@@ -42,7 +42,13 @@ const startServer = () => {
         console.log(`   DECIMAL_WORKING_PRIVKEY_ENC: ${process.env.DECIMAL_WORKING_PRIVKEY_ENC ? 'Установлен' : 'НЕ УСТАНОВЛЕН'}`);
         console.log(`   DECIMAL_KEY_PASSPHRASE: ${process.env.DECIMAL_KEY_PASSPHRASE ? 'Установлен' : 'НЕ УСТАНОВЛЕН'}`);
         
-        await decimalService.initialize();
+        // Добавляем timeout для инициализации
+        const initPromise = decimalService.initialize();
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout: DecimalChain инициализация превысила 30 секунд')), 30000)
+        );
+        
+        await Promise.race([initPromise, timeoutPromise]);
         decimalInitialized = true;
         console.log('✅ DecimalChain сервис инициализирован');
         
@@ -54,17 +60,13 @@ const startServer = () => {
         console.error('⚠️ DecimalChain сервис недоступен:', error.message);
         console.error('📋 Подробности ошибки:', error);
         console.log('ℹ️ Сервер запустится без DecimalChain функционала');
-        console.log('🔧 Для активации DecimalChain настройте:');
-        console.log('   - REDIS_URL (Upstash Redis URL с TLS)');
-        console.log('   - DECIMAL_WORKING_ADDRESS');
-        console.log('   - DECIMAL_WORKING_PRIVKEY_ENC');
-        console.log('   - DECIMAL_KEY_PASSPHRASE');
+        console.log('🔧 Для активации DecimalChain исправьте Redis подключение');
         
         // Добавляем fallback роуты для DecimalChain
         app.get('/api/decimal/*', (req, res) => {
           res.status(503).json({ 
             error: 'DecimalChain сервис временно недоступен',
-            details: 'Проверьте конфигурацию Redis и переменные окружения',
+            details: 'Проблема с Redis подключением - проверьте REDIS_URL',
             status: 'service_unavailable',
             configured: false
           });
@@ -73,7 +75,7 @@ const startServer = () => {
         app.post('/api/decimal/*', (req, res) => {
           res.status(503).json({ 
             error: 'DecimalChain сервис временно недоступен',
-            details: 'Проверьте конфигурацию Redis и переменные окружения',
+            details: 'Проблема с Redis подключением - проверьте REDIS_URL',
             status: 'service_unavailable',
             configured: false
           });

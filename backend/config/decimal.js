@@ -33,18 +33,27 @@ module.exports = {
   // Получение конфигурации Redis
   getRedisConfig() {
     if (this.isUpstash()) {
-      // Для Upstash Redis нужен TLS
-      const url = new URL(this.REDIS_URL);
+      // Для Upstash Redis - используем более простую конфигурацию
       return {
         url: this.REDIS_URL,
         socket: {
           tls: true,
-          rejectUnauthorized: false // Upstash использует самоподписанные сертификаты
-        }
+          rejectUnauthorized: false
+        },
+        // Упрощенные настройки для Upstash
+        connectTimeout: 60000,
+        lazyConnect: true,
+        retryDelayOnFailover: 100,
+        maxRetriesPerRequest: 3
       };
     } else {
       // Для обычного Redis
-      return { url: this.REDIS_URL };
+      return { 
+        url: this.REDIS_URL,
+        socket: {
+          connectTimeout: 10000
+        }
+      };
     }
   },
 
