@@ -164,15 +164,16 @@ class DecimalService {
         
         if (!lastBlock) {
           const currentBlock = await this.web3.eth.getBlockNumber();
-          lastBlock = currentBlock - 5; // Начинаем с 5 блоков назад
+          lastBlock = Number(currentBlock) - 5; // Начинаем с 5 блоков назад
         } else {
           lastBlock = parseInt(lastBlock);
         }
 
         const latestBlock = await this.web3.eth.getBlockNumber();
+        const latestBlockNum = Number(latestBlock); // Преобразуем BigInt в число
         
         // Обрабатываем новые блоки
-        for (let blockNum = lastBlock + 1; blockNum <= latestBlock; blockNum++) {
+        for (let blockNum = lastBlock + 1; blockNum <= latestBlockNum; blockNum++) {
           await this.processBlock(blockNum, database);
           await this.redis.set(lastBlockKey, blockNum);
         }
@@ -240,13 +241,14 @@ class DecimalService {
         }).toArray();
 
         const currentBlock = await this.web3.eth.getBlockNumber();
+        const currentBlockNum = Number(currentBlock); // Преобразуем BigInt в число
 
         for (const deposit of pendingDeposits) {
           if (deposit.txHash) {
             try {
               const receipt = await this.web3.eth.getTransactionReceipt(deposit.txHash);
               if (receipt) {
-                const confirmations = currentBlock - receipt.blockNumber + 1;
+                const confirmations = currentBlockNum - Number(receipt.blockNumber) + 1;
                 
                 await database.collection('deposits').updateOne(
                   { _id: deposit._id },
