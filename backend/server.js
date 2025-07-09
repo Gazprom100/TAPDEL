@@ -97,6 +97,41 @@ const startServer = () => {
         console.log(`Bot Status: ${botService.bot ? 'Active' : 'Disabled'}`);
         console.log(`DecimalChain Status: ${decimalInitialized ? 'Active' : 'Disabled'}`);
         
+        // ПОДКЛЮЧАЕМ БАЗУ ДАННЫХ К TELEGRAM БОТУ
+        if (botService.bot) {
+          try {
+            const { MongoClient } = require('mongodb');
+            const generateCleanMongoURI = () => {
+              const username = 'TAPDEL';
+              const password = 'fpz%sE62KPzmHfM';
+              const cluster = 'cluster0.ejo8obw.mongodb.net';
+              const database = 'tapdel';
+              
+              const encodedPassword = encodeURIComponent(password);
+              return `mongodb+srv://${username}:${encodedPassword}@${cluster}/${database}?retryWrites=true&w=majority&appName=Cluster0`;
+            };
+
+            const MONGODB_URI = process.env.MONGODB_URI || generateCleanMongoURI();
+            const MONGODB_DB = process.env.MONGODB_DB || 'tapdel';
+            
+            const client = new MongoClient(MONGODB_URI);
+            await client.connect();
+            const database = client.db(MONGODB_DB);
+            
+            // Подключаем БД к боту
+            botService.setDatabase(database);
+            console.log('✅ База данных подключена к Telegram боту');
+            
+            // Запускаем мониторинг DecimalChain если он инициализирован
+            if (decimalInitialized) {
+              await decimalService.startWatching(database);
+              console.log('🔍 DecimalChain мониторинг запущен');
+            }
+          } catch (error) {
+            console.error('❌ Ошибка подключения БД к боту:', error);
+          }
+        }
+        
         // Запускаем мониторинг DecimalChain если он инициализирован
         if (decimalInitialized) {
           try {

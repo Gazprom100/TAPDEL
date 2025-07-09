@@ -19,6 +19,7 @@ interface ExtendedGameState extends GameStateBase {
   leaderboard: LeaderboardEntry[];
   isLoading: boolean;
   error: string | null;
+  lastSyncTime: number; // Добавляем поле для отслеживания синхронизации
   // Убираем отдельный delBalance - используем только tokens как DEL
 }
 
@@ -101,6 +102,7 @@ export const useGameStore = create<GameStore>()(
       leaderboard: [],
       isLoading: false,
       error: null,
+      lastSyncTime: 0, // Инициализируем lastSyncTime
       // Убираем delBalance - используем только tokens как DEL
 
       // Системные действия
@@ -127,7 +129,8 @@ export const useGameStore = create<GameStore>()(
               powerGridLevel: COMPONENTS.POWER_GRIDS[0].level as PowerGridLevel,
               profile: null,
               transactions: [],
-              leaderboard: []
+              leaderboard: [],
+              lastSyncTime: 0
             });
           } else {
             console.log(`✅ Тот же пользователь (${userId}), проверяем актуальность данных...`);
@@ -150,6 +153,8 @@ export const useGameStore = create<GameStore>()(
               }
             } catch (error) {
               console.error('❌ Ошибка миграции:', error);
+              // Очищаем oldUserId чтобы не зациклиться
+              localStorage.removeItem('oldUserId');
             }
           }
           
@@ -174,8 +179,41 @@ export const useGameStore = create<GameStore>()(
               hyperdriveLevel: gameState.hyperdriveLevel as HyperdriveLevel,
               powerGridLevel: gameState.powerGridLevel as PowerGridLevel,
               profile,
-              transactions
+              transactions,
+              lastSyncTime: Date.now()
             });
+            
+            // АВТОМАТИЧЕСКИ ОБНОВЛЯЕМ ПРОФИЛЬ С АКТУАЛЬНЫМИ TELEGRAM ДАННЫМИ
+            try {
+              const storedTelegramData = localStorage.getItem('telegramUserData');
+              if (storedTelegramData) {
+                const telegramData = JSON.parse(storedTelegramData);
+                console.log('📱 Обновляем профиль с актуальными Telegram данными:', telegramData);
+                
+                const updatedProfile = {
+                  ...profile,
+                  telegramId: telegramData.telegramId,
+                  telegramUsername: telegramData.telegramUsername,
+                  telegramFirstName: telegramData.telegramFirstName,
+                  telegramLastName: telegramData.telegramLastName,
+                  username: telegramData.username || profile.username,
+                  lastLogin: new Date()
+                };
+                
+                // Обновляем профиль в состоянии и MongoDB
+                set({ profile: updatedProfile });
+                await apiService.updateUser(userId, { 
+                  profile: updatedProfile,
+                  gameState: {
+                    ...gameState,
+                    lastSaved: new Date()
+                  }
+                });
+                console.log('✅ Профиль обновлен с актуальными Telegram данными');
+              }
+            } catch (error) {
+              console.warn('⚠️ Ошибка обновления профиля Telegram данными:', error);
+            }
                       } else {
             console.log(`❌ Пользователь НЕ найден в базе, создаём нового...`);
             // Создаем нового пользователя с Telegram данными если возможно
@@ -640,29 +678,48 @@ export const useGameStore = create<GameStore>()(
 
             console.log(`🔄 Автосинхронизация: обновление данных из MongoDB...`);
             
-            // Перезагружаем актуальные данные пользователя из MongoDB
+            // 1. ВСЕГДА синхронизируем ТЕКУЩИЕ данные в MongoDB
+            try {
+              await get().syncGameState();
+              console.log(`✅ Локальные данные синхронизированы с MongoDB`);
+            } catch (error) {
+              console.warn('⚠️ Ошибка синхронизации локальных данных:', error);
+            }
+            
+            // 2. Перезагружаем актуальные данные пользователя из MongoDB
             try {
               const user = await apiService.getUser(state.profile.userId);
               if (user) {
                 const { gameState, profile, transactions } = user;
-                set({
-                  tokens: gameState.tokens,
-                  highScore: gameState.highScore,
-                  engineLevel: gameState.engineLevel as EngineMark,
-                  gearboxLevel: gameState.gearboxLevel as GearboxLevel,
-                  batteryLevel: gameState.batteryLevel as BatteryLevel,
-                  hyperdriveLevel: gameState.hyperdriveLevel as HyperdriveLevel,
-                  powerGridLevel: gameState.powerGridLevel as PowerGridLevel,
-                  profile,
-                  transactions
-                });
-                console.log(`✅ Данные пользователя обновлены: ${gameState.tokens} токенов`);
+                
+                // Проверяем есть ли более новые данные на сервере
+                const serverLastSaved = new Date(gameState.lastSaved || 0).getTime();
+                const localLastSync = get().lastSyncTime || 0;
+                
+                if (serverLastSaved > localLastSync) {
+                  console.log(`📥 Загружаем более новые данные с сервера`);
+                  set({
+                    tokens: gameState.tokens,
+                    highScore: gameState.highScore,
+                    engineLevel: gameState.engineLevel as EngineMark,
+                    gearboxLevel: gameState.gearboxLevel as GearboxLevel,
+                    batteryLevel: gameState.batteryLevel as BatteryLevel,
+                    hyperdriveLevel: gameState.hyperdriveLevel as HyperdriveLevel,
+                    powerGridLevel: gameState.powerGridLevel as PowerGridLevel,
+                    profile,
+                    transactions,
+                    lastSyncTime: Date.now()
+                  });
+                  console.log(`✅ Данные пользователя обновлены: ${gameState.tokens} токенов`);
+                } else {
+                  console.log(`✅ Локальные данные актуальны`);
+                }
               }
             } catch (error) {
               console.warn('⚠️ Ошибка загрузки данных пользователя:', error);
             }
             
-            // Загружаем свежий лидерборд
+            // 3. Загружаем свежий лидерборд
             try {
               const dbLeaderboard = await apiService.getLeaderboard();
               if (dbLeaderboard && dbLeaderboard.length > 0) {
@@ -745,7 +802,7 @@ export const useGameStore = create<GameStore>()(
           const { decimalApi } = await import('../services/decimalApi');
           const balance = await decimalApi.getUserBalance(state.profile.userId);
           set({ tokens: balance.gameBalance }); // Загружаем DEL баланс в основное поле tokens
-          console.log(`💰 Обновлен DEL баланс: ${balance.gameBalance} DEL`);
+          console.log(`�� Обновлен DEL баланс: ${balance.gameBalance} DEL`);
           
           // Автоматически обновляем рейтинг
           await get().refreshLeaderboard();
@@ -781,7 +838,7 @@ export const useGameStore = create<GameStore>()(
         hyperdriveActive: state.hyperdriveActive,
 
         // Метка времени для отслеживания синхронизации
-        lastSyncTime: Date.now()
+        lastSyncTime: state.lastSyncTime
 
         // Принцип: Сохраняем для быстрого старта, MongoDB остается источником истины
       })

@@ -101,6 +101,64 @@ const App: React.FC = () => {
     let userId = localStorage.getItem('userId');
     console.log('💾 localStorage userId:', userId);
     
+    // ПРИНУДИТЕЛЬНАЯ ПРОВЕРКА TELEGRAM ДАННЫХ НА КАЖДОМ ЗАПУСКЕ
+    const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+    console.log('📱 Текущие Telegram данные:', telegramUser);
+    
+    // РАСШИРЕННАЯ ДИАГНОСТИКА
+    console.log('🔍 Диагностика Telegram WebApp:');
+    console.log('  - window.Telegram:', !!window.Telegram);
+    console.log('  - window.Telegram.WebApp:', !!window.Telegram?.WebApp);
+    console.log('  - initDataUnsafe:', !!window.Telegram?.WebApp?.initDataUnsafe);
+    console.log('  - user object:', !!window.Telegram?.WebApp?.initDataUnsafe?.user);
+    console.log('  - user.id:', window.Telegram?.WebApp?.initDataUnsafe?.user?.id);
+    console.log('  - platform:', (window.Telegram?.WebApp as any)?.platform || 'unknown');
+    console.log('  - version:', (window.Telegram?.WebApp as any)?.version || 'unknown');
+    console.log('  - user agent:', navigator.userAgent);
+    
+    if (telegramUser?.id) {
+      const correctUserId = `telegram-${telegramUser.id}`;
+      console.log('🎯 Корректный userId из Telegram:', correctUserId);
+      
+      // Если userId отличается от правильного, обновляем
+      if (userId !== correctUserId) {
+        console.log('🔄 Обновляем userId для синхронизации между устройствами');
+        console.log(`  Старый userId: ${userId}`);
+        console.log(`  Новый userId: ${correctUserId}`);
+        
+        // Сохраняем старый userId для миграции, если он существует и не пустой
+        if (userId && userId !== correctUserId) {
+          const existingOldUserId = localStorage.getItem('oldUserId');
+          if (!existingOldUserId || existingOldUserId !== userId) {
+            localStorage.setItem('oldUserId', userId);
+            console.log('💾 Сохранен oldUserId для миграции:', userId);
+          }
+        }
+        
+        userId = correctUserId;
+        localStorage.setItem('userId', userId);
+        
+        // Сохраняем актуальные Telegram данные
+        const userData = {
+          userId: userId,
+          username: telegramUser.username || `${telegramUser.first_name} ${telegramUser.last_name}`.trim(),
+          telegramFirstName: telegramUser.first_name || '',
+          telegramLastName: telegramUser.last_name || '',
+          telegramUsername: telegramUser.username || '',
+          telegramId: telegramUser.id
+        };
+        localStorage.setItem('telegramUserData', JSON.stringify(userData));
+        console.log('✅ Обновлены Telegram данные для синхронизации:', userData);
+      } else {
+        console.log('✅ userId уже корректный, синхронизация не требуется');
+      }
+    } else {
+      console.warn('⚠️ Telegram данные недоступны! Возможные причины:');
+      console.warn('  1. Приложение запущено не через Telegram');
+      console.warn('  2. Telegram WebApp API недоступен на этом устройстве');
+      console.warn('  3. Проблемы с инициализацией WebApp');
+    }
+    
     if (!userId) {
       console.log('🔍 userId не найден, получаем данные из Telegram...');
       
@@ -109,9 +167,6 @@ const App: React.FC = () => {
       console.log('📱 window.Telegram.WebApp:', !!window.Telegram?.WebApp);
       console.log('📱 window.Telegram.WebApp.initDataUnsafe:', !!window.Telegram?.WebApp?.initDataUnsafe);
       console.log('📱 window.Telegram.WebApp.initDataUnsafe.user:', window.Telegram?.WebApp?.initDataUnsafe?.user);
-      
-      // Получаем реальные данные пользователя из Telegram WebApp
-      const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
       
       if (telegramUser?.id) {
         // Используем реальный Telegram ID
@@ -148,27 +203,28 @@ const App: React.FC = () => {
           }
         }
         
-        // Если все еще нет userId, создаем уникальный для веб-версии
+        // КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ: Если все еще нет Telegram данных, показываем ошибку
         if (!userId) {
-          // Генерируем уникальный ID на основе браузера и времени
+          console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: Приложение должно запускаться только через Telegram!');
+          // Создаем временный userId для тестирования, но предупреждаем
           const browserFingerprint = [
             navigator.userAgent,
             navigator.language,
             screen.width,
             screen.height,
-            new Date().toDateString() // Используем дату для группировки по дням
+            new Date().toDateString()
           ].join('|');
           
-          // Простой хеш функция
           let hash = 0;
           for (let i = 0; i < browserFingerprint.length; i++) {
             const char = browserFingerprint.charCodeAt(i);
             hash = ((hash << 5) - hash) + char;
-            hash = hash & hash; // Конвертируем в 32-битное число
+            hash = hash & hash;
           }
           
           userId = `web-user-${Math.abs(hash)}`;
-          console.log('🌐 Создан уникальный веб ID:', userId);
+          console.warn('⚠️ Создан временный веб ID для тестирования:', userId);
+          console.warn('⚠️ ВНИМАНИЕ: Данные не будут синхронизироваться между устройствами!');
         }
       }
       
@@ -180,35 +236,6 @@ const App: React.FC = () => {
       // Проверим есть ли telegramUserData
       const storedTelegramData = localStorage.getItem('telegramUserData');
       console.log('📱 telegramUserData в localStorage:', storedTelegramData);
-      
-      // Если есть Telegram данные сейчас, но userId не telegram-, обновляем
-      const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
-      if (telegramUser?.id && !userId.startsWith('telegram-')) {
-        const newUserId = `telegram-${telegramUser.id}`;
-        console.log('🔄 Обновляем userId с', userId, 'на', newUserId);
-        
-        // Сохраняем старый userId для возможной миграции данных ТОЛЬКО если его еще нет
-        const existingOldUserId = localStorage.getItem('oldUserId');
-        if (!existingOldUserId || existingOldUserId !== userId) {
-          localStorage.setItem('oldUserId', userId);
-          console.log('💾 Сохранен oldUserId для миграции:', userId);
-        } else {
-          console.log('⚠️ oldUserId уже установлен, пропускаем');
-        }
-        localStorage.setItem('userId', newUserId);
-        userId = newUserId;
-        
-        // Сохраняем Telegram данные
-        const userData = {
-          userId: userId,
-          username: telegramUser.username || `${telegramUser.first_name} ${telegramUser.last_name}`.trim(),
-          telegramFirstName: telegramUser.first_name || '',
-          telegramLastName: telegramUser.last_name || '',
-          telegramUsername: telegramUser.username || '',
-          telegramId: telegramUser.id
-        };
-        localStorage.setItem('telegramUserData', JSON.stringify(userData));
-      }
     }
     
     console.log('🔄 Вызываем initializeUser с userId:', userId);
