@@ -749,7 +749,7 @@ export const useGameStore = create<GameStore>()(
               telegramUsername: state.profile.telegramUsername,
               telegramFirstName: state.profile.telegramFirstName,
               telegramLastName: state.profile.telegramLastName,
-              tokens: state.tokens // Используем tokens вместо score
+              tokens: state.highScore // ИСПРАВЛЕНО: Используем highScore для рейтинга, НЕ tokens
             });
           }
         } catch (error) {
@@ -897,13 +897,20 @@ export const useGameStore = create<GameStore>()(
           const { decimalApi } = await import('../services/decimalApi');
           const balance = await decimalApi.getUserBalance(state.profile.userId);
           
-          // ВАЖНО: Обновляем только tokens, НЕ трогаем highScore
-          const oldTokens = state.tokens;
-          set({ tokens: balance.gameBalance });
+          // ИСПРАВЛЕНО: НЕ перезаписываем натапанные токены если DEL баланс пустой
+          const blockchainBalance = balance.workingWalletBalance || 0;
+          const currentGameTokens = state.tokens;
           
-          console.log(`💰 Обновлен DEL баланс: ${balance.gameBalance} DEL (было: ${oldTokens}, highScore: ${state.highScore})`);
+          // Если DEL баланс больше игрового - обновляем (пополнение)
+          // Если DEL баланс меньше - НЕ трогаем игровые токены (они натапаны)
+          if (blockchainBalance > currentGameTokens) {
+            set({ tokens: blockchainBalance });
+            console.log(`💰 Пополнен DEL баланс: ${blockchainBalance} DEL (было: ${currentGameTokens})`);
+          } else {
+            console.log(`💰 DEL баланс: ${blockchainBalance} DEL, игровые токены: ${currentGameTokens} DEL (без изменений)`);
+          }
           
-          // Автоматически обновляем рейтинг
+          // Автоматически обновляем рейтинг (используя highScore, НЕ tokens)
           await get().refreshLeaderboard();
           
         } catch (error) {
