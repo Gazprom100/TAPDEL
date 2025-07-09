@@ -456,9 +456,9 @@ export const useGameStore = create<GameStore>()(
               telegramUsername: state.profile.telegramUsername,
               telegramFirstName: state.profile.telegramFirstName,
               telegramLastName: state.profile.telegramLastName,
-              tokens: state.tokens
+              tokens: state.highScore // ИСПРАВЛЕНО: Отправляем highScore для рейтинга, НЕ tokens
             });
-            console.log(`🏆 Лидерборд обновлен с ${state.tokens} токенами`);
+            console.log(`🏆 Лидерборд обновлен с ${state.highScore} очками рейтинга (tokens: ${state.tokens})`);
           } catch (leaderboardError) {
             console.warn('⚠️ Ошибка обновления лидерборда:', leaderboardError);
           }
