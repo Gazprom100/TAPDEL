@@ -58,17 +58,42 @@ export const Shop: React.FC = () => {
     level: string,
     cost: number
   ) => {
-    if (tokens < cost || purchaseInProgress || !isItemAvailable(type, level)) {
-      console.warn(`❌ Покупка невозможна: игровые токены=${tokens}, прогресс=${purchaseInProgress}, доступность=${isItemAvailable(type, level)}`);
+    const totalBalance = tokens;
+    const isAvailable = isItemAvailable(type, level);
+    
+    console.log(`🛒 Попытка покупки ${type} ${level}:`, {
+      cost,
+      currentBalance: totalBalance,
+      isAvailable,
+      purchaseInProgress,
+      hasEnoughMoney: totalBalance >= cost
+    });
+    
+    if (totalBalance < cost) {
+      console.warn(`❌ Недостаточно средств: нужно ${cost}, доступно ${totalBalance} DEL`);
+      alert(`Недостаточно средств! Нужно ${cost} DEL, у вас ${totalBalance} DEL`);
+      return;
+    }
+    
+    if (purchaseInProgress) {
+      console.warn(`❌ Покупка уже в процессе`);
+      return;
+    }
+    
+    if (!isAvailable) {
+      console.warn(`❌ Товар недоступен: ${type} ${level}`);
+      alert(`Товар недоступен: ${type} ${level}`);
       return;
     }
 
     try {
-      console.log(`🛒 Начинаем покупку ${type} ${level} за ${cost} токенов`);
+      console.log(`🛒 Начинаем покупку ${type} ${level} за ${cost} DEL`);
       setPurchaseInProgress(true);
       
       // Сначала тратим токены и проверяем успех
+      console.log(`💸 Вызываем spendTokens(${cost}, { type: "${type}", level: "${level}" })`);
       const success = await spendTokens(cost, { type, level });
+      console.log(`💸 spendTokens результат:`, success);
       
       if (success) {
         console.log(`✅ Токены потрачены успешно, применяем апгрейд ${type} до ${level}`);
@@ -102,12 +127,12 @@ export const Shop: React.FC = () => {
         setTimeout(() => setPurchaseAnimation(null), 1000);
         console.log(`🎉 Покупка ${type} ${level} полностью завершена`);
       } else {
-        console.error(`❌ Не удалось потратить токены для покупки ${type} ${level}`);
-        alert(`Ошибка покупки ${type} ${level}. Попробуйте снова.`);
+        console.error(`❌ spendTokens вернул false для покупки ${type} ${level}`);
+        alert(`Не удалось списать средства для покупки ${type} ${level}. Проверьте баланс и попробуйте снова.`);
       }
     } catch (error) {
-      console.error('❌ Ошибка при покупке:', error);
-      alert(`Ошибка при покупке: ${(error as Error).message}`);
+      console.error('❌ Исключение при покупке:', error);
+      alert(`Исключение при покупке: ${(error as Error).message}`);
     } finally {
       setPurchaseInProgress(false);
     }

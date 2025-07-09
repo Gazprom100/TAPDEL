@@ -376,12 +376,12 @@ export const useGameStore = create<GameStore>()(
           // Загружаем лидерборд с обработкой ошибок
           try {
             console.log('🏆 Загрузка лидерборда...');
-            const dbLeaderboard = await apiService.getLeaderboard();
+          const dbLeaderboard = await apiService.getLeaderboard();
             
             if (dbLeaderboard && dbLeaderboard.length > 0) {
-              const leaderboard: LeaderboardEntry[] = dbLeaderboard.map(entry => ({
-                id: entry._id.toString(),
-                userId: entry.userId,
+          const leaderboard: LeaderboardEntry[] = dbLeaderboard.map(entry => ({
+            id: entry._id.toString(),
+            userId: entry.userId,
                 username: entry.username || 
                          (entry.telegramFirstName && entry.telegramLastName) ? `${entry.telegramFirstName} ${entry.telegramLastName}` :
                          entry.telegramFirstName || entry.telegramUsername || `Игрок ${entry.userId.slice(-4)}`,
@@ -389,12 +389,12 @@ export const useGameStore = create<GameStore>()(
                 score: entry.tokens || 0, // Используем tokens
                 tokens: entry.tokens || 0, // Отображаем токены
                 maxGear: 'M' as Gear,
-                rank: entry.rank,
-                updatedAt: entry.updatedAt
-              }));
+            rank: entry.rank,
+            updatedAt: entry.updatedAt
+          }));
               
               console.log(`✅ Загружен лидерборд: ${leaderboard.length} участников`);
-              set({ leaderboard });
+          set({ leaderboard });
             } else {
               console.log('📊 Лидерборд пуст - ожидаем первых игроков');
               set({ leaderboard: [] });
@@ -447,8 +447,8 @@ export const useGameStore = create<GameStore>()(
 
           // Автоматически обновляем лидерборд с новыми данными
           try {
-            await apiService.updateLeaderboard({
-              userId: state.profile.userId,
+          await apiService.updateLeaderboard({
+            userId: state.profile.userId,
               username: state.profile.username ||
                        (state.profile.telegramFirstName && state.profile.telegramLastName) ? `${state.profile.telegramFirstName} ${state.profile.telegramLastName}` :
                        state.profile.telegramFirstName || state.profile.telegramUsername || `Игрок ${state.profile.userId.slice(-4)}`,
@@ -500,8 +500,16 @@ export const useGameStore = create<GameStore>()(
         try {
           const state = get();
           
+          console.log(`💸 spendTokens вызван:`, {
+            amount,
+            currentTokens: state.tokens,
+            itemInfo,
+            hasProfile: !!state.profile,
+            userId: state.profile?.userId
+          });
+          
           if (state.tokens < amount) {
-            console.warn(`❌ Недостаточно средств: нужно ${amount}, доступно ${state.tokens} DEL`);
+            console.warn(`❌ spendTokens: Недостаточно средств: нужно ${amount}, доступно ${state.tokens} DEL`);
             return false;
           }
           
@@ -515,6 +523,7 @@ export const useGameStore = create<GameStore>()(
             itemInfo
           };
           
+          console.log(`💸 Обновляем локальное состояние: tokens ${state.tokens} -> ${state.tokens - amount}`);
           set((state) => ({
             tokens: state.tokens - amount,
             transactions: [newTransaction, ...state.transactions]
@@ -522,19 +531,37 @@ export const useGameStore = create<GameStore>()(
 
           // НЕМЕДЛЕННО сохраняем транзакцию в MongoDB
           if (state.profile?.userId) {
-            await apiService.addTransaction(state.profile.userId, {
-              type: newTransaction.type,
-              amount: newTransaction.amount,
-              status: newTransaction.status,
-              itemInfo: newTransaction.itemInfo
-            });
+            console.log(`💾 Сохраняем транзакцию в MongoDB для ${state.profile.userId}`);
+            try {
+              await apiService.addTransaction(state.profile.userId, {
+                type: newTransaction.type,
+                amount: newTransaction.amount,
+                status: newTransaction.status,
+                itemInfo: newTransaction.itemInfo
+              });
+              console.log(`✅ Транзакция сохранена в MongoDB`);
+            } catch (transactionError) {
+              console.error(`❌ Ошибка сохранения транзакции:`, transactionError);
+              // Продолжаем выполнение несмотря на ошибку
+            }
+          } else {
+            console.warn(`⚠️ Нет userId, транзакция не сохранена в MongoDB`);
           }
 
           // НЕМЕДЛЕННО синхронизируем состояние с MongoDB
-          await get().syncGameState();
-          console.log(`💸 Потрачено ${amount} DEL, данные синхронизированы с MongoDB`);
+          try {
+            console.log(`🔄 Синхронизируем состояние с MongoDB`);
+            await get().syncGameState();
+            console.log(`✅ Состояние синхронизировано с MongoDB`);
+          } catch (syncError) {
+            console.error(`❌ Ошибка синхронизации:`, syncError);
+            // Продолжаем выполнение несмотря на ошибку
+          }
+          
+          console.log(`💸 spendTokens завершен успешно: потрачено ${amount} DEL`);
           return true;
         } catch (error) {
+          console.error('❌ spendTokens: Критическая ошибка:', error);
           set({ error: (error as Error).message });
           return false;
         }

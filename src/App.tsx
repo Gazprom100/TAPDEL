@@ -9,7 +9,7 @@ import './styles/effects.css'
 const App: React.FC = () => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const { 
-    tokens,
+    tokens, 
     engineLevel,
     gearboxLevel,
     batteryLevel,
@@ -372,7 +372,7 @@ const App: React.FC = () => {
               {currentGearbox.level} • {currentGearbox.gear}x • {currentGearbox.switchTime}ms
             </div>
           </div>
-        
+          
           {/* Правый блок */}
           <div className="flex-1 cyber-panel p-2 sm:p-2.5 md:p-3" style={{
             boxShadow: '0 0 5px rgba(0, 255, 136, 0.2)'

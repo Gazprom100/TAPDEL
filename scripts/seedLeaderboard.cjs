@@ -2,11 +2,11 @@ const { MongoClient } = require('mongodb');
 
 // Используем правильные учетные данные MongoDB
 const generateCleanMongoURI = () => {
-  const username = 'TAPDEL';
+    const username = 'TAPDEL';
   const password = 'fpz%sE62KPzmHfM'; // Оригинальный пароль с %
-  const cluster = 'cluster0.ejo8obw.mongodb.net';
-  const database = 'tapdel';
-  
+    const cluster = 'cluster0.ejo8obw.mongodb.net';
+    const database = 'tapdel';
+
   // Кодируем пароль для URL
   const encodedPassword = encodeURIComponent(password);
   
@@ -124,14 +124,14 @@ async function seedLeaderboard() {
   try {
     console.log('🔗 Подключение к MongoDB...');
     client = new MongoClient(MONGODB_URI);
-    await client.connect();
-    
+        await client.connect();
+
     const db = client.db(MONGODB_DB);
     const leaderboardCollection = db.collection('leaderboard');
     const usersCollection = db.collection('users');
     
     console.log('📊 Добавление тестовых пользователей в лидерборд...');
-    
+
     // Очищаем существующий лидерборд (опционально)
     // await leaderboardCollection.deleteMany({});
     
@@ -139,7 +139,7 @@ async function seedLeaderboard() {
     for (let i = 0; i < testUsers.length; i++) {
       const user = testUsers[i];
       const rank = i + 1;
-      
+
       // Обновляем или вставляем в лидерборд
       await leaderboardCollection.updateOne(
         { userId: user.userId },
@@ -200,7 +200,7 @@ async function seedLeaderboard() {
     console.log(`\n🎯 РЕЗУЛЬТАТ:`);
     console.log(`📊 Пользователей в лидерборде: ${leaderboardCount}`);
     console.log(`👥 Пользователей в базе: ${usersCount}`);
-    
+
     // Показываем топ-5
     const top5 = await leaderboardCollection
       .find()
@@ -211,17 +211,17 @@ async function seedLeaderboard() {
     console.log(`\n🏆 ТОП-5 ЛИДЕРОВ:`);
     top5.forEach((user, index) => {
       console.log(`${index + 1}. ${user.telegramFirstName || user.username} - ${user.tokens} токенов`);
-    });
-    
-  } catch (error) {
+        });
+
+    } catch (error) {
     console.error('❌ Ошибка при заполнении лидерборда:', error);
     process.exit(1);
-  } finally {
+    } finally {
     if (client) {
-      await client.close();
+        await client.close();
       console.log('\n🔒 Соединение закрыто');
     }
-  }
+    }
 }
 
 // Запускаем только если файл выполняется напрямую

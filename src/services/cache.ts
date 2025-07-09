@@ -14,7 +14,7 @@ export class CacheService {
     this.isProduction = import.meta.env.MODE === 'production';
     
     if (!this.isProduction) {
-      this.startCleanupInterval();
+    this.startCleanupInterval();
       console.log('🔧 CacheService: Memory кеширование включено (dev режим)');
     } else {
       console.log('🚀 CacheService: Memory кеширование отключено (production режим)');
@@ -80,13 +80,13 @@ export class CacheService {
 
   public delete(key: string): void {
     if (!this.isProduction) {
-      this.cache.delete(key);
+    this.cache.delete(key);
     }
   }
 
   public clear(): void {
     if (!this.isProduction) {
-      this.cache.clear();
+    this.cache.clear();
     }
   }
 
