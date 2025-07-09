@@ -254,10 +254,10 @@ router.put('/users/:userId/gamestate', async (req, res) => {
     // Получаем обновленного пользователя для лидерборда
     const user = await database.collection('users').findOne({ userId });
     
-    // Автоматически обновляем лидерборд если есть токены
-    if (user && gameState.tokens !== undefined) {
-      console.log(`🏆 Автообновление лидерборда для ${userId} с ${gameState.tokens} токенами`);
-      await updateUserInLeaderboard(database, user, gameState.tokens);
+    // Автоматически обновляем лидерборд если есть highScore (рейтинг)
+    if (user && gameState.highScore !== undefined) {
+      console.log(`🏆 Автообновление лидерборда для ${userId} с ${gameState.highScore} рейтингом (токены: ${gameState.tokens || 'неизвестно'})`);
+      await updateUserInLeaderboard(database, user, gameState.highScore);
     }
     
     res.json({ message: 'Game state updated successfully' });

@@ -397,14 +397,17 @@ ${deposit.address}
                           <div className={`text-xs sm:text-sm ${
                             entry.userId === profile?.userId ? 'text-[#00ff88]/80' : 'opacity-70'
                           }`}>
-                            Уровень: {entry.level} • DEL: {Math.floor(entry.tokens)}
+                            Уровень: {entry.level} • Рейтинг: {Math.floor(entry.score)}
+                            {entry.userId === profile?.userId && (
+                              <span className="ml-2">• Баланс: {Math.floor(entry.tokens)} DEL</span>
+                            )}
                           </div>
                         </div>
                       </div>
                       <div className={`cyber-text text-sm sm:text-base font-bold whitespace-nowrap ml-2 ${
                         entry.userId === profile?.userId ? 'text-[#00ff88]' : ''
                       }`}>
-                        {Math.floor(entry.tokens)} DEL
+                        {Math.floor(entry.score)} ⭐
                       </div>
                     </div>
                   ))

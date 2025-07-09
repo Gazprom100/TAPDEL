@@ -340,7 +340,7 @@ export const useGameStore = create<GameStore>()(
                 telegramUsername: newProfile.telegramUsername,
                 telegramFirstName: newProfile.telegramFirstName,
                 telegramLastName: newProfile.telegramLastName,
-                tokens: 0
+                tokens: 0 // Для новых пользователей всегда 0
               };
               console.log('🏆 Дополнительно добавляем пользователя в лидерборд:', leaderboardData);
               
@@ -355,7 +355,7 @@ export const useGameStore = create<GameStore>()(
           const currentState = get();
           if (currentState.profile?.userId) {
             try {
-              console.log(`🏆 Добавляем текущего пользователя в лидерборд с ${currentState.tokens} токенами`);
+              console.log(`🏆 Добавляем текущего пользователя в лидерборд с ${currentState.highScore} рейтингом`);
               await apiService.updateLeaderboard({
                 userId: currentState.profile.userId,
                 username: currentState.profile.username ||
@@ -365,9 +365,9 @@ export const useGameStore = create<GameStore>()(
                 telegramUsername: currentState.profile.telegramUsername,
                 telegramFirstName: currentState.profile.telegramFirstName,
                 telegramLastName: currentState.profile.telegramLastName,
-                tokens: currentState.tokens
+                tokens: currentState.highScore // ИСПРАВЛЕНО: отправляем highScore для рейтинга
               });
-              console.log(`✅ Пользователь добавлен в лидерборд`);
+              console.log(`✅ Пользователь добавлен в лидерборд с рейтингом ${currentState.highScore}`);
             } catch (error) {
               console.error('❌ Ошибка добавления в лидерборд:', error);
             }
@@ -385,9 +385,9 @@ export const useGameStore = create<GameStore>()(
                 username: entry.username || 
                          (entry.telegramFirstName && entry.telegramLastName) ? `${entry.telegramFirstName} ${entry.telegramLastName}` :
                          entry.telegramFirstName || entry.telegramUsername || `Игрок ${entry.userId.slice(-4)}`,
-                level: Math.floor((entry.tokens || 0) / 1000) + 1, // Уровень на основе токенов
-                score: entry.tokens || 0, // Используем tokens
-                tokens: entry.tokens || 0, // Отображаем токены
+                level: Math.floor((entry.tokens || 0) / 1000) + 1, // Уровень на основе рейтинга
+                score: entry.tokens || 0, // Рейтинг (натапанное всего за все время)
+                tokens: entry.userId === currentState.profile?.userId ? currentState.tokens : entry.tokens, // Текущий баланс для себя, рейтинг для других
                 maxGear: 'M' as Gear,
             rank: entry.rank,
             updatedAt: entry.updatedAt
@@ -825,8 +825,8 @@ export const useGameStore = create<GameStore>()(
                            (entry.telegramFirstName && entry.telegramLastName) ? `${entry.telegramFirstName} ${entry.telegramLastName}` :
                            entry.telegramFirstName || entry.telegramUsername || `Игрок ${entry.userId.slice(-4)}`,
                   level: Math.floor((entry.tokens || 0) / 1000) + 1,
-                  score: entry.tokens || 0,
-                  tokens: entry.tokens || 0,
+                  score: entry.tokens || 0, // Рейтинг (натапанное всего за все время)
+                  tokens: entry.userId === state.profile?.userId ? state.tokens : entry.tokens, // Текущий баланс для себя, рейтинг для других
                   maxGear: 'M' as Gear,
                   rank: entry.rank,
                   updatedAt: entry.updatedAt
@@ -836,7 +836,7 @@ export const useGameStore = create<GameStore>()(
                 // Проверяем есть ли мы в лидерборде
                 const currentUser = leaderboard.find(entry => entry.userId === state.profile?.userId);
                 if (currentUser) {
-                  console.log(`✅ Найдены в лидерборде: ранг ${currentUser.rank}, токены ${currentUser.tokens}`);
+                  console.log(`✅ Найдены в лидерборде: ранг ${currentUser.rank}, рейтинг ${currentUser.score}, баланс ${currentUser.tokens}`);
                 } else {
                   console.log(`⚠️ НЕ найдены в лидерборде`);
                 }
@@ -863,6 +863,7 @@ export const useGameStore = create<GameStore>()(
       // Обновление только лидерборда
       refreshLeaderboard: async () => {
         try {
+          const state = get();
           const dbLeaderboard = await apiService.getLeaderboard();
           if (dbLeaderboard && dbLeaderboard.length > 0) {
             const leaderboard = dbLeaderboard.map(entry => ({
@@ -872,8 +873,8 @@ export const useGameStore = create<GameStore>()(
                        (entry.telegramFirstName && entry.telegramLastName) ? `${entry.telegramFirstName} ${entry.telegramLastName}` :
                        entry.telegramFirstName || entry.telegramUsername || `Игрок ${entry.userId.slice(-4)}`,
               level: Math.floor((entry.tokens || 0) / 1000) + 1,
-              score: entry.tokens || 0,
-              tokens: entry.tokens || 0,
+              score: entry.tokens || 0, // Рейтинг (натапанное всего за все время)
+              tokens: entry.userId === state.profile?.userId ? state.tokens : entry.tokens, // Текущий баланс для себя, рейтинг для других
               maxGear: 'M' as Gear,
               rank: entry.rank,
               updatedAt: entry.updatedAt
