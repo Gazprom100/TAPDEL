@@ -266,7 +266,9 @@ export const useGameStore = create<GameStore>()(
               console.log(`🏆 Добавляем текущего пользователя в лидерборд с ${currentState.tokens} токенами`);
               await apiService.updateLeaderboard({
                 userId: currentState.profile.userId,
-                username: currentState.profile.telegramFirstName || currentState.profile.telegramUsername || currentState.profile.username,
+                username: currentState.profile.telegramUsername ? `@${currentState.profile.telegramUsername}` :
+                       (currentState.profile.telegramFirstName && currentState.profile.telegramLastName) ? `${currentState.profile.telegramFirstName} ${currentState.profile.telegramLastName}` :
+                       currentState.profile.telegramFirstName || currentState.profile.username,
                 telegramId: currentState.profile.telegramId,
                 telegramUsername: currentState.profile.telegramUsername,
                 telegramFirstName: currentState.profile.telegramFirstName,
@@ -288,7 +290,9 @@ export const useGameStore = create<GameStore>()(
               const leaderboard: LeaderboardEntry[] = dbLeaderboard.map(entry => ({
                 id: entry._id.toString(),
                 userId: entry.userId,
-                username: entry.telegramUsername ? `@${entry.telegramUsername}` : entry.telegramFirstName || entry.username || `Игрок ${entry.userId.slice(-4)}`,
+                username: entry.telegramUsername ? `@${entry.telegramUsername}` : 
+                         (entry.telegramFirstName && entry.telegramLastName) ? `${entry.telegramFirstName} ${entry.telegramLastName}` :
+                         entry.telegramFirstName || entry.username || `Игрок ${entry.userId.slice(-4)}`,
                 level: Math.floor((entry.tokens || 0) / 1000) + 1, // Уровень на основе токенов
                 score: entry.tokens || 0, // Используем tokens
                 tokens: entry.tokens || 0, // Отображаем токены
@@ -356,7 +360,9 @@ export const useGameStore = create<GameStore>()(
           try {
             await apiService.updateLeaderboard({
               userId: state.profile.userId,
-              username: state.profile.telegramFirstName || state.profile.telegramUsername || state.profile.username,
+              username: state.profile.telegramUsername ? `@${state.profile.telegramUsername}` :
+                       (state.profile.telegramFirstName && state.profile.telegramLastName) ? `${state.profile.telegramFirstName} ${state.profile.telegramLastName}` :
+                       state.profile.telegramFirstName || state.profile.username,
               telegramId: state.profile.telegramId,
               telegramUsername: state.profile.telegramUsername,
               telegramFirstName: state.profile.telegramFirstName,
@@ -603,7 +609,9 @@ export const useGameStore = create<GameStore>()(
           if (state.profile?.userId) {
             await apiService.updateLeaderboard({
               userId: state.profile.userId,
-              username: state.profile.telegramFirstName || state.profile.telegramUsername || state.profile.username,
+              username: state.profile.telegramUsername ? `@${state.profile.telegramUsername}` :
+                       (state.profile.telegramFirstName && state.profile.telegramLastName) ? `${state.profile.telegramFirstName} ${state.profile.telegramLastName}` :
+                       state.profile.telegramFirstName || state.profile.username,
               telegramId: state.profile.telegramId,
               telegramUsername: state.profile.telegramUsername,
               telegramFirstName: state.profile.telegramFirstName,
@@ -661,7 +669,9 @@ export const useGameStore = create<GameStore>()(
                 const leaderboard = dbLeaderboard.map(entry => ({
                   id: entry._id.toString(),
                   userId: entry.userId,
-                  username: entry.telegramUsername ? `@${entry.telegramUsername}` : entry.telegramFirstName || entry.username || `Игрок ${entry.userId.slice(-4)}`,
+                  username: entry.telegramUsername ? `@${entry.telegramUsername}` : 
+                           (entry.telegramFirstName && entry.telegramLastName) ? `${entry.telegramFirstName} ${entry.telegramLastName}` :
+                           entry.telegramFirstName || entry.username || `Игрок ${entry.userId.slice(-4)}`,
                   level: Math.floor((entry.tokens || 0) / 1000) + 1,
                   score: entry.tokens || 0,
                   tokens: entry.tokens || 0,
@@ -706,7 +716,9 @@ export const useGameStore = create<GameStore>()(
             const leaderboard = dbLeaderboard.map(entry => ({
               id: entry._id.toString(),
               userId: entry.userId,
-              username: entry.telegramUsername ? `@${entry.telegramUsername}` : entry.telegramFirstName || entry.username || `Игрок ${entry.userId.slice(-4)}`,
+              username: entry.telegramUsername ? `@${entry.telegramUsername}` : 
+                       (entry.telegramFirstName && entry.telegramLastName) ? `${entry.telegramFirstName} ${entry.telegramLastName}` :
+                       entry.telegramFirstName || entry.username || `Игрок ${entry.userId.slice(-4)}`,
               level: Math.floor((entry.tokens || 0) / 1000) + 1,
               score: entry.tokens || 0,
               tokens: entry.tokens || 0,
