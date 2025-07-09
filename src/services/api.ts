@@ -56,7 +56,10 @@ export class ApiService {
         });
 
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          const errorData = await response.text();
+          const error = new Error(`HTTP error! status: ${response.status} - ${errorData}`);
+          (error as any).status = response.status;
+          throw error;
         }
 
         return await response.json();
@@ -79,9 +82,12 @@ export class ApiService {
     try {
       return await this.request<ApiUser>(`/users/${userId}`);
     } catch (error) {
-      if ((error as any).status === 404) {
+      // Проверяем на 404 статус
+      if ((error as any).status === 404 || (error as Error).message.includes('404') || (error as Error).message.includes('User not found')) {
+        console.log(`👤 Пользователь ${userId} не найден в базе (404)`);
         return null;
       }
+      console.error(`❌ Ошибка загрузки пользователя ${userId}:`, error);
       throw error;
     }
   }

@@ -124,7 +124,7 @@ export const TapButton: React.FC = () => {
     setIsCharging(false);
     
     // Добавляем токены
-    await addTokens(reward);
+    addTokens(reward);
     
     // Обновляем температуру
     const tempIncrease = (touchCount * gearMultiplier) / currentEngine.fuelEfficiency;
