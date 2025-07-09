@@ -82,6 +82,20 @@ const App: React.FC = () => {
 
   // Инициализация пользователя при загрузке приложения
   useEffect(() => {
+    // ПРИНУДИТЕЛЬНАЯ ОЧИСТКА для остановки бесконечной миграции
+    const problematicOldUserId = localStorage.getItem('oldUserId');
+    if (problematicOldUserId === 'demo-user-atatvzu2f') {
+      console.log('🧹 Принудительно очищаем проблемный oldUserId:', problematicOldUserId);
+      localStorage.removeItem('oldUserId');
+    }
+    
+    // Также очищаем если userId все еще demo-user-atatvzu2f
+    const currentUserId = localStorage.getItem('userId');
+    if (currentUserId === 'demo-user-atatvzu2f') {
+      console.log('🧹 Очищаем проблемный userId:', currentUserId);
+      localStorage.removeItem('userId');
+    }
+
     console.log('🚀 App.tsx useEffect - начало инициализации');
     
     let userId = localStorage.getItem('userId');
