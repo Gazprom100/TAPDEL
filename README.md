@@ -146,4 +146,4 @@ TAPDEL/
 
 ## Лицензия
 
-MIT License 
+MIT License # Force rebuild
