@@ -44,7 +44,8 @@ interface ExtendedGameState extends GameStateBase {
   isLoading: boolean;
   error: string | null;
   lastSyncTime: number; // Добавляем поле для отслеживания синхронизации
-  // tokens = единственный DEL баланс (рейтинг + покупки)
+  delBalance?: number; // Реальный DEL баланс из блокчейна (отдельно от игровых tokens)
+  // tokens = игровые очки из тапанья, delBalance = реальные DEL токены
 }
 
 interface GameActions {
@@ -95,7 +96,7 @@ interface GameActions {
   // Обновление только лидерборда
   refreshLeaderboard: () => Promise<void>;
   
-  // Обновление DEL баланса (теперь это единственная валюта)
+  // Обновление DEL баланса (общий баланс: натапанные + пополненные)
   refreshBalance: () => Promise<void>;
 }
 
@@ -424,6 +425,7 @@ export const useGameStore = create<GameStore>()(
           try {
             console.log('💰 Инициализация DEL баланса...');
             await get().refreshBalance();
+            console.log('✅ DEL баланс загружен из блокчейна');
           } catch (delBalanceError) {
             console.warn('⚠️ Не удалось загрузить DEL баланс (нормально для новых пользователей):', delBalanceError);
           }
@@ -896,7 +898,7 @@ export const useGameStore = create<GameStore>()(
         }
       },
 
-      // Обновление DEL баланса (единственная валюта)
+      // Обновление DEL баланса (общий баланс: натапанные + пополненные)
       refreshBalance: async () => {
         try {
           const state = get();
@@ -905,9 +907,10 @@ export const useGameStore = create<GameStore>()(
           const { decimalApi } = await import('../services/decimalApi');
           const balance = await decimalApi.getUserBalance(state.profile.userId);
           
-          // Теперь tokens = gameBalance (DEL пользователя)
+          // ИСПРАВЛЕНО: tokens = общий DEL баланс (натапанные + пополненные)
+          // Этот баланс можно использовать для покупок И для вывода
           set({ tokens: balance.gameBalance });
-          console.log(`💰 Обновлен DEL баланс пользователя: ${balance.gameBalance} DEL`);
+          console.log(`💰 Обновлен общий DEL баланс: ${balance.gameBalance} DEL`);
           
           // Автоматически обновляем рейтинг (используя highScore, НЕ tokens)
           await get().refreshLeaderboard();

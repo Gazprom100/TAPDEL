@@ -5,16 +5,6 @@ import { Shop } from './Shop';
 type Tab = 'balance' | 'shop' | 'transactions' | 'leaderboard';
 
 export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-  const [activeTab, setActiveTab] = useState<Tab>('shop');
-  const [withdrawAmount, setWithdrawAmount] = useState('');
-  const [withdrawAddress, setWithdrawAddress] = useState('');
-  const [depositAmount, setDepositAmount] = useState('');
-  const [isLeaderboardLoading, setIsLeaderboardLoading] = useState(false);
-  const [deposits, setDeposits] = useState<any[]>([]);
-  const [withdrawals, setWithdrawals] = useState<any[]>([]);
-  const [isTransactionsLoading, setIsTransactionsLoading] = useState(false);
-  const [showDepositDetails, setShowDepositDetails] = useState<any>(null);
-  
   const {
     tokens,
     transactions,
@@ -23,7 +13,22 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     profile,
     refreshBalance
   } = useGameStore();
-
+  const [activeTab, setActiveTab] = useState<Tab>('balance');
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [withdrawAddress, setWithdrawAddress] = useState('');
+  const [depositAmount, setDepositAmount] = useState('');
+  const [showDepositDetails, setShowDepositDetails] = useState<{
+    depositId: string;
+    uniqueAmount: number;
+    address: string;
+    expires: string;
+    amountRequested: number;
+  } | null>(null);
+  const [deposits, setDeposits] = useState<any[]>([]);
+  const [withdrawals, setWithdrawals] = useState<any[]>([]);
+  const [isLeaderboardLoading, setIsLeaderboardLoading] = useState(false);
+  const [isTransactionsLoading, setIsTransactionsLoading] = useState(false);
+  
   // Периодическое обновление таблицы лидеров
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -105,12 +110,9 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     }
 
     try {
-      // Проверяем актуальный DEL баланс пользователя перед выводом
-      const { decimalApi } = await import('../services/decimalApi');
-      const balanceData = await decimalApi.getUserBalance(profile.userId);
-      
-      if (balanceData.gameBalance < amount) {
-        alert(`Недостаточно DEL средств. Доступно: ${balanceData.gameBalance} DEL`);
+      // Проверяем общий DEL баланс (tokens) перед выводом
+      if (tokens < amount) {
+        alert(`Недостаточно DEL средств. Доступно: ${Math.floor(tokens)} DEL`);
         return;
       }
 
@@ -290,7 +292,12 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               }}
             >
               <div className="space-y-4 sm:space-y-6 p-4">
-                <div className="cyber-text text-lg sm:text-xl">Баланс: {Math.floor(tokens)} DEL</div>
+                <div className="cyber-text text-lg sm:text-xl">
+                  DEL Баланс: {Math.floor(tokens)} DEL
+                </div>
+                <div className="cyber-text text-sm opacity-70">
+                  (натапанные + пополненные DEL)
+                </div>
                 
                 <div className="cyber-panel space-y-3 sm:space-y-4 p-3 sm:p-4">
                   <div className="cyber-text text-sm sm:text-base">Вывод DEL</div>
