@@ -43,31 +43,31 @@ export class ApiService {
     const url = `${this.baseUrl}${endpoint}`;
     
     for (let i = 0; i <= retries; i++) {
-      try {
-        const response = await fetch(url, {
-          headers: {
-            'Content-Type': 'application/json',
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
             'Cache-Control': 'no-cache', // Принудительно отключаем кеширование
             'Pragma': 'no-cache',
-            ...options?.headers,
-          },
+          ...options?.headers,
+        },
           cache: 'no-store', // Отключаем кеш браузера
-          ...options,
-        });
+        ...options,
+      });
 
-        if (!response.ok) {
+      if (!response.ok) {
           const errorData = await response.text();
           const error = new Error(`HTTP error! status: ${response.status} - ${errorData}`);
           (error as any).status = response.status;
           throw error;
-        }
+      }
 
-        return await response.json();
-      } catch (error) {
+      return await response.json();
+    } catch (error) {
         console.error(`API request failed (attempt ${i + 1}/${retries + 1}):`, error);
         
         if (i === retries) {
-          throw error;
+      throw error;
         }
         
         // Задержка между попытками

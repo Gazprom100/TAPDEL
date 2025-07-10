@@ -546,9 +546,9 @@ export const useGameStore = create<GameStore>()(
           if (state.profile?.userId) {
             console.log(`💾 Сохраняем транзакцию в MongoDB для ${state.profile.userId}`);
             try {
-              await apiService.addTransaction(state.profile.userId, {
-                type: newTransaction.type,
-                amount: newTransaction.amount,
+            await apiService.addTransaction(state.profile.userId, {
+              type: newTransaction.type,
+              amount: newTransaction.amount,
                 status: newTransaction.status,
                 itemInfo: newTransaction.itemInfo
               });
@@ -564,7 +564,7 @@ export const useGameStore = create<GameStore>()(
           // НЕМЕДЛЕННО синхронизируем состояние с MongoDB
           try {
             console.log(`🔄 Синхронизируем состояние с MongoDB`);
-            await get().syncGameState();
+          await get().syncGameState();
             console.log(`✅ Состояние синхронизировано с MongoDB`);
           } catch (syncError) {
             console.error(`❌ Ошибка синхронизации:`, syncError);

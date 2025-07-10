@@ -10,6 +10,9 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [withdrawAddress, setWithdrawAddress] = useState('');
   const [depositAmount, setDepositAmount] = useState('');
   const [isLeaderboardLoading, setIsLeaderboardLoading] = useState(false);
+  const [deposits, setDeposits] = useState<any[]>([]);
+  const [withdrawals, setWithdrawals] = useState<any[]>([]);
+  const [isTransactionsLoading, setIsTransactionsLoading] = useState(false);
   
   const {
     tokens,
@@ -38,9 +41,30 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       }
     };
 
+    const loadTransactionsData = async () => {
+      if (activeTab === 'transactions' && profile?.userId) {
+        setIsTransactionsLoading(true);
+        try {
+          const { decimalApi } = await import('../services/decimalApi');
+          const [depositsData, withdrawalsData] = await Promise.all([
+            decimalApi.getUserDeposits(profile.userId).catch(() => []),
+            decimalApi.getUserWithdrawals(profile.userId).catch(() => [])
+          ]);
+          setDeposits(depositsData);
+          setWithdrawals(withdrawalsData);
+        } catch (error) {
+          console.error('❌ Profile: Ошибка загрузки данных транзакций:', error);
+        } finally {
+          setIsTransactionsLoading(false);
+        }
+      }
+    };
+
     if (activeTab === 'leaderboard') {
       updateLeaderboard();
       interval = setInterval(updateLeaderboard, 30000); // Обновляем каждые 30 секунд
+    } else if (activeTab === 'transactions') {
+      loadTransactionsData();
     }
 
     return () => {
@@ -48,81 +72,138 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         clearInterval(interval);
       }
     };
-  }, [activeTab, refreshLeaderboard]);
+  }, [activeTab, refreshLeaderboard, profile?.userId]);
 
   const handleWithdraw = async () => {
     const amount = Number(withdrawAmount);
-    if (amount > 0 && profile?.userId) {
-      try {
-        // Проверяем баланс
-        if (amount > tokens) {
-          alert('Недостаточно средств');
-          return;
+    if (!profile?.userId) {
+      alert('Ошибка: пользователь не найден');
+      return;
+    }
+
+    if (!withdrawAmount || withdrawAmount.trim() === '') {
+      alert('Введите количество DEL для вывода');
+      return;
+    }
+
+    if (amount <= 0) {
+      alert('Количество должно быть больше 0');
+      return;
+    }
+
+    if (amount > tokens) {
+      alert('Недостаточно средств');
+      return;
+    }
+
+    // Проверяем что адрес введен
+    if (!withdrawAddress.trim()) {
+      alert('Введите адрес для вывода');
+      return;
+    }
+
+    // Проверяем формат адреса
+    if (!withdrawAddress.match(/^(xdc|0x)[0-9a-fA-F]{40}$/)) {
+      alert('Неверный формат адреса. Используйте формат: xdc... или 0x...');
+      return;
+    }
+
+    try {
+      const { decimalApi } = await import('../services/decimalApi');
+      const response = await decimalApi.createWithdrawal({
+        userId: profile.userId,
+        toAddress: withdrawAddress,
+        amount: amount
+      });
+
+      setWithdrawAmount('');
+      setWithdrawAddress('');
+      alert(`Запрос на вывод создан успешно!\nID: ${response.withdrawalId}\nСумма: ${response.amount} DEL\nАдрес: ${response.toAddress}`);
+      
+      // Обновляем баланс
+      await refreshBalance();
+      
+      // Перезагружаем данные транзакций если мы на вкладке транзакций
+      if (activeTab === 'transactions') {
+        try {
+          const { decimalApi } = await import('../services/decimalApi');
+          const [depositsData, withdrawalsData] = await Promise.all([
+            decimalApi.getUserDeposits(profile.userId).catch(() => []),
+            decimalApi.getUserWithdrawals(profile.userId).catch(() => [])
+          ]);
+          setDeposits(depositsData);
+          setWithdrawals(withdrawalsData);
+        } catch (error) {
+          console.error('Ошибка обновления данных транзакций:', error);
         }
-
-        // Проверяем что адрес введен
-        if (!withdrawAddress.trim()) {
-          alert('Введите адрес для вывода');
-          return;
-        }
-
-        // Проверяем формат адреса
-        if (!withdrawAddress.match(/^(xdc|0x)[0-9a-fA-F]{40}$/)) {
-          alert('Неверный формат адреса. Используйте формат: xdc... или 0x...');
-          return;
-        }
-
-        const { decimalApi } = await import('../services/decimalApi');
-        await decimalApi.createWithdrawal({
-          userId: profile.userId,
-          toAddress: withdrawAddress,
-          amount: amount
-        });
-
-        setWithdrawAmount('');
-        setWithdrawAddress('');
-        alert('Запрос на вывод создан');
-        
-        // Обновляем баланс
-        await refreshBalance();
-        
-      } catch (error) {
-        console.error('Ошибка вывода:', error);
-        alert('Ошибка создания вывода: ' + (error instanceof Error ? error.message : 'Неизвестная ошибка'));
       }
+      
+    } catch (error) {
+      console.error('Ошибка вывода:', error);
+      alert('Ошибка создания вывода: ' + (error instanceof Error ? error.message : 'Неизвестная ошибка'));
     }
   };
 
   const handleDeposit = async () => {
     const amount = Number(depositAmount);
-    if (amount > 0 && profile?.userId) {
-      try {
-        if (amount < 0.001) {
-          alert('Минимальная сумма депозита: 0.001 DEL');
-          return;
-        }
+    if (!profile?.userId) {
+      alert('Ошибка: пользователь не найден');
+      return;
+    }
 
-        const { decimalApi } = await import('../services/decimalApi');
-        const deposit = await decimalApi.createDeposit({
-          userId: profile.userId,
-          baseAmount: amount
-        });
+    if (!depositAmount || depositAmount.trim() === '') {
+      alert('Введите количество DEL для депозита');
+      return;
+    }
 
-        setDepositAmount('');
-        
-        // Показываем инструкции для депозита
-        alert(`Депозит создан!
-        
+    if (amount <= 0) {
+      alert('Количество должно быть больше 0');
+      return;
+    }
+
+    if (amount < 0.001) {
+      alert('Минимальная сумма депозита: 0.001 DEL');
+      return;
+    }
+
+    try {
+      const { decimalApi } = await import('../services/decimalApi');
+      const deposit = await decimalApi.createDeposit({
+        userId: profile.userId,
+        baseAmount: amount
+      });
+
+      setDepositAmount('');
+      
+      // Показываем инструкции для депозита
+      alert(`Депозит создан успешно!
+      
 Отправьте точно ${deposit.uniqueAmount} DEL на адрес:
 ${deposit.address}
 
-Депозит будет автоматически зачислен после подтверждения в блокчейне.
-Срок действия: 30 минут`);
-        
-      } catch (error) {
-        console.error('Ошибка депозита:', error);
-        alert('Ошибка создания депозита: ' + (error instanceof Error ? error.message : 'Неизвестная ошибка'));
+ID депозита: ${deposit.depositId}
+Срок действия: ${new Date(deposit.expires).toLocaleString('ru-RU')}
+
+Депозит будет автоматически зачислен после подтверждения в блокчейне.`);
+      
+      // Перезагружаем данные транзакций если мы на вкладке транзакций
+      if (activeTab === 'transactions') {
+        try {
+          const { decimalApi } = await import('../services/decimalApi');
+          const [depositsData, withdrawalsData] = await Promise.all([
+            decimalApi.getUserDeposits(profile.userId).catch(() => []),
+            decimalApi.getUserWithdrawals(profile.userId).catch(() => [])
+          ]);
+          setDeposits(depositsData);
+          setWithdrawals(withdrawalsData);
+        } catch (error) {
+          console.error('Ошибка обновления данных транзакций:', error);
+        }
       }
+      
+    } catch (error) {
+      console.error('Ошибка депозита:', error);
+      alert('Ошибка создания депозита: ' + (error instanceof Error ? error.message : 'Неизвестная ошибка'));
     }
   };
 
@@ -315,49 +396,157 @@ ${deposit.address}
               }}
             >
               <div className="space-y-3 sm:space-y-4 p-4">
-                {transactions && transactions.length > 0 ? (
-                  transactions.map((tx) => (
-                    <div
-                      key={tx.id}
-                      className="cyber-card flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 p-3 sm:p-4"
-                    >
-                      <div className="flex-1">
-                        <div className="cyber-text text-sm sm:text-base">
-                          {tx.type === 'withdraw' ? 'Вывод' : 
-                           tx.type === 'deposit' ? 'Ввод' : 
-                           tx.type === 'purchase' ? (
-                             tx.itemInfo ? (
-                               `Покупка ${
-                                 tx.itemInfo.type === 'engine' ? 'двигателя' :
-                                 tx.itemInfo.type === 'gearbox' ? 'коробки передач' :
-                                 tx.itemInfo.type === 'battery' ? 'батареи' :
-                                 tx.itemInfo.type === 'hyperdrive' ? 'гипердвигателя' :
-                                 tx.itemInfo.type === 'powerGrid' ? 'энергосети' : ''
-                               } ${tx.itemInfo.level}`
-                             ) : 'Покупка'
-                           ) : 'Операция'}
-                        </div>
-                        <div className="text-xs sm:text-sm opacity-70">
-                          {new Date(tx.timestamp).toLocaleString('ru-RU', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </div>
-                      </div>
-                      <div className={`cyber-text text-sm sm:text-base font-bold ${
-                        tx.amount > 0 ? 'text-[#00ff88]' : 'text-[#ff4444]'
-                      }`}>
-                        {tx.amount > 0 ? '+' : ''}{tx.amount} DEL
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center opacity-50 py-8 text-sm sm:text-base">
-                    История транзакций пуста
+                {isTransactionsLoading ? (
+                  <div className="text-center py-8">
+                    <div className="cyber-spinner"></div>
+                    <div className="mt-4 text-sm sm:text-base opacity-70">Загрузка транзакций...</div>
                   </div>
+                ) : (
+                  <>
+                    {/* Депозиты */}
+                    {deposits.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="cyber-text text-base font-bold">Депозиты DEL</div>
+                        {deposits.map((deposit) => (
+                          <div
+                            key={deposit.depositId}
+                            className="cyber-card p-3 sm:p-4"
+                          >
+                            <div className="flex justify-between items-start gap-2">
+                              <div className="flex-1">
+                                <div className="cyber-text text-sm sm:text-base">
+                                  Депозит {deposit.amountRequested} DEL
+                                </div>
+                                <div className="text-xs sm:text-sm opacity-70">
+                                  {new Date(deposit.createdAt).toLocaleString('ru-RU')}
+                                </div>
+                                <div className="text-xs sm:text-sm mt-1">
+                                  Отправить: {deposit.uniqueAmount} DEL
+                                </div>
+                                {deposit.txHash && (
+                                  <div className="text-xs sm:text-sm opacity-70 break-all">
+                                    TX: {deposit.txHash.slice(0, 10)}...{deposit.txHash.slice(-6)}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                <div className={`text-xs sm:text-sm font-bold px-2 py-1 rounded ${
+                                  deposit.status === 'confirmed' ? 'bg-green-600 text-white' :
+                                  deposit.status === 'pending' ? 'bg-yellow-600 text-white' :
+                                  'bg-gray-600 text-white'
+                                }`}>
+                                  {deposit.status === 'confirmed' ? 'Подтвержден' :
+                                   deposit.status === 'pending' ? `Ожидание (${deposit.confirmations}/3)` :
+                                   'Ожидание'}
+                                </div>
+                                <div className="cyber-text text-sm font-bold mt-1 text-green-400">
+                                  +{deposit.amountRequested} DEL
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Выводы */}
+                    {withdrawals.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="cyber-text text-base font-bold">Выводы DEL</div>
+                        {withdrawals.map((withdrawal) => (
+                          <div
+                            key={withdrawal.withdrawalId}
+                            className="cyber-card p-3 sm:p-4"
+                          >
+                            <div className="flex justify-between items-start gap-2">
+                              <div className="flex-1">
+                                <div className="cyber-text text-sm sm:text-base">
+                                  Вывод {withdrawal.amount} DEL
+                                </div>
+                                <div className="text-xs sm:text-sm opacity-70">
+                                  {new Date(withdrawal.requestedAt).toLocaleString('ru-RU')}
+                                </div>
+                                <div className="text-xs sm:text-sm opacity-70 break-all">
+                                  На: {withdrawal.toAddress.slice(0, 10)}...{withdrawal.toAddress.slice(-6)}
+                                </div>
+                                {withdrawal.txHash && (
+                                  <div className="text-xs sm:text-sm opacity-70 break-all">
+                                    TX: {withdrawal.txHash.slice(0, 10)}...{withdrawal.txHash.slice(-6)}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                <div className={`text-xs sm:text-sm font-bold px-2 py-1 rounded ${
+                                  withdrawal.status === 'sent' ? 'bg-green-600 text-white' :
+                                  withdrawal.status === 'failed' ? 'bg-red-600 text-white' :
+                                  'bg-yellow-600 text-white'
+                                }`}>
+                                  {withdrawal.status === 'sent' ? 'Отправлен' :
+                                   withdrawal.status === 'failed' ? 'Ошибка' :
+                                   'В очереди'}
+                                </div>
+                                <div className="cyber-text text-sm font-bold mt-1 text-red-400">
+                                  -{withdrawal.amount} DEL
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Игровые транзакции */}
+                    {transactions && transactions.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="cyber-text text-base font-bold">Игровые операции</div>
+                        {transactions.map((tx) => (
+                          <div
+                            key={tx.id}
+                            className="cyber-card flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 p-3 sm:p-4"
+                          >
+                            <div className="flex-1">
+                              <div className="cyber-text text-sm sm:text-base">
+                                {tx.type === 'withdraw' ? 'Вывод' : 
+                                 tx.type === 'deposit' ? 'Ввод' : 
+                                 tx.type === 'purchase' ? (
+                                   tx.itemInfo ? (
+                                     `Покупка ${
+                                       tx.itemInfo.type === 'engine' ? 'двигателя' :
+                                       tx.itemInfo.type === 'gearbox' ? 'коробки передач' :
+                                       tx.itemInfo.type === 'battery' ? 'батареи' :
+                                       tx.itemInfo.type === 'hyperdrive' ? 'гипердвигателя' :
+                                       tx.itemInfo.type === 'powerGrid' ? 'энергосети' : ''
+                                     } ${tx.itemInfo.level}`
+                                   ) : 'Покупка'
+                                 ) : 'Операция'}
+                              </div>
+                              <div className="text-xs sm:text-sm opacity-70">
+                                {new Date(tx.timestamp).toLocaleString('ru-RU', {
+                                  year: 'numeric',
+                                  month: 'long',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </div>
+                            </div>
+                            <div className={`cyber-text text-sm sm:text-base font-bold ${
+                              tx.amount > 0 ? 'text-[#00ff88]' : 'text-[#ff4444]'
+                            }`}>
+                              {tx.amount > 0 ? '+' : ''}{tx.amount} DEL
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Если нет транзакций */}
+                    {deposits.length === 0 && withdrawals.length === 0 && (!transactions || transactions.length === 0) && (
+                      <div className="text-center opacity-50 py-8 text-sm sm:text-base">
+                        История транзакций пуста
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
