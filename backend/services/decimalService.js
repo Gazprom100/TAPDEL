@@ -2,6 +2,9 @@ const { Web3 } = require('web3');
 const redis = require('redis');
 const config = require('../config/decimal');
 
+// Импорт fetch для Node.js
+const fetch = require('node-fetch');
+
 class DecimalService {
   constructor() {
     this.web3 = new Web3(config.RPC_URL);
@@ -214,13 +217,35 @@ class DecimalService {
               }
             );
 
-            // Обновляем баланс пользователя
+            // Обновляем баланс пользователя в базе данных
             await database.collection('users').updateOne(
               { userId: deposit.userId },
               {
                 $inc: { gameBalance: deposit.amountRequested }
               }
             );
+
+            // Обновляем игровое состояние через API
+            try {
+              const response = await fetch(`${process.env.API_BASE_URL || 'http://localhost:3001'}/api/users/${deposit.userId}/deposit`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  amount: deposit.amountRequested
+                })
+              });
+
+              if (response.ok) {
+                const result = await response.json();
+                console.log(`💰 DecimalService: Игровое состояние обновлено! ${deposit.userId}: +${deposit.amountRequested} DEL (tokens: ${result.newTokens}, gameBalance: ${result.newGameBalance})`);
+              } else {
+                console.error(`❌ DecimalService: Ошибка обновления игрового состояния для ${deposit.userId}:`, response.status, response.statusText);
+              }
+            } catch (apiError) {
+              console.error(`❌ DecimalService: Ошибка вызова API для обновления игрового состояния ${deposit.userId}:`, apiError);
+            }
 
             console.log(`💰 DecimalService: Депозит найден! ${deposit.userId}: ${deposit.amountRequested} DEL`);
           }

@@ -157,6 +157,60 @@ router.put('/users/:userId', async (req, res) => {
   }
 });
 
+// Обновить игровое состояние при депозите (для DecimalService)
+router.post('/users/:userId/deposit', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { amount } = req.body;
+    const database = await connectToDatabase();
+    
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: 'Invalid amount' });
+    }
+    
+    console.log(`💰 Обновление игрового состояния при депозите: ${userId} +${amount} DEL`);
+    
+    // Получаем текущее состояние пользователя
+    const user = await database.collection('users').findOne({ userId });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Обновляем gameBalance и tokens в gameState
+    const updatedGameState = {
+      ...user.gameState,
+      tokens: (user.gameState?.tokens || 0) + amount,
+      lastSaved: new Date()
+    };
+    
+    await database.collection('users').updateOne(
+      { userId },
+      {
+        $set: {
+          gameState: updatedGameState,
+          gameBalance: (user.gameBalance || 0) + amount,
+          updatedAt: new Date()
+        }
+      }
+    );
+    
+    // Обновляем лидерборд
+    await updateUserInLeaderboard(database, user, updatedGameState.tokens);
+    
+    console.log(`✅ Игровое состояние обновлено: ${userId} tokens=${updatedGameState.tokens}, gameBalance=${(user.gameBalance || 0) + amount}`);
+    
+    res.json({ 
+      success: true,
+      newTokens: updatedGameState.tokens,
+      newGameBalance: (user.gameBalance || 0) + amount
+    });
+    
+  } catch (error) {
+    console.error('❌ Ошибка обновления игрового состояния при депозите:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Создать нового пользователя (специальный роут для новых игроков)
 router.post('/users/:userId/initialize', async (req, res) => {
   try {
