@@ -227,21 +227,26 @@ class DecimalService {
 
             // Обновляем игровое состояние через API
             try {
-              const response = await fetch(`${process.env.API_BASE_URL || 'http://localhost:3001'}/api/users/${deposit.userId}/deposit`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  amount: deposit.amountRequested
-                })
-              });
-
-              if (response.ok) {
-                const result = await response.json();
-                console.log(`💰 DecimalService: Игровое состояние обновлено! ${deposit.userId}: +${deposit.amountRequested} DEL (tokens: ${result.newTokens}, gameBalance: ${result.newGameBalance})`);
+              if (!process.env.API_BASE_URL) {
+                console.error('❌ DecimalService: API_BASE_URL не задан, не могу обновить игровой баланс!');
               } else {
-                console.error(`❌ DecimalService: Ошибка обновления игрового состояния для ${deposit.userId}:`, response.status, response.statusText);
+                const response = await fetch(`${process.env.API_BASE_URL}/api/users/${deposit.userId}/deposit`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'X-Internal-Secret': process.env.INTERNAL_SECRET || ''
+                  },
+                  body: JSON.stringify({
+                    amount: deposit.amountRequested
+                  })
+                });
+
+                if (response.ok) {
+                  const result = await response.json();
+                  console.log(`💰 DecimalService: Игровое состояние обновлено! ${deposit.userId}: +${deposit.amountRequested} DEL (tokens: ${result.newTokens}, gameBalance: ${result.newGameBalance})`);
+                } else {
+                  console.error(`❌ DecimalService: Ошибка обновления игрового состояния для ${deposit.userId}:`, response.status, response.statusText);
+                }
               }
             } catch (apiError) {
               console.error(`❌ DecimalService: Ошибка вызова API для обновления игрового состояния ${deposit.userId}:`, apiError);

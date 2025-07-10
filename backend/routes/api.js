@@ -159,6 +159,10 @@ router.put('/users/:userId', async (req, res) => {
 
 // Обновить игровое состояние при депозите (для DecimalService)
 router.post('/users/:userId/deposit', async (req, res) => {
+  // Проверка внутреннего секрета
+  if (process.env.INTERNAL_SECRET && req.headers['x-internal-secret'] !== process.env.INTERNAL_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
   try {
     const { userId } = req.params;
     const { amount } = req.body;
