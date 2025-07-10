@@ -116,6 +116,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         return;
       }
 
+      const { decimalApi } = await import('../services/decimalApi');
       const response = await decimalApi.createWithdrawal({
         userId: profile.userId,
         toAddress: withdrawAddress,
