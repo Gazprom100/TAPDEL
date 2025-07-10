@@ -87,10 +87,11 @@ module.exports = {
     const userIdHash = crypto.createHash('md5').update(userId.toString()).digest('hex');
     const userMod = parseInt(userIdHash.substring(0, 8), 16) % 1000;
     
-    const uniqueModifier = userMod * this.UNIQUE_SCALE;
+    // Используем более точный модификатор (0.001 - 0.999)
+    const uniqueModifier = (userMod / 1000) * 0.999;
     const uniqueAmount = baseAmount + uniqueModifier;
     
-    // Округляем до 3 знаков после запятой
-    return Math.round(uniqueAmount * 1000) / 1000;
+    // Округляем до 6 знаков после запятой для точности
+    return Math.round(uniqueAmount * 1000000) / 1000000;
   }
 }; 

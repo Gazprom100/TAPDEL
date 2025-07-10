@@ -296,9 +296,6 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 <div className="cyber-text text-lg sm:text-xl">
                   DEL Баланс: {Math.floor(tokens)} DEL
                 </div>
-                <div className="cyber-text text-sm opacity-70">
-                  (натапанные + пополненные DEL)
-                </div>
                 
                 <div className="cyber-panel space-y-3 sm:space-y-4 p-3 sm:p-4">
                   <div className="cyber-text text-sm sm:text-base">Вывод DEL</div>
