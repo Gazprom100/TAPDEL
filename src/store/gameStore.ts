@@ -905,18 +905,9 @@ export const useGameStore = create<GameStore>()(
           const { decimalApi } = await import('../services/decimalApi');
           const balance = await decimalApi.getUserBalance(state.profile.userId);
           
-          // ИСПРАВЛЕНО: НЕ перезаписываем натапанные токены если DEL баланс пустой
-          const blockchainBalance = balance.workingWalletBalance || 0;
-          const currentGameTokens = state.tokens;
-          
-          // Если DEL баланс больше игрового - обновляем (пополнение)
-          // Если DEL баланс меньше - НЕ трогаем игровые токены (они натапаны)
-          if (blockchainBalance > currentGameTokens) {
-            set({ tokens: blockchainBalance });
-            console.log(`💰 Пополнен DEL баланс: ${blockchainBalance} DEL (было: ${currentGameTokens})`);
-          } else {
-            console.log(`💰 DEL баланс: ${blockchainBalance} DEL, игровые токены: ${currentGameTokens} DEL (без изменений)`);
-          }
+          // Теперь tokens = gameBalance (DEL пользователя)
+          set({ tokens: balance.gameBalance });
+          console.log(`💰 Обновлен DEL баланс пользователя: ${balance.gameBalance} DEL`);
           
           // Автоматически обновляем рейтинг (используя highScore, НЕ tokens)
           await get().refreshLeaderboard();
