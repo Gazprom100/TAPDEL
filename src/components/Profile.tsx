@@ -13,6 +13,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [deposits, setDeposits] = useState<any[]>([]);
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
   const [isTransactionsLoading, setIsTransactionsLoading] = useState(false);
+  const [showDepositDetails, setShowDepositDetails] = useState<any>(null);
   
   const {
     tokens,
@@ -91,11 +92,6 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       return;
     }
 
-    if (amount > tokens) {
-      alert('Недостаточно средств');
-      return;
-    }
-
     // Проверяем что адрес введен
     if (!withdrawAddress.trim()) {
       alert('Введите адрес для вывода');
@@ -109,7 +105,15 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     }
 
     try {
+      // Проверяем актуальный DEL баланс пользователя перед выводом
       const { decimalApi } = await import('../services/decimalApi');
+      const balanceData = await decimalApi.getUserBalance(profile.userId);
+      
+      if (balanceData.gameBalance < amount) {
+        alert(`Недостаточно DEL средств. Доступно: ${balanceData.gameBalance} DEL`);
+        return;
+      }
+
       const response = await decimalApi.createWithdrawal({
         userId: profile.userId,
         toAddress: withdrawAddress,
@@ -175,16 +179,14 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
       setDepositAmount('');
       
-      // Показываем инструкции для депозита
-      alert(`Депозит создан успешно!
-      
-Отправьте точно ${deposit.uniqueAmount} DEL на адрес:
-${deposit.address}
-
-ID депозита: ${deposit.depositId}
-Срок действия: ${new Date(deposit.expires).toLocaleString('ru-RU')}
-
-Депозит будет автоматически зачислен после подтверждения в блокчейне.`);
+      // Показываем детали депозита в удобном интерфейсе
+      setShowDepositDetails({
+        depositId: deposit.depositId,
+        uniqueAmount: deposit.uniqueAmount,
+        address: deposit.address,
+        expires: new Date(deposit.expires).toLocaleString('ru-RU'),
+        amountRequested: deposit.amountRequested
+      });
       
       // Перезагружаем данные транзакций если мы на вкладке транзакций
       if (activeTab === 'transactions') {
@@ -628,7 +630,71 @@ ID депозита: ${deposit.depositId}
         </div>
       </div>
       
-      {/* Wallet Modal */}
+      {/* Модальное окно с деталями депозита */}
+      {showDepositDetails && (
+        <div 
+          className="cyber-modal"
+          onClick={() => setShowDepositDetails(null)}
+          style={{ zIndex: 1000 }}
+        >
+          <div 
+            className="cyber-panel w-[95vw] max-w-md p-4"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="text-center space-y-4">
+              <h3 className="cyber-text text-lg text-green-400">Депозит создан успешно!</h3>
+              
+              <div className="cyber-card p-4 space-y-3">
+                <div className="space-y-2">
+                  <div className="cyber-text text-sm">Отправьте точно:</div>
+                  <div 
+                    className="cyber-text text-lg font-bold text-green-400 cursor-pointer border border-green-400 rounded p-2"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigator.clipboard.writeText(showDepositDetails.uniqueAmount.toString());
+                      alert('Сумма скопирована!');
+                    }}
+                  >
+                    {showDepositDetails.uniqueAmount} DEL
+                    <div className="text-xs opacity-70 mt-1">Нажмите чтобы скопировать</div>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="cyber-text text-sm">На адрес:</div>
+                  <div 
+                    className="cyber-text text-sm font-mono border border-gray-600 rounded p-2 break-all cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigator.clipboard.writeText(showDepositDetails.address);
+                      alert('Адрес скопирован!');
+                    }}
+                  >
+                    {showDepositDetails.address}
+                    <div className="text-xs opacity-70 mt-1">Нажмите чтобы скопировать</div>
+                  </div>
+                </div>
+                
+                <div className="space-y-1 text-xs opacity-70">
+                  <div>ID депозита: {showDepositDetails.depositId}</div>
+                  <div>Срок действия: {showDepositDetails.expires}</div>
+                </div>
+                
+                <div className="text-xs opacity-70 text-center mt-4">
+                  Депозит будет автоматически зачислен после подтверждения в блокчейне.
+                </div>
+              </div>
+              
+              <button
+                onClick={() => setShowDepositDetails(null)}
+                className="cyber-button w-full"
+              >
+                Понятно
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
     </div>
   );

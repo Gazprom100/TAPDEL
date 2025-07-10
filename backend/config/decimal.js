@@ -14,8 +14,8 @@ module.exports = {
   
   // Параметры депозитов
   CONFIRMATIONS: parseInt(process.env.DECIMAL_CONFIRMATIONS || '6'),
-  UNIQUE_SCALE: parseFloat(process.env.DECIMAL_UNIQUE_SCALE || '0.000001'),
-  MAX_USER_MOD: 0.000999,
+  UNIQUE_SCALE: parseFloat(process.env.DECIMAL_UNIQUE_SCALE || '0.001'),
+  MAX_USER_MOD: 0.999,
   
   // Redis настройки (поддержка Upstash с TLS)
   REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379/0',
@@ -90,7 +90,7 @@ module.exports = {
     const uniqueModifier = userMod * this.UNIQUE_SCALE;
     const uniqueAmount = baseAmount + uniqueModifier;
     
-    // Округляем до 6 знаков после запятой
-    return Math.round(uniqueAmount * 1000000) / 1000000;
+    // Округляем до 3 знаков после запятой
+    return Math.round(uniqueAmount * 1000) / 1000;
   }
 }; 
