@@ -75,6 +75,12 @@ module.exports = {
       let decrypted = decipher.update(encrypted, null, 'utf8');
       decrypted += decipher.final('utf8');
       
+      // Добавляем префикс "0x" если его нет
+      // Добавляем префикс "0x" если его нет
+      if (!decrypted.startsWith('0x')) {
+        decrypted = '0x' + decrypted;
+      }
+      
       return decrypted;
     } catch (error) {
       throw new Error('Ошибка расшифровки приватного ключа: ' + error.message);
