@@ -180,7 +180,7 @@ router.post('/users/:userId/deposit', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
     
-    // Обновляем gameBalance и tokens в gameState
+    // Обновляем только tokens в gameState (единый источник истины)
     const updatedGameState = {
       ...user.gameState,
       tokens: (user.gameState?.tokens || 0) + amount,
@@ -192,7 +192,6 @@ router.post('/users/:userId/deposit', async (req, res) => {
       {
         $set: {
           gameState: updatedGameState,
-          gameBalance: (user.gameBalance || 0) + amount,
           updatedAt: new Date()
         }
       }
@@ -201,12 +200,11 @@ router.post('/users/:userId/deposit', async (req, res) => {
     // Обновляем лидерборд
     await updateUserInLeaderboard(database, user, updatedGameState.tokens);
     
-    console.log(`✅ Игровое состояние обновлено: ${userId} tokens=${updatedGameState.tokens}, gameBalance=${(user.gameBalance || 0) + amount}`);
+    console.log(`✅ Игровое состояние обновлено: ${userId} tokens=${updatedGameState.tokens}`);
     
     res.json({ 
       success: true,
-      newTokens: updatedGameState.tokens,
-      newGameBalance: (user.gameBalance || 0) + amount
+      newTokens: updatedGameState.tokens
     });
     
   } catch (error) {
