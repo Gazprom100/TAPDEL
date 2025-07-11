@@ -92,7 +92,7 @@ class DecimalService {
         nonce = Number(transactionCount);
       }
       
-      await this.redis.setEx(key, ttl, nonce);
+      await this.redis.setEx(key, ttl, nonce.toString());
       return nonce;
     } catch (error) {
       console.error('❌ DecimalService: Ошибка получения nonce:', error);
@@ -175,7 +175,7 @@ class DecimalService {
         // Обрабатываем новые блоки
         for (let blockNum = lastBlock + 1; blockNum <= latestBlockNum; blockNum++) {
           await this.processBlock(blockNum, database);
-          await this.redis.set(lastBlockKey, blockNum);
+          await this.redis.set(lastBlockKey, blockNum.toString());
         }
         
       } catch (error) {

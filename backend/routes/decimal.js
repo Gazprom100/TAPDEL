@@ -115,7 +115,7 @@ router.get('/deposits/:id', async (req, res) => {
     const database = await connectToDatabase();
     
     const deposit = await database.collection('deposits').findOne({
-      _id: new require('mongodb').ObjectId(id)
+      _id: new (require('mongodb').ObjectId)(id)
     });
 
     if (!deposit) {
@@ -261,7 +261,7 @@ router.get('/withdrawals/:id', async (req, res) => {
     const database = await connectToDatabase();
     
     const withdrawal = await database.collection('withdrawals').findOne({
-      _id: new require('mongodb').ObjectId(id)
+      _id: new (require('mongodb').ObjectId)(id)
     });
 
     if (!withdrawal) {
