@@ -212,7 +212,7 @@ router.post('/withdrawals', async (req, res) => {
       return res.status(404).json({ error: 'Пользователь не найден' });
     }
 
-    const gameBalance = user.gameBalance || 0;
+    const gameBalance = user.gameState?.tokens || 0;
     
     if (gameBalance < amount) {
       return res.status(400).json({ 
@@ -223,7 +223,7 @@ router.post('/withdrawals', async (req, res) => {
     // Списываем средства с баланса пользователя
     await database.collection('users').updateOne(
       { userId: userId },
-      { $inc: { gameBalance: -amount } }
+      { $set: { "gameState.tokens": gameBalance - amount, updatedAt: new Date() } }
     );
 
     // Создаем запрос на вывод
@@ -329,7 +329,7 @@ router.get('/users/:userId/balance', async (req, res) => {
       return res.status(404).json({ error: 'Пользователь не найден' });
     }
 
-    const gameBalance = user.gameBalance || 0;
+    const gameBalance = user.gameState?.tokens || 0;
 
     res.json({
       userId: userId,

@@ -221,7 +221,7 @@ class DecimalService {
             await database.collection('users').updateOne(
               { userId: deposit.userId },
               {
-                $inc: { gameBalance: deposit.amountRequested }
+                $inc: { "gameState.tokens": deposit.amountRequested }
               }
             );
 
@@ -336,7 +336,7 @@ class DecimalService {
             // Возвращаем средства пользователю
             await database.collection('users').updateOne(
               { userId: withdrawal.userId },
-              { $inc: { gameBalance: withdrawal.amount } }
+              { $inc: { "gameState.tokens": withdrawal.amount } }
             );
             
             console.error(`❌ DecimalService: Ошибка вывода для ${withdrawal.userId}:`, error);
