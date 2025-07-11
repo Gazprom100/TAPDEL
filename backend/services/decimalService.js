@@ -85,9 +85,11 @@ class DecimalService {
       if (cached !== null) {
         nonce = parseInt(cached) + 1;
       } else {
-        nonce = await this.web3.eth.getTransactionCount(
+        const transactionCount = await this.web3.eth.getTransactionCount(
           this.web3.utils.toChecksumAddress(address)
         );
+        // Преобразуем BigInt в number для совместимости с Web3
+        nonce = Number(transactionCount);
       }
       
       await this.redis.setEx(key, ttl, nonce);
@@ -121,11 +123,6 @@ class DecimalService {
 
       // Подписываем транзакцию
       const signedTx = await this.web3.eth.accounts.signTransaction(transaction, privateKey);
-      
-      // Очищаем приватный ключ из памяти
-      privateKey.split('').forEach((char, index) => {
-        privateKey[index] = '0';
-      });
       
       // Отправляем транзакцию
       const receipt = await this.web3.eth.sendSignedTransaction(signedTx.rawTransaction);
