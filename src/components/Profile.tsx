@@ -252,9 +252,11 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         }}
       >
         <div className="flex justify-between items-center mb-4 sm:mb-6 p-2 sm:p-0 flex-shrink-0" style={{
-          paddingTop: '20px'
+          paddingTop: '30px'
         }}>
-          <h2 className="cyber-text text-lg sm:text-xl md:text-2xl">Профиль</h2>
+          <h2 className="cyber-text text-lg sm:text-xl md:text-2xl" style={{
+            marginTop: '10px'
+          }}>Профиль</h2>
           <button 
             onClick={(e) => {
               e.stopPropagation();
@@ -267,7 +269,8 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             style={{
               minWidth: '40px',
               minHeight: '40px',
-              pointerEvents: 'auto'
+              pointerEvents: 'auto',
+              marginTop: '5px'
             }}
           >
             ✕
