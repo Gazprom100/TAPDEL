@@ -69,6 +69,20 @@ export interface TelegramWebApp {
   ready: () => void;
   requestFullscreen?: () => Promise<void> | void;
   exitFullscreen?: () => void;
+  expand?: () => void;
+  close?: () => void;
+  isExpanded?: boolean;
+  platform?: string;
+  version?: string;
+  colorScheme?: 'light' | 'dark';
+  themeParams?: {
+    bg_color?: string;
+    text_color?: string;
+    hint_color?: string;
+    link_color?: string;
+    button_color?: string;
+    button_text_color?: string;
+  };
   safeAreaInset?: {
     top: number;
     bottom: number;

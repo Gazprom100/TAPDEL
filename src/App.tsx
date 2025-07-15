@@ -3,11 +3,16 @@ import { Profile } from './components/Profile'
 import { EnergyIndicator } from './components/EnergyIndicator'
 import { useGameStore } from './store/gameStore'
 import { useGameMechanics } from './hooks/useGameMechanics'
+import { useFullscreen } from './hooks/useFullscreen'
 import { COMPONENTS } from './types/game'
 import './styles/effects.css'
 
 const App: React.FC = () => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  
+  // Инициализация полноэкранного режима Telegram WebApp
+  useFullscreen();
+  
   const { 
     tokens, 
     engineLevel,
