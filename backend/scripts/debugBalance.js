@@ -1,11 +1,13 @@
 const { MongoClient } = require('mongodb');
 
 function generateCleanMongoURI() {
-  const uri = process.env.MONGODB_URI;
-  if (!uri) {
-    throw new Error('MONGODB_URI не установлен');
-  }
-  return uri;
+  const username = 'TAPDEL';
+  const password = 'fpz%sE62KPzmHfM';
+  const cluster = 'cluster0.ejo8obw.mongodb.net';
+  const database = 'tapdel';
+  
+  const encodedPassword = encodeURIComponent(password);
+  return `mongodb+srv://${username}:${encodedPassword}@${cluster}/${database}?retryWrites=true&w=majority&appName=Cluster0`;
 }
 
 const MONGODB_URI = generateCleanMongoURI();
