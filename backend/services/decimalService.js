@@ -198,9 +198,16 @@ class DecimalService {
           // Округляем value до 4 знаков после запятой
           const roundedValue = Math.round(value * 10000) / 10000;
           const EPSILON = 0.00005;
+          
           // Ищем депозит с такой уникальной суммой (с допуском)
+          // Округляем uniqueAmount до 4 знаков для сравнения
           const deposit = await database.collection('deposits').findOne({
-            uniqueAmount: { $gte: roundedValue - EPSILON, $lte: roundedValue + EPSILON },
+            $expr: {
+              $and: [
+                { $gte: [{ $round: ["$uniqueAmount", 4] }, roundedValue - EPSILON] },
+                { $lte: [{ $round: ["$uniqueAmount", 4] }, roundedValue + EPSILON] }
+              ]
+            },
             matched: false
           });
 
