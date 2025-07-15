@@ -13,6 +13,7 @@ class DecimalService {
     this.watchInterval = null;
     this.confirmInterval = null;
     this.withdrawInterval = null;
+    this.lastNoWithdrawalsLog = null;
   }
 
   async initialize() {
@@ -325,7 +326,7 @@ class DecimalService {
           { returnDocument: 'after' }
         );
 
-        if (withdrawal.value) {
+        if (withdrawal && withdrawal.value) {
           const withdrawalData = withdrawal.value;
           try {
             console.log(`🔄 DecimalService: Начинаем обработку вывода ${withdrawalData._id} для ${withdrawalData.userId}`);
@@ -360,6 +361,13 @@ class DecimalService {
             );
             
             console.error(`❌ DecimalService: Ошибка вывода для ${withdrawalData.userId}:`, error);
+          }
+        } else {
+          // Логируем только раз в минуту, чтобы не засорять логи
+          const now = Date.now();
+          if (!this.lastNoWithdrawalsLog || now - this.lastNoWithdrawalsLog > 60000) {
+            console.log(`ℹ️ DecimalService: Нет ожидающих выводов для обработки`);
+            this.lastNoWithdrawalsLog = now;
           }
         }
       } catch (error) {
