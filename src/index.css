@@ -9,6 +9,8 @@
   --glow-color: #00FF88;
   --safe-top: 0px;
   --safe-bottom: 0px;
+  --safe-left: 0px;
+  --safe-right: 0px;
 }
 
 html, body {

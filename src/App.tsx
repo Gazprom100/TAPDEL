@@ -327,8 +327,10 @@ const App: React.FC = () => {
         <div className="cyber-vignette" />
       </div>
 
-      {/* 1. Название на самом верху в центре */}
-      <div className="absolute top-2 sm:top-4 md:top-6 left-1/2 transform -translate-x-1/2 z-20">
+      {/* 1. Название на самом верху в центре - сдвигаем ниже кнопок Telegram */}
+      <div className="absolute left-1/2 transform -translate-x-1/2 z-20" style={{
+        top: 'calc(var(--safe-top) + 60px)'
+      }}>
         <div className="cyber-text text-2xl sm:text-3xl md:text-4xl font-bold text-center" style={{ 
           color: '#ffcc00',
           textShadow: '0 0 20px rgba(255, 204, 0, 0.5)'
@@ -337,10 +339,9 @@ const App: React.FC = () => {
         </div>
       </div>
 
-
-
-      {/* 2. Счетчик натапанных DEL - растянут на всю ширину с отступами от шкал */}
-      <div className="absolute top-12 sm:top-16 md:top-20 z-20" style={{
+      {/* 2. Счетчик натапанных DEL - сдвигаем ниже названия */}
+      <div className="absolute z-20" style={{
+        top: 'calc(var(--safe-top) + 120px)',
         left: '70px',
         right: '70px',
         height: '30px'
@@ -358,9 +359,9 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* 3. Два блока с информацией о компонентах */}
+      {/* 3. Два блока с информацией о компонентах - сдвигаем ниже счетчика */}
       <div className="absolute z-20" style={{
-        top: 'calc(12px + 30px + 80px)',
+        top: 'calc(var(--safe-top) + 170px)',
         left: '70px',
         right: '70px'
       }}>
@@ -616,8 +617,10 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* Кнопки внизу по центру */}
-      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex flex-col items-center gap-2.5 z-20">
+      {/* Кнопки внизу по центру - учитываем safe-area */}
+      <div className="absolute left-1/2 transform -translate-x-1/2 flex flex-col items-center gap-2.5 z-20" style={{
+        bottom: 'calc(var(--safe-bottom) + 20px)'
+      }}>
         {/* Кнопка гипердвигателя */}
         <button
           onClick={activateHyperdrive}

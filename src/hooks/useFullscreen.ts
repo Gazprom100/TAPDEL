@@ -22,6 +22,8 @@ export const useFullscreen = () => {
           console.log('📐 useFullscreen: Safe area insets:', tg.safeAreaInset);
           document.documentElement.style.setProperty('--safe-top', `${tg.safeAreaInset.top}px`);
           document.documentElement.style.setProperty('--safe-bottom', `${tg.safeAreaInset.bottom}px`);
+          document.documentElement.style.setProperty('--safe-left', `${tg.safeAreaInset.left}px`);
+          document.documentElement.style.setProperty('--safe-right', `${tg.safeAreaInset.right}px`);
           console.log('✅ useFullscreen: Safe area переменные установлены');
         } else {
           console.log('⚠️ useFullscreen: Safe area insets недоступны');

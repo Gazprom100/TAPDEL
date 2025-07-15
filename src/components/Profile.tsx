@@ -222,15 +222,32 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       onTouchStart={(e) => {
         e.stopPropagation();
       }}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000,
+        paddingTop: 'var(--safe-top)',
+        paddingBottom: 'var(--safe-bottom)',
+        paddingLeft: 'var(--safe-left)',
+        paddingRight: 'var(--safe-right)'
+      }}
     >
       <div 
-        className="cyber-panel w-[95vw] sm:w-[90vw] md:w-[85vw] lg:w-[80vw] xl:w-[70vw] max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden m-2"
+        className="cyber-panel w-[95vw] sm:w-[90vw] md:w-[85vw] lg:w-[80vw] xl:w-[70vw] max-w-4xl overflow-hidden m-2"
         onClick={e => e.stopPropagation()}
         onTouchStart={e => e.stopPropagation()}
         style={{
           display: 'flex',
           flexDirection: 'column',
-          height: '95vh'
+          height: 'calc(100vh - var(--safe-top) - var(--safe-bottom) - 40px)',
+          maxHeight: 'calc(100vh - var(--safe-top) - var(--safe-bottom) - 40px)'
         }}
       >
         <div className="flex justify-between items-center mb-4 sm:mb-6 p-2 sm:p-0 flex-shrink-0">
