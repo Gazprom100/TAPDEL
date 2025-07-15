@@ -201,6 +201,8 @@ class DecimalService {
           });
 
           if (deposit) {
+            console.log(`💰 DecimalService: Найден депозит! ${deposit.userId}: ${deposit.amountRequested} DEL (tx: ${tx.hash})`);
+            
             // Обновляем депозит
             await database.collection('deposits').updateOne(
               { _id: deposit._id },
@@ -214,15 +216,32 @@ class DecimalService {
               }
             );
 
+            // Получаем текущего пользователя
+            const user = await database.collection('users').findOne({ userId: deposit.userId });
+            if (!user) {
+              console.error(`❌ DecimalService: Пользователь ${deposit.userId} не найден для депозита`);
+              continue;
+            }
+
             // Обновляем баланс пользователя в базе данных
+            const currentTokens = user.gameState?.tokens || 0;
+            const newTokens = currentTokens + deposit.amountRequested;
+            
             await database.collection('users').updateOne(
               { userId: deposit.userId },
               {
-                $inc: { "gameState.tokens": deposit.amountRequested }
+                $set: {
+                  "gameState.tokens": newTokens,
+                  "gameState.lastSaved": new Date(),
+                  updatedAt: new Date()
+                }
               }
             );
 
-            console.log(`💰 DecimalService: Депозит найден! ${deposit.userId}: ${deposit.amountRequested} DEL`);
+            // Обновляем лидерборд
+            await this.updateUserInLeaderboard(database, user, newTokens);
+
+            console.log(`✅ DecimalService: Баланс обновлен! ${deposit.userId}: ${currentTokens} → ${newTokens} DEL`);
           }
         }
       }
@@ -269,17 +288,52 @@ class DecimalService {
   async startWithdrawalWorker(database) {
     this.withdrawInterval = setInterval(async () => {
       try {
-        // Находим ожидающий вывод
-        const withdrawal = await database.collection('withdrawals').findOne({
-          status: 'queued'
-        });
+        // Проверяем застрявшие выводы в статусе processing
+        const stuckWithdrawals = await database.collection('withdrawals').find({
+          status: 'processing',
+          processingStartedAt: { $lt: new Date(Date.now() - 5 * 60 * 1000) } // 5 минут
+        }).toArray();
 
-        if (withdrawal) {
+        for (const stuck of stuckWithdrawals) {
+          console.log(`⚠️ DecimalService: Застрявший вывод ${stuck._id} для ${stuck.userId}, помечаем как failed`);
+          
+          await database.collection('withdrawals').updateOne(
+            { _id: stuck._id },
+            {
+              $set: {
+                status: 'failed',
+                error: 'Timeout - processing took too long',
+                processedAt: new Date()
+              },
+              $unset: { processingStartedAt: 1 }
+            }
+          );
+          
+          // Возвращаем средства пользователю
+          await database.collection('users').updateOne(
+            { userId: stuck.userId },
+            { $inc: { "gameState.tokens": stuck.amount } }
+          );
+          
+          console.log(`💰 DecimalService: Средства возвращены пользователю ${stuck.userId}: +${stuck.amount} DEL`);
+        }
+
+        // Находим ожидающий вывод и сразу помечаем его как обрабатываемый
+        const withdrawal = await database.collection('withdrawals').findOneAndUpdate(
+          { status: 'queued' },
+          { $set: { status: 'processing', processingStartedAt: new Date() } },
+          { returnDocument: 'after' }
+        );
+
+        if (withdrawal.value) {
+          const withdrawalData = withdrawal.value;
           try {
-            const txHash = await this.signAndSend(withdrawal.toAddress, withdrawal.amount);
+            console.log(`🔄 DecimalService: Начинаем обработку вывода ${withdrawalData._id} для ${withdrawalData.userId}`);
+            
+            const txHash = await this.signAndSend(withdrawalData.toAddress, withdrawalData.amount);
             
             await database.collection('withdrawals').updateOne(
-              { _id: withdrawal._id },
+              { _id: withdrawalData._id },
               {
                 $set: {
                   txHash: txHash,
@@ -289,27 +343,23 @@ class DecimalService {
               }
             );
 
-            console.log(`💸 DecimalService: Вывод обработан: ${withdrawal.amount} DEL → ${withdrawal.toAddress}`);
+            console.log(`💸 DecimalService: Вывод обработан: ${withdrawalData.amount} DEL → ${withdrawalData.toAddress}`);
             
           } catch (error) {
+            // Возвращаем статус в queued для повторной попытки
             await database.collection('withdrawals').updateOne(
-              { _id: withdrawal._id },
+              { _id: withdrawalData._id },
               {
                 $set: {
-                  status: 'failed',
-                  processedAt: new Date(),
-                  error: error.message
-                }
+                  status: 'queued',
+                  error: error.message,
+                  lastErrorAt: new Date()
+                },
+                $unset: { processingStartedAt: 1 }
               }
             );
             
-            // Возвращаем средства пользователю
-            await database.collection('users').updateOne(
-              { userId: withdrawal.userId },
-              { $inc: { "gameState.tokens": withdrawal.amount } }
-            );
-            
-            console.error(`❌ DecimalService: Ошибка вывода для ${withdrawal.userId}:`, error);
+            console.error(`❌ DecimalService: Ошибка вывода для ${withdrawalData.userId}:`, error);
           }
         }
       } catch (error) {
@@ -345,6 +395,75 @@ class DecimalService {
     if (this.redis) {
       await this.redis.disconnect();
       console.log('🔒 DecimalService: Redis отключен');
+    }
+  }
+
+  // Вспомогательный метод для обновления пользователя в лидерборде
+  async updateUserInLeaderboard(database, user, tokens) {
+    try {
+      const leaderboardEntry = {
+        userId: user.userId,
+        username: this.formatUserName(
+          user.profile?.username, 
+          user.profile?.telegramFirstName || user.telegramFirstName, 
+          user.profile?.telegramLastName || user.telegramLastName, 
+          user.profile?.telegramUsername || user.telegramUsername, 
+          user.userId
+        ),
+        telegramId: user.profile?.telegramId || user.telegramId,
+        telegramUsername: user.profile?.telegramUsername || user.telegramUsername,
+        telegramFirstName: user.profile?.telegramFirstName || user.telegramFirstName,
+        telegramLastName: user.profile?.telegramLastName || user.telegramLastName,
+        tokens: tokens,
+        updatedAt: new Date()
+      };
+
+      await database.collection('leaderboard').updateOne(
+        { userId: user.userId },
+        { $set: leaderboardEntry },
+        { upsert: true }
+      );
+
+      // Обновляем ранги
+      await this.updateAllRanks(database);
+      
+      console.log(`🏆 DecimalService: Лидерборд обновлен для ${user.userId} (${tokens} токенов)`);
+    } catch (error) {
+      console.error('❌ DecimalService: Ошибка обновления лидерборда:', error);
+    }
+  }
+
+  // Вспомогательный метод для обновления всех рангов
+  async updateAllRanks(database) {
+    try {
+      const users = await database.collection('leaderboard')
+        .find()
+        .sort({ tokens: -1 })
+        .toArray();
+      
+      await Promise.all(users.map((user, index) => 
+        database.collection('leaderboard').updateOne(
+          { _id: user._id },
+          { $set: { rank: index + 1 } }
+        )
+      ));
+    } catch (error) {
+      console.error('❌ DecimalService: Ошибка обновления рангов:', error);
+    }
+  }
+
+  // Вспомогательный метод для форматирования имени пользователя
+  formatUserName(username, firstName, lastName, telegramUsername, userId) {
+    if (firstName && lastName) {
+      return `${firstName} ${lastName}`;
+    } else if (firstName) {
+      return firstName;
+    } else if (telegramUsername) {
+      return `@${telegramUsername}`;
+    } else if (username) {
+      return username;
+    } else {
+      return `Игрок ${userId.slice(-4)}`;
     }
   }
 }
