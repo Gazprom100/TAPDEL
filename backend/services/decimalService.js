@@ -195,9 +195,12 @@ class DecimalService {
         if (tx.to && tx.to.toLowerCase() === config.WORKING_ADDRESS.toLowerCase()) {
           const value = parseFloat(this.web3.utils.fromWei(tx.value, 'ether'));
           
-          // Ищем депозит с такой уникальной суммой
+          // Округляем value до 4 знаков после запятой
+          const roundedValue = Math.round(value * 10000) / 10000;
+          const EPSILON = 0.00005;
+          // Ищем депозит с такой уникальной суммой (с допуском)
           const deposit = await database.collection('deposits').findOne({
-            uniqueAmount: value,
+            uniqueAmount: { $gte: roundedValue - EPSILON, $lte: roundedValue + EPSILON },
             matched: false
           });
 

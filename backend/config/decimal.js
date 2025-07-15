@@ -97,7 +97,7 @@ module.exports = {
     const uniqueModifier = (userMod / 1000) * 0.999;
     const uniqueAmount = baseAmount + uniqueModifier;
     
-    // Округляем до 6 знаков после запятой для точности
-    return Math.round(uniqueAmount * 1000000) / 1000000;
+    // Округляем до 4 знаков после запятой для точности
+    return Math.round(uniqueAmount * 10000) / 10000;
   }
 }; 
