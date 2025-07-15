@@ -246,11 +246,14 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         style={{
           display: 'flex',
           flexDirection: 'column',
-          height: 'calc(100vh - var(--safe-top) - var(--safe-bottom) - 40px)',
-          maxHeight: 'calc(100vh - var(--safe-top) - var(--safe-bottom) - 40px)'
+          height: 'calc(100vh - var(--safe-top) - var(--safe-bottom) - 80px)',
+          maxHeight: 'calc(100vh - var(--safe-top) - var(--safe-bottom) - 80px)',
+          marginTop: 'calc(var(--safe-top) + 40px)'
         }}
       >
-        <div className="flex justify-between items-center mb-4 sm:mb-6 p-2 sm:p-0 flex-shrink-0">
+        <div className="flex justify-between items-center mb-4 sm:mb-6 p-2 sm:p-0 flex-shrink-0" style={{
+          paddingTop: '20px'
+        }}>
           <h2 className="cyber-text text-lg sm:text-xl md:text-2xl">Профиль</h2>
           <button 
             onClick={(e) => {

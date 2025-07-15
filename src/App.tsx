@@ -329,7 +329,7 @@ const App: React.FC = () => {
 
       {/* 1. Название на самом верху в центре - сдвигаем ниже кнопок Telegram */}
       <div className="absolute left-1/2 transform -translate-x-1/2 z-20" style={{
-        top: 'calc(var(--safe-top) + 60px)'
+        top: 'calc(var(--safe-top) + 100px)'
       }}>
         <div className="cyber-text text-2xl sm:text-3xl md:text-4xl font-bold text-center" style={{ 
           color: '#ffcc00',
@@ -341,7 +341,7 @@ const App: React.FC = () => {
 
       {/* 2. Счетчик натапанных DEL - сдвигаем ниже названия */}
       <div className="absolute z-20" style={{
-        top: 'calc(var(--safe-top) + 120px)',
+        top: 'calc(var(--safe-top) + 160px)',
         left: '70px',
         right: '70px',
         height: '30px'
@@ -361,7 +361,7 @@ const App: React.FC = () => {
 
       {/* 3. Два блока с информацией о компонентах - сдвигаем ниже счетчика */}
       <div className="absolute z-20" style={{
-        top: 'calc(var(--safe-top) + 170px)',
+        top: 'calc(var(--safe-top) + 210px)',
         left: '70px',
         right: '70px'
       }}>
