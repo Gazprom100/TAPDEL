@@ -434,48 +434,66 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 ) : (
                   <>
                     {/* Депозиты */}
-                    {deposits.length > 0 && (
+                    {Array.isArray(deposits) && deposits.length > 0 && (
                       <div className="space-y-2">
                         <div className="cyber-text text-base font-bold">Депозиты DEL</div>
-                        {deposits.map((deposit) => (
-                          <div
-                            key={deposit.depositId}
-                            className="cyber-card p-3 sm:p-4"
-                          >
-                            <div className="flex justify-between items-start gap-2">
-                              <div className="flex-1">
-                                <div className="cyber-text text-sm sm:text-base">
-                                  Депозит {deposit.amountRequested} DEL
-                                </div>
-                                <div className="text-xs sm:text-sm opacity-70">
-                                  {new Date(deposit.createdAt).toLocaleString('ru-RU')}
-                                </div>
-                                <div className="text-xs sm:text-sm mt-1">
-                                  Отправить: {deposit.uniqueAmount} DEL
-                                </div>
-                                {deposit.txHash && (
-                                  <div className="text-xs sm:text-sm opacity-70 break-all">
-                                    TX: {deposit.txHash.slice(0, 10)}...{deposit.txHash.slice(-6)}
+                        {deposits.map((deposit: any) => {
+                          const isExpired = deposit.status === 'expired';
+                          const expiresIn = !isExpired ? Math.max(0, Math.floor((new Date(deposit.expiresAt).getTime() - Date.now()) / 1000)) : 0;
+                          return (
+                            <div
+                              key={deposit.depositId}
+                              className={`cyber-card p-3 sm:p-4 ${isExpired ? 'opacity-60' : ''}`}
+                            >
+                              <div className="flex justify-between items-start gap-2">
+                                <div className="flex-1">
+                                  <div className="cyber-text text-sm sm:text-base">
+                                    Депозит {deposit.amountRequested} DEL
                                   </div>
-                                )}
-                              </div>
-                              <div className="text-right">
-                                <div className={`text-xs sm:text-sm font-bold px-2 py-1 rounded ${
-                                  deposit.status === 'confirmed' ? 'bg-green-600 text-white' :
-                                  deposit.status === 'pending' ? 'bg-yellow-600 text-white' :
-                                  'bg-gray-600 text-white'
-                                }`}>
-                                  {deposit.status === 'confirmed' ? 'Подтвержден' :
-                                   deposit.status === 'pending' ? `Ожидание (${deposit.confirmations}/3)` :
-                                   'Ожидание'}
+                                  <div className="text-xs sm:text-sm opacity-70">
+                                    {new Date(deposit.createdAt).toLocaleString('ru-RU')}
+                                  </div>
+                                  <div className="text-xs sm:text-sm mt-1">
+                                    Отправить: {deposit.uniqueAmount} DEL
+                                  </div>
+                                  {deposit.txHash && (
+                                    <div className="text-xs sm:text-sm opacity-70 break-all">
+                                      TX: {deposit.txHash.slice(0, 10)}...{deposit.txHash.slice(-6)}
+                                    </div>
+                                  )}
+                                  {!isExpired && expiresIn > 0 && (
+                                    <div className="text-xs text-yellow-400 mt-1">
+                                      До истечения: {Math.floor(expiresIn/60)}:{(expiresIn%60).toString().padStart(2,'0')} мин
+                                    </div>
+                                  )}
+                                  {isExpired && (
+                                    <div className="text-xs text-gray-400 mt-1">
+                                      Время на пополнение истекло
+                                    </div>
+                                  )}
                                 </div>
-                                <div className="cyber-text text-sm font-bold mt-1 text-green-400">
-                                  +{deposit.amountRequested} DEL
+                                <div className="text-right">
+                                  <div className={`text-xs sm:text-sm font-bold px-2 py-1 rounded ${
+                                    deposit.status === 'confirmed' ? 'bg-green-600 text-white' :
+                                    deposit.status === 'pending' ? 'bg-yellow-600 text-white' :
+                                    isExpired ? 'bg-gray-500 text-white' :
+                                    'bg-gray-600 text-white'
+                                  }`}>
+                                    {deposit.status === 'confirmed' ? 'Подтвержден' :
+                                     deposit.status === 'pending' ? `Ожидание (${deposit.confirmations}/3)` :
+                                     isExpired ? 'Истёк' :
+                                     'Ожидание'}
+                                  </div>
+                                  {!isExpired && (
+                                    <div className="cyber-text text-sm font-bold mt-1 text-green-400">
+                                      +{deposit.amountRequested} DEL
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
 

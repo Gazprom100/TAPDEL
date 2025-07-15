@@ -105,25 +105,47 @@ class DecimalService {
   
   async signAndSend(toAddress, amount) {
     try {
+      console.log(`🔍 DecimalService: Подготовка транзакции ${amount} DEL → ${toAddress}`);
+      
       const privateKey = config.getPrivateKey();
       const fromAddress = config.WORKING_ADDRESS;
       
+      // Преобразуем amount в число
+      const amountNum = parseFloat(amount);
+      if (isNaN(amountNum) || amountNum <= 0) {
+        throw new Error(`Invalid amount: ${amount}`);
+      }
+      
+      console.log(`📊 DecimalService: Сумма: ${amountNum} DEL`);
+      
       // Получаем nonce
       const nonce = await this.getNonce(fromAddress);
+      console.log(`📝 DecimalService: Nonce: ${nonce}`);
       
       // Создаем транзакцию
+      // DecimalChain использует 18 десятичных знаков как Ethereum
       const transaction = {
         from: this.web3.utils.toChecksumAddress(fromAddress),
         to: this.web3.utils.toChecksumAddress(toAddress),
-        value: this.web3.utils.toWei(amount.toString(), 'ether'),
+        value: this.web3.utils.toWei(amountNum.toString(), 'ether'), // 1 DEL = 10^18 wei
         gas: config.GAS_LIMIT,
         gasPrice: this.web3.utils.toWei(config.GAS_PRICE.toString(), 'gwei'),
         nonce: nonce,
         chainId: config.CHAIN_ID
       };
 
+      console.log(`📋 DecimalService: Транзакция создана:`, {
+        from: transaction.from,
+        to: transaction.to,
+        value: amountNum + ' DEL',
+        valueWei: transaction.value,
+        gas: transaction.gas,
+        gasPrice: config.GAS_PRICE + ' gwei'
+      });
+
       // Подписываем транзакцию
       const signedTx = await this.web3.eth.accounts.signTransaction(transaction, privateKey);
+      console.log(`✍️ DecimalService: Транзакция подписана`);
       
       // Отправляем транзакцию
       const receipt = await this.web3.eth.sendSignedTransaction(signedTx.rawTransaction);
@@ -152,6 +174,7 @@ class DecimalService {
     this.startDepositWatcher(database);
     this.startConfirmationUpdater(database);
     this.startWithdrawalWorker(database);
+    this.startExpiredDepositsCleaner(database);
   }
 
   async startDepositWatcher(database) {
@@ -159,6 +182,24 @@ class DecimalService {
     
     this.watchInterval = setInterval(async () => {
       try {
+        // Проверяем есть ли активные депозиты или выводы
+        const activeDeposits = await database.collection('deposits').countDocuments({
+          matched: false,
+          expiresAt: { $gt: new Date() }
+        });
+        
+        const activeWithdrawals = await database.collection('withdrawals').countDocuments({
+          status: { $in: ['queued', 'processing'] }
+        });
+        
+        // Если нет активных заявок, пропускаем мониторинг блоков
+        if (activeDeposits === 0 && activeWithdrawals === 0) {
+          console.log('💤 DecimalService: Нет активных заявок, пропускаем мониторинг блоков');
+          return;
+        }
+        
+        console.log(`🔍 DecimalService: Мониторинг блоков (депозитов: ${activeDeposits}, выводов: ${activeWithdrawals})`);
+        
         // Получаем последний обработанный блок
         const lastBlockKey = 'DECIMAL_LAST_BLOCK';
         let lastBlock = await this.redis.get(lastBlockKey);
@@ -299,11 +340,31 @@ class DecimalService {
   async startWithdrawalWorker(database) {
     this.withdrawInterval = setInterval(async () => {
       try {
+        // Проверяем есть ли выводы для обработки
+        const queuedWithdrawals = await database.collection('withdrawals').countDocuments({
+          status: 'queued'
+        });
+        
+        const processingWithdrawals = await database.collection('withdrawals').countDocuments({
+          status: 'processing'
+        });
+        
+        // Если нет выводов для обработки, пропускаем
+        if (queuedWithdrawals === 0 && processingWithdrawals === 0) {
+          return; // Тихо пропускаем, не засоряем логи
+        }
+        
+        console.log(`🔄 DecimalService: Проверка выводов (в очереди: ${queuedWithdrawals}, в обработке: ${processingWithdrawals})`);
+        
         // Проверяем застрявшие выводы в статусе processing
         const stuckWithdrawals = await database.collection('withdrawals').find({
           status: 'processing',
           processingStartedAt: { $lt: new Date(Date.now() - 5 * 60 * 1000) } // 5 минут
         }).toArray();
+
+        if (stuckWithdrawals.length > 0) {
+          console.log(`⚠️ DecimalService: Найдено ${stuckWithdrawals.length} застрявших выводов`);
+        }
 
         for (const stuck of stuckWithdrawals) {
           console.log(`⚠️ DecimalService: Застрявший вывод ${stuck._id} для ${stuck.userId}, помечаем как failed`);
@@ -340,6 +401,7 @@ class DecimalService {
           const withdrawalData = withdrawal.value;
           try {
             console.log(`🔄 DecimalService: Начинаем обработку вывода ${withdrawalData._id} для ${withdrawalData.userId}`);
+            console.log(`📋 Детали вывода: ${withdrawalData.amount} DEL → ${withdrawalData.toAddress}`);
             
             const txHash = await this.signAndSend(withdrawalData.toAddress, withdrawalData.amount);
             
@@ -355,8 +417,11 @@ class DecimalService {
             );
 
             console.log(`💸 DecimalService: Вывод обработан: ${withdrawalData.amount} DEL → ${withdrawalData.toAddress}`);
+            console.log(`📄 TX Hash: ${txHash}`);
             
           } catch (error) {
+            console.error(`❌ DecimalService: Ошибка вывода для ${withdrawalData.userId}:`, error.message);
+            
             // Возвращаем статус в queued для повторной попытки
             await database.collection('withdrawals').updateOne(
               { _id: withdrawalData._id },
@@ -369,21 +434,52 @@ class DecimalService {
                 $unset: { processingStartedAt: 1 }
               }
             );
-            
-            console.error(`❌ DecimalService: Ошибка вывода для ${withdrawalData.userId}:`, error);
-          }
-        } else {
-          // Логируем только раз в минуту, чтобы не засорять логи
-          const now = Date.now();
-          if (!this.lastNoWithdrawalsLog || now - this.lastNoWithdrawalsLog > 60000) {
-            console.log(`ℹ️ DecimalService: Нет ожидающих выводов для обработки`);
-            this.lastNoWithdrawalsLog = now;
           }
         }
       } catch (error) {
         console.error('❌ DecimalService: Ошибка воркера выводов:', error);
       }
-    }, 5000); // 5 секунд
+    }, 15000); // 15 секунд
+  }
+
+  async startExpiredDepositsCleaner(database) {
+    this.cleanerInterval = setInterval(async () => {
+      try {
+        // Находим истекшие депозиты (не обработанные и истекшие)
+        const expiredDeposits = await database.collection('deposits').find({
+          matched: false,
+          expiresAt: { $lt: new Date() }
+        }).toArray();
+
+        if (expiredDeposits.length > 0) {
+          console.log(`🧹 DecimalService: Найдено ${expiredDeposits.length} истекших депозитов`);
+          
+          for (const deposit of expiredDeposits) {
+            const timeExpired = Math.round((new Date() - deposit.expiresAt) / 1000 / 60);
+            console.log(`   - ${deposit.userId}: ${deposit.uniqueAmount} DEL (истек ${timeExpired} мин назад)`);
+          }
+          
+          // Помечаем истекшие депозиты как expired
+          const result = await database.collection('deposits').updateMany(
+            {
+              matched: false,
+              expiresAt: { $lt: new Date() }
+            },
+            {
+              $set: {
+                status: 'expired',
+                expiredAt: new Date()
+              }
+            }
+          );
+          
+          console.log(`✅ DecimalService: ${result.modifiedCount} депозитов помечены как истекшие`);
+        }
+        
+      } catch (error) {
+        console.error('❌ DecimalService: Ошибка очистки истекших депозитов:', error);
+      }
+    }, 60000); // Проверяем каждую минуту
   }
 
   async stopWatching() {
@@ -402,6 +498,11 @@ class DecimalService {
     if (this.withdrawInterval) {
       clearInterval(this.withdrawInterval);
       this.withdrawInterval = null;
+    }
+    
+    if (this.cleanerInterval) {
+      clearInterval(this.cleanerInterval);
+      this.cleanerInterval = null;
     }
     
     console.log('🛑 DecimalService: Мониторинг остановлен');

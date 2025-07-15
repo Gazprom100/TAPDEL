@@ -47,12 +47,17 @@ module.exports = {
         maxRetriesPerRequest: 3
       };
     } else {
-      // Для обычного Redis
+      // Для обычного Redis и Redis Cloud
       return { 
         url: this.REDIS_URL,
         socket: {
-          connectTimeout: 10000
-        }
+          connectTimeout: 10000,
+          tls: false
+        },
+        connectTimeout: 10000,
+        lazyConnect: true,
+        retryDelayOnFailover: 100,
+        maxRetriesPerRequest: 3
       };
     }
   },

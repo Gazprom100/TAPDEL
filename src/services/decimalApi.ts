@@ -35,7 +35,7 @@ export interface DepositStatus {
   matched: boolean;
   confirmations: number;
   txHash: string | null;
-  status: 'waiting' | 'pending' | 'confirmed';
+  status: 'waiting' | 'pending' | 'confirmed' | 'expired';
   createdAt: string;
   expiresAt: string;
 }

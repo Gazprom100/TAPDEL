@@ -77,7 +77,7 @@ router.post('/deposits', async (req, res) => {
     }
 
     // Создаем депозит
-    const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 минут
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 минут
     
     const deposit = {
       userId: userId,
@@ -130,9 +130,10 @@ router.get('/deposits/:id', async (req, res) => {
       matched: deposit.matched,
       confirmations: deposit.confirmations,
       txHash: deposit.txHash,
-      status: deposit.matched ? 
-        (deposit.confirmations >= config.CONFIRMATIONS ? 'confirmed' : 'pending') : 
-        'waiting',
+      status: deposit.status === 'expired' ? 'expired' :
+        (deposit.matched ? 
+          (deposit.confirmations >= config.CONFIRMATIONS ? 'confirmed' : 'pending') : 
+          'waiting'),
       createdAt: deposit.createdAt,
       expiresAt: deposit.expiresAt
     });
@@ -162,9 +163,10 @@ router.get('/users/:userId/deposits', async (req, res) => {
       matched: deposit.matched,
       confirmations: deposit.confirmations,
       txHash: deposit.txHash,
-      status: deposit.matched ? 
-        (deposit.confirmations >= config.CONFIRMATIONS ? 'confirmed' : 'pending') : 
-        'waiting',
+      status: deposit.status === 'expired' ? 'expired' :
+        (deposit.matched ? 
+          (deposit.confirmations >= config.CONFIRMATIONS ? 'confirmed' : 'pending') : 
+          'waiting'),
       createdAt: deposit.createdAt,
       expiresAt: deposit.expiresAt
     }));
