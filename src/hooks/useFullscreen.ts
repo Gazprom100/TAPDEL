@@ -1,51 +1,39 @@
 import { useEffect, useCallback } from 'react';
 
 export const useFullscreen = () => {
-  const enterFullscreen = useCallback(() => {
-    const element = document.documentElement;
-    if (element.requestFullscreen) {
-      element.requestFullscreen();
-    } else if ((element as any).webkitRequestFullscreen) {
-      (element as any).webkitRequestFullscreen();
-    } else if ((element as any).msRequestFullscreen) {
-      (element as any).msRequestFullscreen();
-    }
-  }, []);
-
-  const exitFullscreen = useCallback(() => {
-    if (document.exitFullscreen) {
-      document.exitFullscreen();
-    } else if ((document as any).webkitExitFullscreen) {
-      (document as any).webkitExitFullscreen();
-    } else if ((document as any).msExitFullscreen) {
-      (document as any).msExitFullscreen();
-    }
-  }, []);
-
-  const toggleFullscreen = useCallback(() => {
-    if (!document.fullscreenElement && 
-        !(document as any).webkitFullscreenElement && 
-        !(document as any).msFullscreenElement) {
-      enterFullscreen();
-    } else {
-      exitFullscreen();
-    }
-  }, [enterFullscreen, exitFullscreen]);
-
+  // Вызов Telegram WebApp Fullscreen и установка safe-area
   useEffect(() => {
-    const handleTouchStart = () => {
-      if (!document.fullscreenElement && 
-          !(document as any).webkitFullscreenElement && 
-          !(document as any).msFullscreenElement) {
-        enterFullscreen();
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      try {
+        tg.ready();
+        // Safe area
+        if (tg.safeAreaInset) {
+          document.documentElement.style.setProperty('--safe-top', `${tg.safeAreaInset.top}px`);
+          document.documentElement.style.setProperty('--safe-bottom', `${tg.safeAreaInset.bottom}px`);
+        }
+        // Fullscreen
+        if (typeof tg.requestFullscreen === 'function') {
+          const res = tg.requestFullscreen();
+          if (res && typeof res.then === 'function') {
+            res.catch((e: any) => {
+              console.warn('Telegram requestFullscreen error:', e);
+            });
+          }
+        }
+      } catch (e) {
+        console.warn('Telegram WebApp fullscreen/init error:', e);
       }
-    };
+    }
+  }, []);
 
-    document.addEventListener('touchstart', handleTouchStart, { once: true });
-    return () => {
-      document.removeEventListener('touchstart', handleTouchStart);
-    };
-  }, [enterFullscreen]);
+  // Выход из fullscreen для Telegram
+  const exitFullscreen = useCallback(() => {
+    const tg = window.Telegram?.WebApp;
+    if (tg && typeof tg.exitFullscreen === 'function') {
+      tg.exitFullscreen();
+    }
+  }, []);
 
-  return { enterFullscreen, exitFullscreen, toggleFullscreen };
+  return { exitFullscreen };
 }; 

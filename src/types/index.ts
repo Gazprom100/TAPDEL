@@ -56,21 +56,33 @@ export interface Transaction {
 }
 
 // Telegram WebApp типы
+
 declare global {
   interface Window {
     Telegram?: {
-      WebApp?: {
-        initDataUnsafe?: {
-          user?: {
-            id: number;
-            first_name?: string;
-            last_name?: string;
-            username?: string;
-            language_code?: string;
-            is_premium?: boolean;
-          };
-        };
-      };
+      WebApp?: TelegramWebApp;
     };
   }
+}
+
+export interface TelegramWebApp {
+  ready: () => void;
+  requestFullscreen?: () => Promise<void> | void;
+  exitFullscreen?: () => void;
+  safeAreaInset?: {
+    top: number;
+    bottom: number;
+    left: number;
+    right: number;
+  };
+  initDataUnsafe?: {
+    user?: {
+      id: number;
+      first_name?: string;
+      last_name?: string;
+      username?: string;
+      language_code?: string;
+      is_premium?: boolean;
+    };
+  };
 } 

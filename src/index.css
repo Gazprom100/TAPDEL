@@ -7,6 +7,8 @@
   --cyber-black: #000000;
   --cyber-dark: #0A0A0A;
   --glow-color: #00FF88;
+  --safe-top: 0px;
+  --safe-bottom: 0px;
 }
 
 html, body {
@@ -26,6 +28,8 @@ html, body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
 }
 
 .text-neon-green {
