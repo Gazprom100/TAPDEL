@@ -5,7 +5,7 @@ module.exports = {
   RPC_URL: process.env.DECIMAL_RPC_URL || 'https://node.decimalchain.com/web3/',
   CHAIN_ID: parseInt(process.env.DECIMAL_CHAIN_ID || '75'),
   GAS_LIMIT: 21000,
-  GAS_PRICE: parseInt(process.env.DECIMAL_GAS_PRICE_GWEI || '50000'),
+  GAS_PRICE: parseInt(process.env.DECIMAL_GAS_PRICE_GWEI || '5'),
   
   // Рабочий кошелек
   WORKING_ADDRESS: process.env.DECIMAL_WORKING_ADDRESS,

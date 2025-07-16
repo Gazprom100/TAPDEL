@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-require('dotenv').config({ path: './TAPDEL.env' });
+require('dotenv').config({ path: './.env' });
 
 const telegramRoutes = require('./routes/telegram');
 const apiRoutes = require('./routes/api');

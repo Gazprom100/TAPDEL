@@ -40,6 +40,19 @@ const connectToDatabase = async () => {
   return db;
 };
 
+// Тестовый роут для проверки работы API
+router.get('/test', (req, res) => {
+  res.json({
+    message: 'DecimalChain API работает!',
+    timestamp: new Date().toISOString(),
+    config: {
+      workingAddress: config.WORKING_ADDRESS,
+      chainId: config.CHAIN_ID,
+      confirmations: config.CONFIRMATIONS
+    }
+  });
+});
+
 // === ДЕПОЗИТЫ ===
 
 // Создать депозит
