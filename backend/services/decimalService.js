@@ -403,7 +403,13 @@ class DecimalService {
             console.log(`🔄 DecimalService: Начинаем обработку вывода ${withdrawalData._id} для ${withdrawalData.userId}`);
             console.log(`📋 Детали вывода: ${withdrawalData.amount} DEL → ${withdrawalData.toAddress}`);
             
-            const txHash = await this.signAndSend(withdrawalData.toAddress, withdrawalData.amount);
+            // Гарантируем parseFloat для суммы
+            const amountNum = parseFloat(withdrawalData.amount);
+            if (isNaN(amountNum) || amountNum <= 0) {
+              throw new Error(`Invalid amount for withdrawal: ${withdrawalData.amount}`);
+            }
+            
+            const txHash = await this.signAndSend(withdrawalData.toAddress, amountNum);
             
             await database.collection('withdrawals').updateOne(
               { _id: withdrawalData._id },
@@ -416,19 +422,25 @@ class DecimalService {
               }
             );
 
-            console.log(`💸 DecimalService: Вывод обработан: ${withdrawalData.amount} DEL → ${withdrawalData.toAddress}`);
+            console.log(`💸 DecimalService: Вывод обработан: ${amountNum} DEL → ${withdrawalData.toAddress}`);
             console.log(`📄 TX Hash: ${txHash}`);
             
           } catch (error) {
             console.error(`❌ DecimalService: Ошибка вывода для ${withdrawalData.userId}:`, error.message);
-            
-            // Возвращаем статус в queued для повторной попытки
+            // Возвращаем средства пользователю при любой ошибке
+            await database.collection('users').updateOne(
+              { userId: withdrawalData.userId },
+              { $inc: { "gameState.tokens": parseFloat(withdrawalData.amount) } }
+            );
+            console.log(`💰 DecimalService: Средства возвращены пользователю ${withdrawalData.userId}: +${withdrawalData.amount} DEL (ошибка вывода)`);
+            // Помечаем как failed
             await database.collection('withdrawals').updateOne(
               { _id: withdrawalData._id },
               {
                 $set: {
-                  status: 'queued',
+                  status: 'failed',
                   error: error.message,
+                  processedAt: new Date(),
                   lastErrorAt: new Date()
                 },
                 $unset: { processingStartedAt: 1 }
