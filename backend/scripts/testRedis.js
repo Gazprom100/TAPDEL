@@ -1,56 +1,121 @@
 const redis = require('redis');
-require('dotenv').config({ path: './.env' });
+const config = require('../config/decimal');
 
-const config = {
-  REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379/0'
-};
-
-async function testRedis() {
-  console.log('🔧 Тестирование подключения к Redis...');
-  console.log(`📋 Redis URL: ${config.REDIS_URL.replace(/:[^:@]*@/, ':****@')}`);
+async function testRedisConnection() {
+  console.log('🧪 Тестирование Redis подключения...');
+  console.log(`📋 REDIS_URL: ${config.REDIS_URL}`);
   
   try {
-    const client = redis.createClient({
-      url: config.REDIS_URL,
-      socket: {
-        connectTimeout: 10000,
-        tls: false
-      },
-      connectTimeout: 10000,
-      lazyConnect: true,
-      retryDelayOnFailover: 100,
-      maxRetriesPerRequest: 3
+    // Получаем конфигурацию Redis
+    const redisConfig = config.getRedisConfig();
+    console.log('🔧 Конфигурация Redis:', JSON.stringify(redisConfig, null, 2));
+    
+    // Создаем клиент Redis
+    const client = redis.createClient(redisConfig);
+    
+    // Обработка событий
+    client.on('connect', () => {
+      console.log('✅ Redis: Подключение установлено');
     });
     
-    console.log('🔗 Подключение к Redis...');
-    await client.connect();
-    console.log('✅ Redis подключен');
+    client.on('ready', () => {
+      console.log('✅ Redis: Клиент готов к работе');
+    });
     
+    client.on('error', (err) => {
+      console.error('❌ Redis ошибка:', err);
+    });
+    
+    client.on('end', () => {
+      console.log('🔌 Redis: Подключение закрыто');
+    });
+    
+    // Подключаемся с timeout
+    console.log('🔗 Подключаемся к Redis...');
+    const connectPromise = client.connect();
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Redis connection timeout')), 15000)
+    );
+    
+    await Promise.race([connectPromise, timeoutPromise]);
+    console.log('✅ Redis: Успешно подключились');
+    
+    // Тестируем ping
+    console.log('🏓 Тестируем ping...');
     const pong = await client.ping();
-    console.log(`🏓 Redis ping: ${pong}`);
+    console.log(`✅ Redis ping: ${pong}`);
     
-    // Тестируем запись и чтение
-    await client.set('test_key', 'test_value');
-    const value = await client.get('test_key');
-    console.log(`📝 Тест записи/чтения: ${value}`);
+    // Тестируем запись/чтение
+    console.log('📝 Тестируем запись/чтение...');
+    const testKey = 'test_redis_connection';
+    const testValue = `test_${Date.now()}`;
     
-    // Проверяем ключи DecimalService
-    const lastBlock = await client.get('DECIMAL_LAST_BLOCK');
-    const currentBlock = await client.get('DECIMAL_CURRENT_BLOCK');
-    console.log(`📊 DECIMAL_LAST_BLOCK: ${lastBlock}`);
-    console.log(`📊 DECIMAL_CURRENT_BLOCK: ${currentBlock}`);
+    await client.set(testKey, testValue);
+    console.log(`✅ Записано: ${testKey} = ${testValue}`);
     
-    await client.disconnect();
+    const readValue = await client.get(testKey);
+    console.log(`✅ Прочитано: ${testKey} = ${readValue}`);
+    
+    // Удаляем тестовый ключ
+    await client.del(testKey);
+    console.log(`✅ Удален тестовый ключ: ${testKey}`);
+    
+    // Тестируем специфичные для DecimalChain ключи
+    console.log('🔑 Тестируем DecimalChain ключи...');
+    const nonceKey = 'DECIMAL_NONCE_test_address';
+    await client.set(nonceKey, '123');
+    const nonceValue = await client.get(nonceKey);
+    console.log(`✅ Nonce тест: ${nonceKey} = ${nonceValue}`);
+    
+    const blockKey = 'DECIMAL_LAST_BLOCK';
+    await client.set(blockKey, '1000');
+    const blockValue = await client.get(blockKey);
+    console.log(`✅ Block тест: ${blockKey} = ${blockValue}`);
+    
+    // Очищаем тестовые ключи
+    await client.del(nonceKey, blockKey);
+    console.log('✅ Очищены тестовые ключи');
+    
+    // Закрываем подключение
+    await client.quit();
     console.log('✅ Redis тест завершен успешно');
     
+    return true;
+    
   } catch (error) {
-    console.error('❌ Ошибка подключения к Redis:', error);
+    console.error('❌ Ошибка тестирования Redis:', error);
     console.error('📋 Детали ошибки:', {
       message: error.message,
       code: error.code,
-      syscall: error.syscall
+      stack: error.stack
     });
+    
+    // Дополнительная диагностика
+    console.log('\n🔍 Дополнительная диагностика:');
+    console.log(`   REDIS_URL установлен: ${!!config.REDIS_URL}`);
+    console.log(`   Upstash: ${config.isUpstash()}`);
+    console.log(`   Конфигурация готова: ${config.isConfigured()}`);
+    
+    return false;
   }
 }
 
-testRedis(); 
+// Запускаем тест если скрипт вызван напрямую
+if (require.main === module) {
+  testRedisConnection()
+    .then(success => {
+      if (success) {
+        console.log('\n🎉 Redis тест прошел успешно!');
+        process.exit(0);
+      } else {
+        console.log('\n💥 Redis тест провалился!');
+        process.exit(1);
+      }
+    })
+    .catch(error => {
+      console.error('💥 Неожиданная ошибка:', error);
+      process.exit(1);
+    });
+}
+
+module.exports = { testRedisConnection }; 

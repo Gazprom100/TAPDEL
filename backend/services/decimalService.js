@@ -1,6 +1,7 @@
 const { Web3 } = require('web3');
 const redis = require('redis');
 const config = require('../config/decimal');
+const UpstashRedisService = require('./upstashRedisService');
 
 // Импорт fetch для Node.js
 const fetch = require('node-fetch');
@@ -9,11 +10,14 @@ class DecimalService {
   constructor() {
     this.web3 = new Web3(config.RPC_URL);
     this.redis = null;
+    this.hasRedis = false;
     this.isWatching = false;
     this.watchInterval = null;
     this.confirmInterval = null;
     this.withdrawInterval = null;
     this.lastNoWithdrawalsLog = null;
+    this.localLastBlock = null; // Локальное хранение последнего блока без Redis
+    this.isInitialized = false;
   }
 
   async initialize() {
@@ -23,43 +27,79 @@ class DecimalService {
         throw new Error('DecimalChain конфигурация неполная. Проверьте переменные окружения.');
       }
 
-      // Подключаемся к Redis с правильной конфигурацией
-      const redisConfig = config.getRedisConfig();
-      console.log(`🔗 Подключаемся к Redis: ${config.isUpstash() ? 'Upstash (TLS)' : 'Local'}`);
-      
-      this.redis = redis.createClient(redisConfig);
-      
-      // Обработка ошибок Redis
-      this.redis.on('error', (err) => {
-        console.error('❌ Redis ошибка:', err);
-      });
-      
-      await this.redis.connect();
-      console.log('✅ DecimalService: Redis подключен');
-      
-      // Тестируем Redis командой ping
-      const pong = await this.redis.ping();
-      console.log(`✅ Redis ping: ${pong}`);
-      
-      // Проверяем подключение к DecimalChain API
-      try {
-        const testResponse = await fetch(`${config.API_BASE_URL}/addresses/`);
-        if (testResponse.ok) {
-          console.log('✅ DecimalService: API подключен');
-        } else {
-          console.log('⚠️ DecimalService: API недоступен, используем RPC');
-        }
-      } catch (error) {
-        console.log('⚠️ DecimalService: API недоступен, используем RPC');
-      }
-      
-      // Проверяем подключение к RPC
+      // Сначала проверяем подключение к DecimalChain RPC (самое важное)
+      console.log('🔗 Проверяем подключение к DecimalChain RPC...');
       const blockNumber = await this.web3.eth.getBlockNumber();
       console.log(`✅ DecimalService: Подключен к DecimalChain RPC, блок: ${blockNumber}`);
       
+      // Пытаемся подключиться к Redis (но не критично)
+      try {
+        // Проверяем, есть ли Upstash конфигурация
+        const upstashConfig = config.getUpstashConfig();
+        
+        if (upstashConfig) {
+          console.log('🔗 Подключаемся к Upstash Redis через REST API...');
+          this.redis = new UpstashRedisService(upstashConfig.restUrl, upstashConfig.token);
+          await this.redis.connect();
+          
+          // Тестируем Redis командой ping
+          const pong = await this.redis.ping();
+          console.log(`✅ DecimalService: Upstash Redis подключен, ping: ${pong}`);
+          this.hasRedis = true;
+          
+        } else {
+          // Обычное Redis подключение
+          const redisConfig = config.getRedisConfig();
+          console.log(`🔗 Подключаемся к Redis: ${config.isUpstash() ? 'Upstash (TLS)' : 'Local'}`);
+          
+          this.redis = redis.createClient(redisConfig);
+          
+          // Обработка ошибок Redis
+          this.redis.on('error', (err) => {
+            console.warn('⚠️ Redis ошибка (работаем без Redis):', err.message);
+            this.redis = null;
+          });
+          
+          // Подключение с timeout
+          const connectPromise = this.redis.connect();
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Redis timeout')), 5000)
+          );
+          
+          await Promise.race([connectPromise, timeoutPromise]);
+          
+          // Тестируем Redis командой ping
+          const pong = await this.redis.ping();
+          console.log(`✅ DecimalService: Redis подключен, ping: ${pong}`);
+          this.hasRedis = true;
+        }
+        
+      } catch (redisError) {
+        console.warn('⚠️ DecimalService: Redis недоступен, работаем без кеширования nonce');
+        console.warn('📋 Подробности Redis ошибки:', redisError.message);
+        this.redis = null;
+        this.hasRedis = false;
+        this.localNonce = null; // Будем получать nonce каждый раз из блокчейна
+      }
+      
+      // Проверяем подключение к DecimalChain API (опционально)
+      try {
+        const testResponse = await fetch(`${config.API_BASE_URL}/addresses/`, { timeout: 5000 });
+        if (testResponse.ok) {
+          console.log('✅ DecimalService: API подключен');
+        } else {
+          console.log('⚠️ DecimalService: API недоступен, используем только RPC');
+        }
+      } catch (error) {
+        console.log('⚠️ DecimalService: API недоступен, используем только RPC');
+      }
+      
+      console.log('✅ DecimalService: Базовая инициализация завершена');
+      this.isInitialized = true;
       return true;
+      
     } catch (error) {
-      console.error('❌ DecimalService: Ошибка инициализации:', error);
+      console.error('❌ DecimalService: Критическая ошибка инициализации:', error);
       console.error('📋 Детали ошибки:', {
         message: error.message,
         code: error.code,
@@ -106,21 +146,45 @@ class DecimalService {
     const key = `DECIMAL_NONCE_${address.toLowerCase()}`;
     
     try {
-      const cached = await this.redis.get(key);
       let nonce;
       
-      if (cached !== null) {
-        nonce = parseInt(cached) + 1;
+      // Если Redis доступен, используем его для кеширования nonce
+      if (this.hasRedis && this.redis) {
+        try {
+          const cached = await this.redis.get(key);
+          
+          if (cached !== null) {
+            nonce = parseInt(cached) + 1;
+          } else {
+            const transactionCount = await this.web3.eth.getTransactionCount(
+              this.web3.utils.toChecksumAddress(address)
+            );
+            nonce = Number(transactionCount);
+          }
+          
+          await this.redis.setEx(key, ttl, nonce.toString());
+          console.log(`📝 DecimalService: Nonce получен из Redis/кеширован: ${nonce}`);
+          
+        } catch (redisError) {
+          console.warn('⚠️ Redis ошибка при получении nonce, используем прямой запрос:', redisError.message);
+          // Fallback на прямое получение nonce
+          const transactionCount = await this.web3.eth.getTransactionCount(
+            this.web3.utils.toChecksumAddress(address)
+          );
+          nonce = Number(transactionCount);
+          console.log(`📝 DecimalService: Nonce получен напрямую из блокчейна: ${nonce}`);
+        }
       } else {
+        // Если Redis недоступен, получаем nonce напрямую из блокчейна
         const transactionCount = await this.web3.eth.getTransactionCount(
           this.web3.utils.toChecksumAddress(address)
         );
-        // Преобразуем BigInt в number для совместимости с Web3
         nonce = Number(transactionCount);
+        console.log(`📝 DecimalService: Nonce получен напрямую (без Redis): ${nonce}`);
       }
       
-      await this.redis.setEx(key, ttl, nonce.toString());
       return nonce;
+      
     } catch (error) {
       console.error('❌ DecimalService: Ошибка получения nonce:', error);
       throw error;
@@ -243,7 +307,20 @@ class DecimalService {
         
         // Получаем последний обработанный блок
         const lastBlockKey = 'DECIMAL_LAST_BLOCK';
-        let lastBlock = await this.redis.get(lastBlockKey);
+        let lastBlock;
+        
+        // Пытаемся получить из Redis, если доступен
+        if (this.hasRedis && this.redis) {
+          try {
+            lastBlock = await this.redis.get(lastBlockKey);
+          } catch (redisError) {
+            console.warn('⚠️ Redis ошибка при получении последнего блока:', redisError.message);
+            lastBlock = null;
+          }
+        } else {
+          // Без Redis используем локальное хранение
+          lastBlock = this.localLastBlock;
+        }
         
         if (!lastBlock) {
           const currentBlock = await this.web3.eth.getBlockNumber();
@@ -258,7 +335,18 @@ class DecimalService {
         // Обрабатываем новые блоки
         for (let blockNum = lastBlock + 1; blockNum <= latestBlockNum; blockNum++) {
           await this.processBlock(blockNum, database);
-          await this.redis.set(lastBlockKey, blockNum.toString());
+          
+          // Сохраняем последний обработанный блок
+          if (this.hasRedis && this.redis) {
+            try {
+              await this.redis.set(lastBlockKey, blockNum.toString());
+            } catch (redisError) {
+              console.warn('⚠️ Redis ошибка при сохранении последнего блока:', redisError.message);
+              this.localLastBlock = blockNum; // Fallback на локальное хранение
+            }
+          } else {
+            this.localLastBlock = blockNum; // Локальное хранение
+          }
         }
         
       } catch (error) {

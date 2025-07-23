@@ -31,6 +31,17 @@ module.exports = {
     return this.REDIS_URL.includes('upstash.io') || this.REDIS_URL.includes('upstash-redis');
   },
 
+  // Получение Upstash REST URL и токена из переменных окружения
+  getUpstashConfig() {
+    const restUrl = process.env.UPSTASH_REDIS_REST_URL;
+    const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+    
+    if (restUrl && token) {
+      return { restUrl, token };
+    }
+    return null;
+  },
+
   // Получение конфигурации Redis
   getRedisConfig() {
     // Определяем тип Redis провайдера
@@ -38,24 +49,37 @@ module.exports = {
     const isRedisCloud = this.REDIS_URL.includes('redis-cloud.com') || this.REDIS_URL.includes('redislabs.com');
     const isSecureRedis = this.REDIS_URL.startsWith('rediss://') || this.REDIS_URL.includes('upstash.io') || this.REDIS_URL.includes('upstash-redis');
     
+    console.log(`🔧 Redis конфигурация: ${this.REDIS_URL}`);
+    console.log(`   Upstash: ${isUpstash}`);
+    console.log(`   RedisCloud: ${isRedisCloud}`);
+    console.log(`   Secure: ${isSecureRedis}`);
+    
     if (isUpstash || isRedisCloud || isSecureRedis) {
       // Для всех SSL/TLS Redis провайдеров
       const redisUrl = new URL(this.REDIS_URL);
+      console.log(`🔒 Настраиваем TLS для Redis: ${redisUrl.hostname}`);
+      
       return {
         url: this.REDIS_URL,
         socket: {
           tls: true,
           rejectUnauthorized: false,
           servername: redisUrl.hostname,
-          checkServerIdentity: () => undefined // Функция вместо boolean
+          checkServerIdentity: () => undefined // Правильная функция для TLS
         },
-        connectTimeout: 60000,
+        connectTimeout: 60000, // Увеличиваем timeout для Upstash
         lazyConnect: true,
         retryDelayOnFailover: 100,
-        maxRetriesPerRequest: 3
+        maxRetriesPerRequest: 3,
+        enableReadyCheck: true,
+        maxLoadingTimeout: 30000, // Увеличиваем loading timeout
+        retryDelayOnClusterDown: 300,
+        retryDelayOnFailover: 100,
+        retryDelayOnTryAgain: 100
       };
     } else {
       // Для обычного Redis
+      console.log(`🔓 Настраиваем обычное подключение к Redis`);
       return { 
         url: this.REDIS_URL,
         socket: {
