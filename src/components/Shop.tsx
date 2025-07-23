@@ -21,50 +21,91 @@ export const Shop: React.FC = () => {
   const [purchaseInProgress, setPurchaseInProgress] = useState(false);
   const [purchaseAnimation, setPurchaseAnimation] = useState<string | null>(null);
 
-  // Функция для определения доступности компонента
-  const isItemAvailable = useCallback((type: string, itemLevel: string) => {
+  // Функция для получения следующего доступного апгрейда
+  const getNextUpgrade = useCallback((type: string, currentLevel: string) => {
     const getCurrentIndex = (array: any[], currentLevel: string) => {
       return array.findIndex(item => item.level === currentLevel);
     };
 
+    let components: any[];
     switch (type) {
       case 'engine':
-        const engineIndex = getCurrentIndex(COMPONENTS.ENGINES, engineLevel);
-        const targetEngineIndex = getCurrentIndex(COMPONENTS.ENGINES, itemLevel);
-        return targetEngineIndex > engineIndex;
+        components = COMPONENTS.ENGINES;
+        break;
       case 'gearbox':
-        const gearboxIndex = getCurrentIndex(COMPONENTS.GEARBOXES, gearboxLevel);
-        const targetGearboxIndex = getCurrentIndex(COMPONENTS.GEARBOXES, itemLevel);
-        return targetGearboxIndex > gearboxIndex;
+        components = COMPONENTS.GEARBOXES;
+        break;
       case 'battery':
-        const batteryIndex = getCurrentIndex(COMPONENTS.BATTERIES, batteryLevel);
-        const targetBatteryIndex = getCurrentIndex(COMPONENTS.BATTERIES, itemLevel);
-        return targetBatteryIndex > batteryIndex;
+        components = COMPONENTS.BATTERIES;
+        break;
       case 'hyperdrive':
-        const hyperdriveIndex = getCurrentIndex(COMPONENTS.HYPERDRIVES, hyperdriveLevel);
-        const targetHyperdriveIndex = getCurrentIndex(COMPONENTS.HYPERDRIVES, itemLevel);
-        return targetHyperdriveIndex > hyperdriveIndex;
+        components = COMPONENTS.HYPERDRIVES;
+        break;
       case 'powerGrid':
-        const powerGridIndex = getCurrentIndex(COMPONENTS.POWER_GRIDS, powerGridLevel);
-        const targetPowerGridIndex = getCurrentIndex(COMPONENTS.POWER_GRIDS, itemLevel);
-        return targetPowerGridIndex > powerGridIndex;
+        components = COMPONENTS.POWER_GRIDS;
+        break;
       default:
-        return false;
+        return null;
     }
+
+    const currentIndex = getCurrentIndex(components, currentLevel);
+    const nextIndex = currentIndex + 1;
+    
+    if (nextIndex < components.length) {
+      return components[nextIndex];
+    }
+    
+    return null; // Максимальный уровень достигнут
   }, [engineLevel, gearboxLevel, batteryLevel, hyperdriveLevel, powerGridLevel]);
 
-  const handlePurchase = async (
-    type: 'engine' | 'gearbox' | 'battery' | 'hyperdrive' | 'powerGrid',
-    level: string,
-    cost: number
+  // Функция для получения текущего компонента
+  const getCurrentComponent = useCallback((type: string, currentLevel: string) => {
+    let components: any[];
+    switch (type) {
+      case 'engine':
+        components = COMPONENTS.ENGINES;
+        break;
+      case 'gearbox':
+        components = COMPONENTS.GEARBOXES;
+        break;
+      case 'battery':
+        components = COMPONENTS.BATTERIES;
+        break;
+      case 'hyperdrive':
+        components = COMPONENTS.HYPERDRIVES;
+        break;
+      case 'powerGrid':
+        components = COMPONENTS.POWER_GRIDS;
+        break;
+      default:
+        return null;
+    }
+
+    return components.find(item => item.level === currentLevel) || null;
+  }, [engineLevel, gearboxLevel, batteryLevel, hyperdriveLevel, powerGridLevel]);
+
+  const handleUpgrade = async (
+    type: 'engine' | 'gearbox' | 'battery' | 'hyperdrive' | 'powerGrid'
   ) => {
-    const totalBalance = tokens;
-    const isAvailable = isItemAvailable(type, level);
+    const nextUpgrade = getNextUpgrade(type, 
+      type === 'engine' ? engineLevel :
+      type === 'gearbox' ? gearboxLevel :
+      type === 'battery' ? batteryLevel :
+      type === 'hyperdrive' ? hyperdriveLevel :
+      powerGridLevel
+    );
     
-    console.log(`🛒 Попытка покупки ${type} ${level}:`, {
+    if (!nextUpgrade) {
+      alert('Достигнут максимальный уровень!');
+      return;
+    }
+
+    const totalBalance = tokens;
+    const cost = nextUpgrade.cost;
+    
+    console.log(`🛒 Попытка апгрейда ${type} до ${nextUpgrade.level}:`, {
       cost,
       currentBalance: totalBalance,
-      isAvailable,
       purchaseInProgress,
       hasEnoughMoney: totalBalance >= cost
     });
@@ -79,162 +120,178 @@ export const Shop: React.FC = () => {
       console.warn(`❌ Покупка уже в процессе`);
       return;
     }
-    
-    if (!isAvailable) {
-      console.warn(`❌ Товар недоступен: ${type} ${level}`);
-      alert(`Товар недоступен: ${type} ${level}`);
-      return;
-    }
 
     try {
-      console.log(`🛒 Начинаем покупку ${type} ${level} за ${cost} DEL`);
+      console.log(`🛒 Начинаем апгрейд ${type} до ${nextUpgrade.level} за ${cost} DEL`);
       setPurchaseInProgress(true);
       
       // Сначала тратим токены и проверяем успех
-      console.log(`💸 Вызываем spendTokens(${cost}, { type: "${type}", level: "${level}" })`);
-      const success = await spendTokens(cost, { type, level });
+      console.log(`💸 Вызываем spendTokens(${cost}, { type: "${type}", level: "${nextUpgrade.level}" })`);
+      const success = await spendTokens(cost, { type, level: nextUpgrade.level });
       console.log(`💸 spendTokens результат:`, success);
       
       if (success) {
-        console.log(`✅ Токены потрачены успешно, применяем апгрейд ${type} до ${level}`);
-        setPurchaseAnimation(level);
+        console.log(`✅ Токены потрачены успешно, применяем апгрейд ${type} до ${nextUpgrade.level}`);
+        setPurchaseAnimation(nextUpgrade.level);
         
-        // Применяем апгрейд ТОЛЬКО после успешной траты токенов
+        // Применяем апгрейд
         switch (type) {
           case 'engine':
-            await upgradeEngine(level as any);
-            console.log(`🔧 Апгрейд двигателя до ${level} завершен`);
+            upgradeEngine(nextUpgrade.level);
             break;
           case 'gearbox':
-            await upgradeGearbox(level as any);
-            console.log(`⚙️ Апгрейд коробки передач до ${level} завершен`);
+            upgradeGearbox(nextUpgrade.level);
             break;
           case 'battery':
-            await upgradeBattery(level as any);
-            console.log(`🔋 Апгрейд батареи до ${level} завершен`);
+            upgradeBattery(nextUpgrade.level);
             break;
           case 'hyperdrive':
-            await upgradeHyperdrive(level as any);
-            console.log(`🚀 Апгрейд гипердвигателя до ${level} завершен`);
+            upgradeHyperdrive(nextUpgrade.level);
             break;
           case 'powerGrid':
-            await upgradePowerGrid(level as any);
-            console.log(`⚡ Апгрейд энергосети до ${level} завершен`);
+            upgradePowerGrid(nextUpgrade.level);
             break;
         }
         
-        // Анимация покупки
-        setTimeout(() => setPurchaseAnimation(null), 1000);
-        console.log(`🎉 Покупка ${type} ${level} полностью завершена`);
+        console.log(`🎉 Апгрейд ${type} до ${nextUpgrade.level} завершен!`);
+        
+        // Сбрасываем анимацию через 2 секунды
+        setTimeout(() => {
+          setPurchaseAnimation(null);
+        }, 2000);
+        
       } else {
-        console.error(`❌ spendTokens вернул false для покупки ${type} ${level}`);
-        alert(`Не удалось списать средства для покупки ${type} ${level}. Проверьте баланс и попробуйте снова.`);
+        console.error(`❌ Ошибка при трате токенов для ${type} ${nextUpgrade.level}`);
+        alert('Ошибка при покупке. Попробуйте еще раз.');
       }
+      
     } catch (error) {
-      console.error('❌ Исключение при покупке:', error);
-      alert(`Исключение при покупке: ${(error as Error).message}`);
+      console.error(`❌ Ошибка апгрейда ${type}:`, error);
+      alert('Произошла ошибка при апгрейде. Попробуйте еще раз.');
     } finally {
       setPurchaseInProgress(false);
     }
   };
 
-  const renderItem = (
+  const renderCategory = (
     type: 'engine' | 'gearbox' | 'battery' | 'hyperdrive' | 'powerGrid',
-    item: any,
-    currentLevel: string
+    title: string,
+    currentLevel: string,
+    icon: string
   ) => {
-    const isOwned = item.level === currentLevel;
-    const isAvailable = isItemAvailable(type, item.level);
-    const canBuy = tokens >= item.cost && isAvailable;
-    const isAnimating = purchaseAnimation === item.level;
+    const currentComponent = getCurrentComponent(type, currentLevel);
+    const nextUpgrade = getNextUpgrade(type, currentLevel);
+    const isMaxLevel = !nextUpgrade;
+    const canUpgrade = nextUpgrade && tokens >= nextUpgrade.cost && !purchaseInProgress;
+    const isAnimating = purchaseAnimation === nextUpgrade?.level;
 
     return (
       <div
-        key={item.level}
-        className={`p-3 sm:p-4 rounded-lg border transition-all ${
-          isOwned 
+        className={`p-4 sm:p-6 rounded-lg border transition-all ${
+          isMaxLevel 
             ? 'border-[#00ff88] bg-[#00ff88]/20 shadow-[0_0_15px_rgba(0,255,136,0.5)]'
-            : !isAvailable
-            ? 'border-gray-800 bg-gray-900/50 opacity-50'
-            : canBuy
+            : canUpgrade
             ? 'border-gray-600 hover:border-[#00ff88]/50 hover:shadow-[0_0_10px_rgba(0,255,136,0.3)]'
             : 'border-gray-700 opacity-75'
         } ${isAnimating ? 'animate-pulse shadow-[0_0_30px_rgba(0,255,136,0.8)]' : ''}`}
       >
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex-1 min-w-0">
-            <div className="font-bold flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-2">
-              <span className="text-sm sm:text-base">{item.level}</span>
-              {isOwned && (
-                <span className="text-[#00ff88] text-xs sm:text-sm">
-                  ✓ Установлено
-                </span>
-              )}
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-2xl">{icon}</span>
+              <div>
+                <h3 className="text-lg sm:text-xl font-bold text-[#00ff88]">{title}</h3>
+                <div className="text-sm opacity-70">
+                  Текущий уровень: {currentLevel}
+                  {isMaxLevel && <span className="text-[#00ff88] ml-2">✓ Максимум</span>}
+                </div>
+              </div>
             </div>
-            {type === 'engine' && (
-              <div className="space-y-1">
-                <div className="text-xs sm:text-sm opacity-70">
-                  Мощность: {item.power} | КПД: {item.fuelEfficiency}%
-                </div>
-                <div className="text-xs sm:text-sm opacity-70">
-                  Макс. температура: {item.maxTemp}°C
-                </div>
+            
+            {currentComponent && (
+              <div className="space-y-1 text-sm opacity-70">
+                {type === 'engine' && (
+                  <>
+                    <div>Мощность: {currentComponent.power} | КПД: {currentComponent.fuelEfficiency}%</div>
+                    <div>Макс. температура: {currentComponent.maxTemp}°C</div>
+                  </>
+                )}
+                {type === 'gearbox' && (
+                  <>
+                    <div>Передача: {currentComponent.gear} | Время: {currentComponent.switchTime}мс</div>
+                    <div>Порог перегрева: {currentComponent.overheatThreshold}°C</div>
+                  </>
+                )}
+                {type === 'battery' && (
+                  <>
+                    <div>Емкость: {currentComponent.capacity}% | Заряд: {currentComponent.chargeRate}%/сек</div>
+                    <div>Макс. температура: {currentComponent.maxTemp}°C</div>
+                  </>
+                )}
+                {type === 'hyperdrive' && (
+                  <>
+                    <div>Множитель: ×{currentComponent.speedMultiplier} | Расход: {currentComponent.energyConsumption}%/сек</div>
+                    <div>Порог активации: {currentComponent.activationThreshold}%</div>
+                  </>
+                )}
+                {type === 'powerGrid' && (
+                  <div>Макс. нагрузка: {currentComponent.maxLoad}% | КПД: {currentComponent.efficiency}%</div>
+                )}
               </div>
             )}
-            {type === 'gearbox' && (
-              <div className="space-y-1">
-                <div className="text-xs sm:text-sm opacity-70">
-                  Передача: {item.gear} | Время: {item.switchTime}мс
+            
+            {nextUpgrade && (
+              <div className="mt-3 p-3 bg-gray-800/50 rounded border border-gray-600">
+                <div className="text-sm font-medium mb-2">Следующий уровень: {nextUpgrade.level}</div>
+                <div className="text-xs opacity-70 space-y-1">
+                  {type === 'engine' && (
+                    <>
+                      <div>Мощность: {nextUpgrade.power} (+{nextUpgrade.power - currentComponent.power})</div>
+                      <div>КПД: {nextUpgrade.fuelEfficiency}% | Макс. температура: {nextUpgrade.maxTemp}°C</div>
+                    </>
+                  )}
+                  {type === 'gearbox' && (
+                    <>
+                      <div>Передача: {nextUpgrade.gear} | Время: {nextUpgrade.switchTime}мс</div>
+                      <div>Порог перегрева: {nextUpgrade.overheatThreshold}°C</div>
+                    </>
+                  )}
+                  {type === 'battery' && (
+                    <>
+                      <div>Емкость: {nextUpgrade.capacity}% (+{nextUpgrade.capacity - currentComponent.capacity})</div>
+                      <div>Заряд: {nextUpgrade.chargeRate}%/сек | Макс. температура: {nextUpgrade.maxTemp}°C</div>
+                    </>
+                  )}
+                  {type === 'hyperdrive' && (
+                    <>
+                      <div>Множитель: ×{nextUpgrade.speedMultiplier} | Расход: {nextUpgrade.energyConsumption}%/сек</div>
+                      <div>Порог активации: {nextUpgrade.activationThreshold}%</div>
+                    </>
+                  )}
+                  {type === 'powerGrid' && (
+                    <div>Макс. нагрузка: {nextUpgrade.maxLoad}% (+{nextUpgrade.maxLoad - currentComponent.maxLoad}) | КПД: {nextUpgrade.efficiency}%</div>
+                  )}
                 </div>
-                <div className="text-xs sm:text-sm opacity-70">
-                  Порог перегрева: {item.overheatThreshold}°C
-                </div>
-              </div>
-            )}
-            {type === 'battery' && (
-              <div className="space-y-1">
-                <div className="text-xs sm:text-sm opacity-70">
-                  Емкость: {item.capacity}% | Заряд: {item.chargeRate}%/сек
-                </div>
-                <div className="text-xs sm:text-sm opacity-70">
-                  Макс. температура: {item.maxTemp}°C
-                </div>
-              </div>
-            )}
-            {type === 'hyperdrive' && (
-              <div className="space-y-1">
-                <div className="text-xs sm:text-sm opacity-70">
-                  Множитель: ×{item.speedMultiplier} | Расход: {item.energyConsumption}%/сек
-                </div>
-                <div className="text-xs sm:text-sm opacity-70">
-                  Порог активации: {item.activationThreshold}%
-                </div>
-              </div>
-            )}
-            {type === 'powerGrid' && (
-              <div className="text-xs sm:text-sm opacity-70">
-                Макс. нагрузка: {item.maxLoad}% | КПД: {item.efficiency}%
               </div>
             )}
           </div>
+          
           <button
-            onClick={() => handlePurchase(type, item.level, item.cost)}
-            disabled={!canBuy || isOwned || purchaseInProgress}
-            className={`px-3 sm:px-4 py-2 rounded transition-all text-xs sm:text-sm whitespace-nowrap ${
-              isOwned
+            onClick={() => handleUpgrade(type)}
+            disabled={isMaxLevel || !canUpgrade}
+            className={`px-6 py-3 rounded transition-all text-sm font-medium whitespace-nowrap ${
+              isMaxLevel
                 ? 'bg-[#00ff88]/20 text-[#00ff88] cursor-not-allowed'
-                : !isAvailable
-                ? 'bg-gray-800 text-gray-600 cursor-not-allowed'
-                : canBuy
+                : canUpgrade
                 ? 'bg-[#00ff88] text-black hover:bg-[#00ff88]/80'
                 : 'bg-gray-700 text-gray-400 cursor-not-allowed'
             }`}
             style={{
-              minHeight: '36px',
-              minWidth: '80px'
+              minHeight: '48px',
+              minWidth: '120px'
             }}
           >
-            {isOwned ? 'Установлено' : `${item.cost} DEL`}
+            {isMaxLevel ? 'Максимум' : `${nextUpgrade?.cost || 0} DEL`}
           </button>
         </div>
       </div>
@@ -245,50 +302,25 @@ export const Shop: React.FC = () => {
     <div 
       className="h-full overflow-y-auto overscroll-contain p-4" 
       style={{
-      WebkitOverflowScrolling: 'touch',
+        WebkitOverflowScrolling: 'touch',
         touchAction: 'pan-y'
       }}
     >
-      <div className="space-y-6 sm:space-y-8">
+      <div className="space-y-6">
         {/* Двигатели */}
-        <div>
-          <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 text-[#00ff88]">Двигатели</h3>
-        <div className="space-y-3 sm:space-y-4">
-            {COMPONENTS.ENGINES.map((engine) => renderItem('engine', engine, engineLevel))}
-          </div>
-        </div>
-
+        {renderCategory('engine', 'Двигатели', engineLevel, '🚀')}
+        
         {/* Коробки передач */}
-        <div>
-          <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 text-[#00ff88]">Коробки передач</h3>
-        <div className="space-y-3 sm:space-y-4">
-            {COMPONENTS.GEARBOXES.map((gearbox) => renderItem('gearbox', gearbox, gearboxLevel))}
-          </div>
-        </div>
-
+        {renderCategory('gearbox', 'Коробки передач', gearboxLevel, '⚙️')}
+        
         {/* Батареи */}
-        <div>
-          <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 text-[#00ff88]">Батареи</h3>
-        <div className="space-y-3 sm:space-y-4">
-            {COMPONENTS.BATTERIES.map((battery) => renderItem('battery', battery, batteryLevel))}
-          </div>
-        </div>
-
+        {renderCategory('battery', 'Батареи', batteryLevel, '🔋')}
+        
         {/* Гипердвигатели */}
-        <div>
-          <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 text-[#00ff88]">Гипердвигатели</h3>
-        <div className="space-y-3 sm:space-y-4">
-            {COMPONENTS.HYPERDRIVES.map((hyperdrive) => renderItem('hyperdrive', hyperdrive, hyperdriveLevel))}
-          </div>
-        </div>
-
+        {renderCategory('hyperdrive', 'Гипердвигатели', hyperdriveLevel, '⚡')}
+        
         {/* Энергосети */}
-        <div>
-          <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 text-[#00ff88]">Энергосети</h3>
-        <div className="space-y-3 sm:space-y-4">
-            {COMPONENTS.POWER_GRIDS.map((powerGrid) => renderItem('powerGrid', powerGrid, powerGridLevel))}
-          </div>
-        </div>
+        {renderCategory('powerGrid', 'Энергосети', powerGridLevel, '🔌')}
       </div>
     </div>
   );
