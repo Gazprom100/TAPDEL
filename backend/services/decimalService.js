@@ -324,7 +324,8 @@ class DecimalService {
         
         if (!lastBlock) {
           const currentBlock = await this.web3.eth.getBlockNumber();
-          lastBlock = Number(currentBlock) - 5; // Начинаем с 5 блоков назад
+          // Начинаем с 50 блоков назад для проверки старых транзакций
+          lastBlock = Number(currentBlock) - 50;
         } else {
           lastBlock = parseInt(lastBlock);
         }
