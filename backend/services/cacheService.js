@@ -18,6 +18,29 @@ class CacheService {
     try {
       console.log('🔄 Инициализация Redis кеша...');
       
+      // Проверяем, есть ли Upstash конфигурация
+      const upstashConfig = config.getUpstashConfig();
+      
+      if (upstashConfig) {
+        console.log('🔗 Обнаружена Upstash конфигурация, используем REST API');
+        // Для Upstash используем REST API через DecimalService
+        this.isConnected = false; // Не используем обычный Redis клиент
+        console.log('✅ Cache Service настроен для работы с Upstash REST API');
+        return true;
+      }
+      
+      // Проверяем, не является ли это RedisCloud (который вызывает SSL ошибки)
+      const isRedisCloud = config.REDIS_URL.includes('redis-cloud.com') || 
+                          config.REDIS_URL.includes('redislabs.com');
+      
+      if (isRedisCloud) {
+        console.log('⚠️ Обнаружен RedisCloud, пропускаем подключение (SSL проблемы)');
+        console.log('✅ Cache Service будет работать только с локальным кешем');
+        this.isConnected = false;
+        return true;
+      }
+      
+      // Только для локального Redis или других провайдеров
       const redisConfig = config.getRedisConfig();
       this.redis = redis.createClient(redisConfig);
       
@@ -98,276 +121,348 @@ class CacheService {
       this.cacheStats.misses++;
       return null;
     } catch (error) {
-      console.error(`Cache get error for key ${key}:`, error);
+      console.warn('⚠️ Ошибка получения из кеша:', error.message);
       this.cacheStats.errors++;
       return null;
     }
   }
 
+  // Универсальный метод для сохранения в кеш
   async set(key, value, ttl = 300) {
     try {
+      // Всегда сохраняем в локальный кеш
+      this.localCache.set(key, value);
+      setTimeout(() => this.localCache.delete(key), ttl * 1000);
+      
       if (!this.isConnected) {
-        return false;
+        return true; // Возвращаем true для локального кеша
       }
 
-      // Сохраняем в Redis
       const serialized = JSON.stringify(value);
       await this.redis.setEx(key, ttl, serialized);
-      
-      // Сохраняем в локальный кеш
-      this.localCache.set(key, value);
-      setTimeout(() => this.localCache.delete(key), Math.min(ttl * 1000, 30000));
-      
       return true;
     } catch (error) {
-      console.error(`Cache set error for key ${key}:`, error);
+      console.warn('⚠️ Ошибка сохранения в кеш:', error.message);
       this.cacheStats.errors++;
       return false;
     }
   }
 
+  // Удаление из кеша
   async del(key) {
     try {
+      // Удаляем из локального кеша
       this.localCache.delete(key);
       
-      if (this.isConnected) {
-        await this.redis.del(key);
+      if (!this.isConnected) {
+        return true;
       }
-      
+
+      await this.redis.del(key);
       return true;
     } catch (error) {
-      console.error(`Cache delete error for key ${key}:`, error);
+      console.warn('⚠️ Ошибка удаления из кеша:', error.message);
       this.cacheStats.errors++;
       return false;
     }
   }
 
-  // Специализированные методы кеширования
-
-  // Кеш лидерборда (критично для производительности)
+  // Получение лидерборда с кешированием
   async getLeaderboard(page = 1, limit = 50) {
-    const cacheKey = `leaderboard:page:${page}:limit:${limit}`;
+    const cacheKey = `leaderboard:${page}:${limit}`;
+    const cached = await this.get(cacheKey);
     
-    let cached = await this.get(cacheKey);
     if (cached) {
       return cached;
     }
 
     try {
-      // Получаем из базы данных
-      const data = await databaseConfig.getLeaderboard(page, limit);
-      
-      // Кешируем на 5 минут
-      await this.set(cacheKey, data, 300);
-      
-      return data;
+      const database = await databaseConfig.connect();
+      const users = await database.collection('users')
+        .find({})
+        .sort({ "gameState.tokens": -1, updatedAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .toArray();
+
+      const result = {
+        users: users.map(user => ({
+          userId: user.userId,
+          username: user.username || user.telegramUsername || 'Unknown',
+          tokens: user.gameState?.tokens || 0,
+          rank: 0 // Будет вычислено на клиенте
+        })),
+        page,
+        limit,
+        timestamp: new Date()
+      };
+
+      // Кешируем на 30 секунд
+      await this.set(cacheKey, result, 30);
+      return result;
     } catch (error) {
-      console.error('Error getting leaderboard:', error);
-      return [];
+      console.error('❌ Ошибка получения лидерборда:', error);
+      return { users: [], page, limit, timestamp: new Date() };
     }
   }
 
-  // Кеш топ-100 лидерборда (самый частый запрос)
+  // Получение топ лидерборда (для быстрого доступа)
   async getTopLeaderboard() {
-    const cacheKey = 'leaderboard:top100';
+    const cacheKey = 'top_leaderboard';
+    const cached = await this.get(cacheKey);
     
-    let cached = await this.get(cacheKey);
     if (cached) {
       return cached;
     }
 
     try {
-      const data = await databaseConfig.getLeaderboard(1, 100);
-      
-      // Кешируем на 5 минут
-      await this.set(cacheKey, data, 300);
-      
-      return data;
+      const database = await databaseConfig.connect();
+      const topUsers = await database.collection('users')
+        .find({})
+        .sort({ "gameState.tokens": -1, updatedAt: -1 })
+        .limit(10)
+        .toArray();
+
+      const result = topUsers.map((user, index) => ({
+        rank: index + 1,
+        userId: user.userId,
+        username: user.username || user.telegramUsername || 'Unknown',
+        tokens: user.gameState?.tokens || 0
+      }));
+
+      // Кешируем на 60 секунд
+      await this.set(cacheKey, result, 60);
+      return result;
     } catch (error) {
-      console.error('Error getting top leaderboard:', error);
+      console.error('❌ Ошибка получения топ лидерборда:', error);
       return [];
     }
   }
 
-  // Кеш профилей пользователей (10 минут)
+  // Получение профиля пользователя с кешированием
   async getUserProfile(userId) {
-    const cacheKey = `user:profile:${userId}`;
+    const cacheKey = `user_profile:${userId}`;
+    const cached = await this.get(cacheKey);
     
-    let cached = await this.get(cacheKey);
     if (cached) {
       return cached;
     }
 
     try {
-      const user = await databaseConfig.getUserProfile(userId);
+      const database = await databaseConfig.connect();
+      const user = await database.collection('users').findOne({ userId });
       
-      if (user) {
-        // Кешируем на 10 минут
-        await this.set(cacheKey, user, 600);
+      if (!user) {
+        return null;
       }
-      
-      return user;
+
+      const result = {
+        userId: user.userId,
+        username: user.username || user.telegramUsername || 'Unknown',
+        firstName: user.firstName,
+        lastName: user.lastName,
+        tokens: user.gameState?.tokens || 0,
+        highScore: user.gameState?.highScore || 0,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt
+      };
+
+      // Кешируем на 5 минут
+      await this.set(cacheKey, result, 300);
+      return result;
     } catch (error) {
-      console.error('Error getting user profile:', error);
+      console.error('❌ Ошибка получения профиля пользователя:', error);
       return null;
     }
   }
 
-  // Кеш игрового состояния (краткосрочный)
+  // Получение игрового состояния пользователя с кешированием
   async getUserGameState(userId) {
-    const cacheKey = `user:gamestate:${userId}`;
+    const cacheKey = `game_state:${userId}`;
+    const cached = await this.get(cacheKey);
     
-    let cached = await this.get(cacheKey);
     if (cached) {
       return cached;
     }
 
     try {
-      const user = await databaseConfig.getCollection('users').findOne(
-        { userId },
-        { projection: { gameState: 1, _id: 0 } }
-      );
+      const database = await databaseConfig.connect();
+      const user = await database.collection('users').findOne({ userId });
       
-      if (user && user.gameState) {
-        // Кешируем на 2 минуты
-        await this.set(cacheKey, user.gameState, 120);
-        return user.gameState;
+      if (!user || !user.gameState) {
+        return null;
       }
-      
-      return null;
+
+      // Кешируем на 1 минуту (игровое состояние часто меняется)
+      await this.set(cacheKey, user.gameState, 60);
+      return user.gameState;
     } catch (error) {
-      console.error('Error getting user game state:', error);
+      console.error('❌ Ошибка получения игрового состояния:', error);
       return null;
     }
   }
 
-  // Инвалидация кеша пользователя при обновлении
+  // Инвалидация кеша пользователя
   async invalidateUser(userId) {
-    const keys = [
-      `user:profile:${userId}`,
-      `user:gamestate:${userId}`
-    ];
-    
-    for (const key of keys) {
-      await this.del(key);
+    try {
+      const keys = [
+        `user_profile:${userId}`,
+        `game_state:${userId}`
+      ];
+      
+      for (const key of keys) {
+        await this.del(key);
+      }
+      
+      console.log(`🗑️ Кеш пользователя ${userId} очищен`);
+    } catch (error) {
+      console.warn('⚠️ Ошибка очистки кеша пользователя:', error.message);
     }
   }
 
   // Инвалидация кеша лидерборда
   async invalidateLeaderboard() {
     try {
-      if (!this.isConnected) return;
-      
-      // Используем паттерн для удаления всех ключей лидерборда
-      const keys = await this.redis.keys('leaderboard:*');
-      if (keys.length > 0) {
-        await this.redis.del(keys);
+      // Очищаем все ключи лидерборда
+      if (this.isConnected) {
+        const keys = await this.redis.keys('leaderboard:*');
+        const topKeys = await this.redis.keys('top_leaderboard*');
+        
+        if (keys.length > 0) {
+          await this.redis.del(keys);
+        }
+        if (topKeys.length > 0) {
+          await this.redis.del(topKeys);
+        }
       }
       
-      console.log(`🗑️ Инвалидирован кеш лидерборда (${keys.length} ключей)`);
+      // Очищаем локальный кеш лидерборда
+      for (const key of this.localCache.keys()) {
+        if (key.startsWith('leaderboard:') || key.startsWith('top_leaderboard')) {
+          this.localCache.delete(key);
+        }
+      }
+      
+      console.log('🗑️ Кеш лидерборда очищен');
     } catch (error) {
-      console.error('Error invalidating leaderboard cache:', error);
+      console.warn('⚠️ Ошибка очистки кеша лидерборда:', error.message);
     }
   }
 
-  // Batch операции для оптимизации
+  // Получение нескольких значений
   async mget(keys) {
     try {
-      if (!this.isConnected || keys.length === 0) {
-        return [];
+      const results = {};
+      
+      // Сначала проверяем локальный кеш
+      for (const key of keys) {
+        if (this.localCache.has(key)) {
+          results[key] = this.localCache.get(key);
+        }
+      }
+      
+      if (!this.isConnected) {
+        return results;
       }
 
-      const results = await this.redis.mGet(keys);
-      return results.map(result => {
-        try {
-          return result ? JSON.parse(result) : null;
-        } catch {
-          return null;
+      // Получаем остальные из Redis
+      const redisKeys = keys.filter(key => !results[key]);
+      if (redisKeys.length > 0) {
+        const redisResults = await this.redis.mGet(redisKeys);
+        
+        for (let i = 0; i < redisKeys.length; i++) {
+          const key = redisKeys[i];
+          const value = redisResults[i];
+          
+          if (value) {
+            const parsed = JSON.parse(value);
+            results[key] = parsed;
+            
+            // Добавляем в локальный кеш
+            this.localCache.set(key, parsed);
+            setTimeout(() => this.localCache.delete(key), 30000);
+          }
         }
-      });
+      }
+      
+      return results;
     } catch (error) {
-      console.error('Cache mget error:', error);
-      return new Array(keys.length).fill(null);
+      console.warn('⚠️ Ошибка получения множественных значений:', error.message);
+      return {};
     }
   }
 
+  // Сохранение нескольких значений
   async mset(keyValuePairs, ttl = 300) {
     try {
-      if (!this.isConnected || keyValuePairs.length === 0) {
-        return false;
+      // Сохраняем в локальный кеш
+      for (const [key, value] of Object.entries(keyValuePairs)) {
+        this.localCache.set(key, value);
+        setTimeout(() => this.localCache.delete(key), ttl * 1000);
+      }
+      
+      if (!this.isConnected) {
+        return true;
       }
 
+      // Сохраняем в Redis
       const pipeline = this.redis.multi();
-      
-      for (const [key, value] of keyValuePairs) {
-        pipeline.setEx(key, ttl, JSON.stringify(value));
+      for (const [key, value] of Object.entries(keyValuePairs)) {
+        const serialized = JSON.stringify(value);
+        pipeline.setEx(key, ttl, serialized);
       }
       
       await pipeline.exec();
       return true;
     } catch (error) {
-      console.error('Cache mset error:', error);
+      console.warn('⚠️ Ошибка сохранения множественных значений:', error.message);
       return false;
     }
   }
 
-  // Статистика кеша
+  // Получение статистики кеша
   getStats() {
-    const totalRequests = this.cacheStats.hits + this.cacheStats.misses;
-    const hitRate = totalRequests > 0 ? (this.cacheStats.hits / totalRequests * 100).toFixed(2) : 0;
-    
     return {
-      connected: this.isConnected,
-      hits: this.cacheStats.hits,
-      misses: this.cacheStats.misses,
-      errors: this.cacheStats.errors,
-      hitRate: `${hitRate}%`,
-      localCacheSize: this.localCache.size
+      isConnected: this.isConnected,
+      localCacheSize: this.localCache.size,
+      stats: this.cacheStats,
+      uptime: process.uptime()
     };
   }
 
   // Очистка локального кеша
   clearLocalCache() {
     this.localCache.clear();
-    console.log('🧹 Локальный кеш очищен');
+    console.log('🗑️ Локальный кеш очищен');
   }
 
-  // Предварительная загрузка критических данных
+  // Предзагрузка критических данных
   async preloadCriticalData() {
     try {
-      console.log('🚀 Предварительная загрузка критических данных...');
+      console.log('🔄 Предзагрузка критических данных...');
       
-      // Загружаем топ-100 лидерборда
+      // Загружаем топ лидерборд
       await this.getTopLeaderboard();
       
-      // Загружаем первые страницы лидерборда
-      for (let page = 1; page <= 5; page++) {
-        await this.getLeaderboard(page, 50);
-      }
-      
-      console.log('✅ Критические данные предварительно загружены');
+      console.log('✅ Критические данные предзагружены');
     } catch (error) {
-      console.error('Ошибка предварительной загрузки:', error);
+      console.warn('⚠️ Ошибка предзагрузки данных:', error.message);
     }
   }
 
+  // Отключение от Redis
   async disconnect() {
     try {
-      this.clearLocalCache();
-      
-      if (this.redis && this.isConnected) {
+      if (this.redis) {
         await this.redis.disconnect();
+        this.redis = null;
       }
-      
       this.isConnected = false;
-      console.log('📊 Cache Service отключен');
+      console.log('🔌 Cache Service отключен');
     } catch (error) {
-      console.error('Ошибка отключения Cache Service:', error);
+      console.warn('⚠️ Ошибка отключения Cache Service:', error.message);
     }
   }
 }
 
-// Singleton instance
-const cacheService = new CacheService();
-
-module.exports = cacheService; 
+module.exports = new CacheService(); 

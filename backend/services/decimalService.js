@@ -485,10 +485,13 @@ class DecimalService {
         
         console.log(`🔄 DecimalService: Проверка выводов (в очереди: ${queuedWithdrawals}, в обработке: ${processingWithdrawals})`);
         
-        // Проверяем застрявшие выводы в статусе processing
+        // Проверяем застрявшие выводы в статусе processing (без processingStartedAt)
         const stuckWithdrawals = await database.collection('withdrawals').find({
           status: 'processing',
-          processingStartedAt: { $lt: new Date(Date.now() - 5 * 60 * 1000) } // 5 минут
+          $or: [
+            { processingStartedAt: { $exists: false } },
+            { processingStartedAt: { $lt: new Date(Date.now() - 5 * 60 * 1000) } } // 5 минут
+          ]
         }).toArray();
 
         if (stuckWithdrawals.length > 0) {
@@ -538,6 +541,14 @@ class DecimalService {
               throw new Error(`Invalid amount for withdrawal: ${withdrawalData.amount}`);
             }
             
+            // Проверяем баланс рабочего кошелька перед отправкой
+            const workingBalance = await this.getWorkingBalance();
+            if (workingBalance < amountNum) {
+              throw new Error(`Insufficient working wallet balance: ${workingBalance} < ${amountNum}`);
+            }
+            
+            console.log(`💰 DecimalService: Баланс рабочего кошелька: ${workingBalance} DEL`);
+            
             const txHash = await this.signAndSend(withdrawalData.toAddress, amountNum);
             
             await database.collection('withdrawals').updateOne(
@@ -547,7 +558,8 @@ class DecimalService {
                   txHash: txHash,
                   status: 'sent',
                   processedAt: new Date()
-                }
+                },
+                $unset: { processingStartedAt: 1 }
               }
             );
 
@@ -556,12 +568,14 @@ class DecimalService {
             
           } catch (error) {
             console.error(`❌ DecimalService: Ошибка вывода для ${withdrawalData.userId}:`, error.message);
+            
             // Возвращаем средства пользователю при любой ошибке
             await database.collection('users').updateOne(
               { userId: withdrawalData.userId },
               { $inc: { "gameState.tokens": parseFloat(withdrawalData.amount) } }
             );
             console.log(`💰 DecimalService: Средства возвращены пользователю ${withdrawalData.userId}: +${withdrawalData.amount} DEL (ошибка вывода)`);
+            
             // Помечаем как failed
             await database.collection('withdrawals').updateOne(
               { _id: withdrawalData._id },
@@ -578,9 +592,9 @@ class DecimalService {
           }
         }
       } catch (error) {
-        console.error('❌ DecimalService: Ошибка воркера выводов:', error);
+        console.error('❌ DecimalService: Ошибка withdrawal worker:', error);
       }
-    }, 15000); // 15 секунд
+    }, 10000); // Проверяем каждые 10 секунд
   }
 
   async startExpiredDepositsCleaner(database) {
