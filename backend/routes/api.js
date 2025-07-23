@@ -3,6 +3,9 @@ const { MongoClient } = require('mongodb');
 require('dotenv').config();
 const router = express.Router();
 
+// ОПТИМИЗАЦИЯ: Импортируем cache service
+const cacheService = require('../services/cacheService');
+
 // Безопасная функция форматирования имени пользователя
 const formatUserName = (username, telegramFirstName, telegramLastName, telegramUsername, userId) => {
   // Проверяем что значения не null, не undefined и не строка 'null'
@@ -395,17 +398,36 @@ router.get('/users/:userId/rank', async (req, res) => {
   }
 });
 
-// Получить таблицу лидеров (обновлено для работы с токенами)
+// Получить таблицу лидеров (обновлено для работы с токенами) + КЕШИРОВАНИЕ
 router.get('/leaderboard', async (req, res) => {
   try {
     console.log('📊 Запрос лидерборда...');
     const limit = parseInt(req.query.limit) || 100;
+    const page = parseInt(req.query.page) || 1;
+    
+    // ОПТИМИЗАЦИЯ: Пытаемся получить из кеша
+    let leaderboard;
+    try {
+      if (cacheService.isConnected) {
+        leaderboard = await cacheService.getLeaderboard(page, limit);
+        if (leaderboard && leaderboard.length > 0) {
+          console.log(`✅ Лидерборд получен из кеша (${leaderboard.length} записей)`);
+          return res.json(leaderboard);
+        }
+      }
+    } catch (cacheError) {
+      console.warn('⚠️ Ошибка кеша, загружаем из БД:', cacheError.message);
+    }
+    
+    // Загружаем из базы данных (оригинальная логика)
     const database = await connectToDatabase();
     
     console.log('🔍 Ищем пользователей в лидерборде...');
-    const leaderboard = await database.collection('leaderboard')
+    const skip = (page - 1) * limit;
+    leaderboard = await database.collection('leaderboard')
       .find()
       .sort({ tokens: -1 }) // Сортируем по токенам вместо score
+      .skip(skip)
       .limit(limit)
       .toArray();
     
@@ -415,6 +437,15 @@ router.get('/leaderboard', async (req, res) => {
       console.log('⚠️ Лидерборд пуст, возвращаем пустой массив');
     } else {
       console.log('🏆 Топ-3:', leaderboard.slice(0, 3).map(u => `${u.telegramFirstName || u.username}: ${u.tokens}`));
+    }
+    
+    // ОПТИМИЗАЦИЯ: Сохраняем в кеш
+    try {
+      if (cacheService.isConnected && leaderboard.length > 0) {
+        await cacheService.set(`leaderboard:page:${page}:limit:${limit}`, leaderboard, 300); // 5 минут
+      }
+    } catch (cacheError) {
+      console.warn('⚠️ Не удалось сохранить в кеш:', cacheError.message);
     }
     
     res.json(leaderboard);
@@ -469,6 +500,15 @@ router.post('/leaderboard', async (req, res) => {
 
     // Обновляем ранги для всех пользователей на основе токенов
     await updateAllRanks(database);
+    
+    // ОПТИМИЗАЦИЯ: Инвалидируем кеш лидерборда
+    try {
+      if (cacheService.isConnected) {
+        await cacheService.invalidateLeaderboard();
+      }
+    } catch (cacheError) {
+      console.warn('⚠️ Не удалось инвалидировать кеш лидерборда:', cacheError.message);
+    }
     
     // Проверяем результат
     const updatedUser = await database.collection('leaderboard').findOne({ userId: entry.userId });

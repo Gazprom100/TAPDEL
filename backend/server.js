@@ -9,12 +9,55 @@ const decimalRoutes = require('./routes/decimal');
 const botService = require('./services/botService');
 const decimalService = require('./services/decimalService');
 
+// ОПТИМИЗАЦИЯ: Импортируем оптимизированные сервисы
+const databaseConfig = require('./config/database');
+const cacheService = require('./services/cacheService');
+const rateLimiterMiddleware = require('./middleware/rateLimiter');
+
 const app = express();
 const PORT = process.env.PORT || 3001; // Изменили порт чтобы избежать конфликта
 
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// ОПТИМИЗАЦИЯ: Rate limiting middleware
+app.use(rateLimiterMiddleware.getLoggingMiddleware());
+app.use(rateLimiterMiddleware.getDynamicLimiter());
+
+// ОПТИМИЗАЦИЯ: Health check endpoint (до rate limiting)
+app.get('/health', async (req, res) => {
+  try {
+    const health = {
+      status: 'healthy',
+      timestamp: new Date(),
+      services: {
+        mongodb: databaseConfig.isConnected,
+        redis: cacheService.isConnected,
+        telegram: !!botService.bot,
+        decimal: decimalService.isInitialized || false
+      },
+      performance: {
+        uptime: process.uptime(),
+        memory: {
+          used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+          total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024)
+        }
+      }
+    };
+
+    // Проверяем критические сервисы
+    const allServicesHealthy = health.services.mongodb && health.services.telegram;
+    
+    res.status(allServicesHealthy ? 200 : 503).json(health);
+  } catch (error) {
+    res.status(503).json({
+      status: 'unhealthy',
+      error: error.message,
+      timestamp: new Date()
+    });
+  }
+});
 
 // Routes ПЕРЕД static middleware
 app.use('/api/telegram', telegramRoutes);
@@ -29,7 +72,19 @@ app.use(express.static(path.join(__dirname, '../dist')));
 const startServer = () => {
   return new Promise(async (resolve, reject) => {
     try {
-      // Initialize bot before starting server
+      // ОПТИМИЗАЦИЯ: Инициализируем оптимизированные сервисы
+      console.log('🚀 Инициализация оптимизированных сервисов...');
+      
+      // Инициализируем оптимизированную базу данных
+      await databaseConfig.connect();
+      
+      // Инициализируем кеширование
+      await cacheService.initialize();
+      
+      // ОПТИМИЗАЦИЯ: Инициализируем rate limiting
+      await rateLimiterMiddleware.initialize();
+      
+      // Initialize bot before starting server (сохраняем оригинальную логику)
       await botService.initialize();
 
       // Initialize DecimalChain service

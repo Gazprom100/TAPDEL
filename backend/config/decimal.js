@@ -47,8 +47,24 @@ module.exports = {
         retryDelayOnFailover: 100,
         maxRetriesPerRequest: 3
       };
+    } else if (this.REDIS_URL.includes('redis-cloud.com')) {
+      // ИСПРАВЛЕНИЕ: Для Redis Cloud - правильная SSL конфигурация
+      const redisUrl = new URL(this.REDIS_URL);
+      return {
+        url: this.REDIS_URL,
+        socket: {
+          tls: true,
+          rejectUnauthorized: false,
+          servername: redisUrl.hostname,
+          checkServerIdentity: false
+        },
+        connectTimeout: 60000,
+        lazyConnect: true,
+        retryDelayOnFailover: 100,
+        maxRetriesPerRequest: 3
+      };
     } else {
-      // Для обычного Redis и Redis Cloud
+      // Для обычного Redis
       return { 
         url: this.REDIS_URL,
         socket: {
