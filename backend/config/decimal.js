@@ -28,27 +28,18 @@ module.exports = {
 
   // Проверка использования Upstash (определяем по URL)
   isUpstash() {
-    return this.REDIS_URL.includes('upstash.io');
+    return this.REDIS_URL.includes('upstash.io') || this.REDIS_URL.includes('upstash-redis');
   },
 
   // Получение конфигурации Redis
   getRedisConfig() {
-    if (this.isUpstash()) {
-      // Для Upstash Redis - используем более простую конфигурацию
-      return {
-        url: this.REDIS_URL,
-        socket: {
-          tls: true,
-          rejectUnauthorized: false
-        },
-        // Упрощенные настройки для Upstash
-        connectTimeout: 60000,
-        lazyConnect: true,
-        retryDelayOnFailover: 100,
-        maxRetriesPerRequest: 3
-      };
-    } else if (this.REDIS_URL.includes('redis-cloud.com')) {
-      // ИСПРАВЛЕНИЕ: Для Redis Cloud - правильная SSL конфигурация
+    // Определяем тип Redis провайдера
+    const isUpstash = this.isUpstash();
+    const isRedisCloud = this.REDIS_URL.includes('redis-cloud.com') || this.REDIS_URL.includes('redislabs.com');
+    const isSecureRedis = this.REDIS_URL.startsWith('rediss://') || this.REDIS_URL.includes('upstash.io') || this.REDIS_URL.includes('upstash-redis');
+    
+    if (isUpstash || isRedisCloud || isSecureRedis) {
+      // Для всех SSL/TLS Redis провайдеров
       const redisUrl = new URL(this.REDIS_URL);
       return {
         url: this.REDIS_URL,
@@ -56,7 +47,7 @@ module.exports = {
           tls: true,
           rejectUnauthorized: false,
           servername: redisUrl.hostname,
-          checkServerIdentity: false
+          checkServerIdentity: () => undefined // Функция вместо boolean
         },
         connectTimeout: 60000,
         lazyConnect: true,
