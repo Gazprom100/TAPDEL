@@ -12,7 +12,14 @@ const decimalService = require('./services/decimalService');
 // ОПТИМИЗАЦИЯ: Импортируем оптимизированные сервисы
 const databaseConfig = require('./config/database');
 const cacheService = require('./services/cacheService');
-const rateLimiterMiddleware = require('./middleware/rateLimiter');
+
+// ВРЕМЕННО: Условная загрузка rate limiter (для deployment)
+let rateLimiterMiddleware = null;
+try {
+  rateLimiterMiddleware = require('./middleware/rateLimiter');
+} catch (error) {
+  console.warn('⚠️ Rate limiter недоступен (отсутствуют зависимости):', error.message);
+}
 
 const app = express();
 const PORT = process.env.PORT || 3001; // Изменили порт чтобы избежать конфликта
@@ -21,9 +28,13 @@ const PORT = process.env.PORT || 3001; // Изменили порт чтобы �
 app.use(cors());
 app.use(express.json());
 
-// ОПТИМИЗАЦИЯ: Rate limiting middleware
-app.use(rateLimiterMiddleware.getLoggingMiddleware());
-app.use(rateLimiterMiddleware.getDynamicLimiter());
+// ОПТИМИЗАЦИЯ: Rate limiting middleware (если доступен)
+if (rateLimiterMiddleware) {
+  app.use(rateLimiterMiddleware.getLoggingMiddleware());
+  app.use(rateLimiterMiddleware.getDynamicLimiter());
+} else {
+  console.log('⚠️ Rate limiting отключен (зависимости недоступны)');
+}
 
 // ОПТИМИЗАЦИЯ: Health check endpoint (до rate limiting)
 app.get('/health', async (req, res) => {
@@ -35,7 +46,8 @@ app.get('/health', async (req, res) => {
         mongodb: databaseConfig.isConnected,
         redis: cacheService.isConnected,
         telegram: !!botService.bot,
-        decimal: decimalService.isInitialized || false
+        decimal: decimalService.isInitialized || false,
+        rateLimiter: !!rateLimiterMiddleware
       },
       performance: {
         uptime: process.uptime(),
@@ -81,8 +93,10 @@ const startServer = () => {
       // Инициализируем кеширование
       await cacheService.initialize();
       
-      // ОПТИМИЗАЦИЯ: Инициализируем rate limiting
-      await rateLimiterMiddleware.initialize();
+      // ОПТИМИЗАЦИЯ: Инициализируем rate limiting (если доступен)
+      if (rateLimiterMiddleware) {
+        await rateLimiterMiddleware.initialize();
+      }
       
       // Initialize bot before starting server (сохраняем оригинальную логику)
       await botService.initialize();

@@ -22,8 +22,9 @@ class CacheService {
       this.redis = redis.createClient(redisConfig);
       
       this.redis.on('error', (err) => {
-        console.error('❌ Redis ошибка:', err);
+        console.warn('⚠️ Redis ошибка (продолжаем без кеша):', err.message);
         this.cacheStats.errors++;
+        this.isConnected = false;
       });
 
       this.redis.on('connect', () => {
@@ -36,17 +37,35 @@ class CacheService {
         this.isConnected = false;
       });
 
-      await this.redis.connect();
+      // Пытаемся подключиться с timeout
+      const connectPromise = this.redis.connect();
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Redis connection timeout')), 5000)
+      );
+      
+      await Promise.race([connectPromise, timeoutPromise]);
       
       // Тестовая операция
       await this.redis.ping();
       
-      console.log('✅ Cache Service инициализирован');
+      console.log('✅ Cache Service инициализирован с Redis');
       return true;
     } catch (error) {
-      console.error('❌ Ошибка инициализации Cache Service:', error);
+      console.warn('⚠️ Cache Service работает без Redis:', error.message);
       this.isConnected = false;
-      return false;
+      
+      // Очищаем Redis клиент при ошибке
+      if (this.redis) {
+        try {
+          await this.redis.disconnect();
+        } catch {
+          // Игнорируем ошибки отключения
+        }
+        this.redis = null;
+      }
+      
+      console.log('✅ Cache Service инициализирован (только локальный кеш)');
+      return true; // Возвращаем true, так как локальный кеш работает
     }
   }
 
