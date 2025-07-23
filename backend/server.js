@@ -71,12 +71,32 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// Routes ПЕРЕД static middleware
+// API Routes ПЕРЕД static middleware (критично!)
 app.use('/api/telegram', telegramRoutes);
 app.use('/api', apiRoutes);
+app.use('/api/decimal', decimalRoutes);
 
-// Static files ПОСЛЕ API роутов
-app.use(express.static(path.join(__dirname, '../dist')));
+// Тестовый роут для отладки
+app.get('/api/test', (req, res) => {
+  res.json({ message: 'API работает!', timestamp: new Date() });
+});
+
+// DecimalChain роуты будут подключены после инициализации сервиса
+
+// Static files только для не-API роутов
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/')) {
+    return next();
+  }
+  express.static(path.join(__dirname, '../dist'))(req, res, next);
+});
+
+// Fallback для SPA (только для не-API роутов)
+app.get('*', (req, res) => {
+  if (!req.path.startsWith('/api/')) {
+    res.sendFile(path.join(__dirname, '../dist/index.html'));
+  }
+});
 
 // DecimalChain роуты будут подключены после инициализации сервиса
 

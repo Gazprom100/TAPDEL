@@ -114,6 +114,11 @@ router.get('/users/:userId', async (req, res) => {
     const { userId } = req.params;
     const database = await connectToDatabase();
     
+    if (!database) {
+      console.error('❌ База данных недоступна');
+      return res.status(503).json({ message: 'Database unavailable' });
+    }
+    
     const user = await database.collection('users').findOne({ userId });
     
     if (!user) {
@@ -133,6 +138,11 @@ router.put('/users/:userId', async (req, res) => {
     const { userId } = req.params;
     const userData = req.body;
     const database = await connectToDatabase();
+    
+    if (!database) {
+      console.error('❌ База данных недоступна');
+      return res.status(503).json({ message: 'Database unavailable' });
+    }
     
     // Инициализируем gameBalance если его нет
     if (userData.gameBalance === undefined) {
@@ -320,6 +330,11 @@ router.put('/users/:userId/gamestate', async (req, res) => {
     
     const database = await connectToDatabase();
     
+    if (!database) {
+      console.error('❌ База данных недоступна');
+      return res.status(503).json({ message: 'Database unavailable' });
+    }
+    
     // Обновляем состояние игры
     const updateResult = await database.collection('users').updateOne(
       { userId },
@@ -422,6 +437,11 @@ router.get('/leaderboard', async (req, res) => {
     // Загружаем из базы данных (оригинальная логика)
     const database = await connectToDatabase();
     
+    if (!database) {
+      console.error('❌ База данных недоступна');
+      return res.status(503).json({ message: 'Database unavailable' });
+    }
+    
     console.log('🔍 Ищем пользователей в лидерборде...');
     const skip = (page - 1) * limit;
     leaderboard = await database.collection('leaderboard')
@@ -471,6 +491,11 @@ router.post('/leaderboard', async (req, res) => {
     });
     
     const database = await connectToDatabase();
+    
+    if (!database) {
+      console.error('❌ База данных недоступна');
+      return res.status(503).json({ message: 'Database unavailable' });
+    }
     
     // Обновляем запись пользователя (теперь с токенами)
     const result = await database.collection('leaderboard').updateOne(

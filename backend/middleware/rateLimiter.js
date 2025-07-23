@@ -13,6 +13,15 @@ class RateLimiterMiddleware {
       // Проверяем доступность Redis для rate limiting
       this.isRedisAvailable = cacheService.isConnected;
       console.log(`🛡️ Rate Limiter инициализирован (Redis: ${this.isRedisAvailable ? 'включен' : 'отключен'})`);
+      
+      // Создаем все лимитеры при инициализации
+      this.getGameplayLimiter();
+      this.getWithdrawalLimiter();
+      this.getDepositLimiter();
+      this.getApiLimiter();
+      this.getLeaderboardLimiter();
+      this.getAuthLimiter();
+      
     } catch (error) {
       console.warn('⚠️ Rate Limiter работает без Redis:', error.message);
       this.isRedisAvailable = false;
