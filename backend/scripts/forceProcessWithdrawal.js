@@ -1,185 +1,156 @@
 const { MongoClient } = require('mongodb');
 const { Web3 } = require('web3');
-require('dotenv').config({ path: './.env' });
+const config = require('../config/decimal');
 
-const config = {
-  MONGODB_URI: process.env.MONGODB_URI || 'mongodb+srv://TAPDEL:fpz%25sE62KPzmHfM@cluster0.ejo8obw.mongodb.net/tapdel?retryWrites=true&w=majority&appName=Cluster0',
-  DECIMAL_RPC_URL: process.env.DECIMAL_RPC_URL || 'https://node.decimalchain.com/web3/',
-  WORKING_ADDRESS: process.env.DECIMAL_WORKING_ADDRESS,
-  PRIVATE_KEY: process.env.DECIMAL_WORKING_PRIVKEY_ENC,
-  KEY_PASSPHRASE: process.env.DECIMAL_KEY_PASSPHRASE,
-  GAS_LIMIT: 21000,
-  GAS_PRICE: 5,
-  CHAIN_ID: 75
-};
-
-// Функция расшифровки приватного ключа (копия из config/decimal.js)
-function getPrivateKey() {
-  const crypto = require('crypto');
+async function forceProcessWithdrawal() {
+  console.log('🔧 ПРИНУДИТЕЛЬНАЯ ОБРАБОТКА ВЫВОДА');
+  console.log('=====================================');
   
-  if (!config.PRIVATE_KEY || !config.KEY_PASSPHRASE) {
-    throw new Error('DECIMAL_WORKING_PRIVKEY_ENC и DECIMAL_KEY_PASSPHRASE должны быть установлены');
-  }
+  const withdrawalId = '6880d1c07f62fb187a3a1636'; // ID вывода 2222 DEL
+  const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/tapdel';
   
   try {
-    const algorithm = 'aes-256-cbc';
-    const key = crypto.scryptSync(config.KEY_PASSPHRASE, 'salt', 32);
-    const encryptedData = Buffer.from(config.PRIVATE_KEY, 'base64');
-    
-    const iv = encryptedData.slice(0, 16);
-    const encrypted = encryptedData.slice(16);
-    
-    const decipher = crypto.createDecipheriv(algorithm, key, iv);
-    let decrypted = decipher.update(encrypted, null, 'utf8');
-    decrypted += decipher.final('utf8');
-    
-    if (!decrypted.startsWith('0x')) {
-      decrypted = '0x' + decrypted;
-    }
-    
-    return decrypted;
-  } catch (error) {
-    throw new Error('Ошибка расшифровки приватного ключа: ' + error.message);
-  }
-}
-
-async function forceProcessWithdrawal(withdrawalId) {
-  console.log(`🚀 Принудительная обработка вывода: ${withdrawalId}`);
-  
-  try {
-    // Подключение к MongoDB
-    const client = new MongoClient(config.MONGODB_URI);
+    // Подключаемся к MongoDB
+    const client = new MongoClient(MONGODB_URI);
     await client.connect();
-    const db = client.db('tapdel');
-    console.log('✅ MongoDB подключен');
+    console.log('✅ Подключение к MongoDB установлено');
     
-    // Подключение к DecimalChain
-    const web3 = new Web3(config.DECIMAL_RPC_URL);
-    const blockNumber = await web3.eth.getBlockNumber();
-    console.log(`✅ DecimalChain подключен, блок: ${blockNumber}`);
+    const database = client.db();
     
-    // Получаем вывод
-    const withdrawal = await db.collection('withdrawals').findOne({
-      _id: new (require('mongodb').ObjectId)(withdrawalId)
-    });
+    // Находим вывод
+    console.log('\n1️⃣ Поиск вывода в базе данных');
+    const withdrawal = await database.collection('withdrawals').findOne({ _id: withdrawalId });
     
     if (!withdrawal) {
-      console.log(`❌ Вывод ${withdrawalId} не найден`);
-      return;
+      console.log('❌ Вывод не найден в базе данных');
+      return false;
     }
     
-    console.log(`📋 Детали вывода:`);
-    console.log(`   Сумма: ${withdrawal.amount} DEL`);
-    console.log(`   Адрес: ${withdrawal.toAddress}`);
-    console.log(`   Статус: ${withdrawal.status}`);
+    console.log('✅ Вывод найден:', {
+      withdrawalId: withdrawal._id,
+      status: withdrawal.status,
+      amount: withdrawal.amount,
+      toAddress: withdrawal.toAddress,
+      requestedAt: withdrawal.requestedAt
+    });
     
+    // Проверяем статус
     if (withdrawal.status === 'sent') {
-      console.log(`✅ Вывод уже обработан, TX: ${withdrawal.txHash}`);
-      return;
+      console.log('✅ Вывод уже отправлен в блокчейн');
+      console.log(`🔗 TX Hash: ${withdrawal.txHash}`);
+      return true;
     }
     
     if (withdrawal.status === 'failed') {
-      console.log(`❌ Вывод уже помечен как failed: ${withdrawal.error}`);
-      return;
+      console.log('❌ Вывод помечен как неудачный');
+      return false;
     }
     
-    // Проверяем баланс пользователя
-    const user = await db.collection('users').findOne({ userId: withdrawal.userId });
-    if (!user) {
-      console.log(`❌ Пользователь ${withdrawal.userId} не найден`);
-      return;
-    }
+    // Принудительно обрабатываем вывод
+    console.log('\n2️⃣ Принудительная обработка вывода');
     
-    const userBalance = user.gameState?.tokens || 0;
-    console.log(`💰 Баланс пользователя: ${userBalance} DEL`);
-    
-    if (userBalance < withdrawal.amount) {
-      console.log(`❌ Недостаточно средств: ${userBalance} < ${withdrawal.amount}`);
-      return;
-    }
-    
-    // Проверяем баланс рабочего кошелька
-    const workingBalance = await web3.eth.getBalance(config.WORKING_ADDRESS);
-    const workingBalanceEth = parseFloat(web3.utils.fromWei(workingBalance, 'ether'));
-    console.log(`💰 Баланс рабочего кошелька: ${workingBalanceEth} DEL`);
+    // Подключаемся к Web3
+    const web3 = new Web3(config.RPC_URL);
+    console.log('✅ Подключение к DecimalChain установлено');
     
     // Получаем приватный ключ
-    console.log(`🔑 Расшифровываем приватный ключ...`);
-    const privateKey = getPrivateKey();
-    console.log(`✅ Приватный ключ получен: ${privateKey.substring(0, 10)}...`);
+    const privateKey = config.getPrivateKey();
+    const fromAddress = config.WORKING_ADDRESS;
+    
+    console.log('📋 Данные для транзакции:');
+    console.log(`   От: ${fromAddress}`);
+    console.log(`   Кому: ${withdrawal.toAddress}`);
+    console.log(`   Сумма: ${withdrawal.amount} DEL`);
     
     // Получаем nonce
-    const nonce = await web3.eth.getTransactionCount(config.WORKING_ADDRESS);
+    const nonce = await web3.eth.getTransactionCount(fromAddress, 'latest');
     console.log(`📝 Nonce: ${nonce}`);
     
+    // Получаем gas price
+    const gasPrice = await web3.eth.getGasPrice();
+    console.log(`⛽ Gas Price: ${web3.utils.fromWei(gasPrice, 'gwei')} gwei`);
+    
     // Создаем транзакцию
-    const amountNum = parseFloat(withdrawal.amount);
     const transaction = {
-      from: web3.utils.toChecksumAddress(config.WORKING_ADDRESS),
+      from: web3.utils.toChecksumAddress(fromAddress),
       to: web3.utils.toChecksumAddress(withdrawal.toAddress),
-      value: web3.utils.toWei(amountNum.toString(), 'ether'),
-      gas: config.GAS_LIMIT,
-      gasPrice: web3.utils.toWei(config.GAS_PRICE.toString(), 'gwei'),
+      value: web3.utils.toWei(withdrawal.amount.toString(), 'ether'),
+      gas: 21000, // Стандартный лимит газа для простых транзакций
+      gasPrice: gasPrice,
       nonce: nonce,
       chainId: config.CHAIN_ID
     };
     
-    console.log(`📋 Транзакция создана:`);
-    console.log(`   From: ${transaction.from}`);
-    console.log(`   To: ${transaction.to}`);
-    console.log(`   Value: ${amountNum} DEL (${transaction.value} wei)`);
-    console.log(`   Gas: ${transaction.gas}`);
-    console.log(`   Gas Price: ${config.GAS_PRICE} gwei`);
-    console.log(`   Nonce: ${transaction.nonce}`);
-    console.log(`   Chain ID: ${transaction.chainId}`);
+    console.log('📋 Транзакция создана:', {
+      from: transaction.from,
+      to: transaction.to,
+      value: withdrawal.amount + ' DEL',
+      gas: transaction.gas,
+      gasPrice: web3.utils.fromWei(gasPrice, 'gwei') + ' gwei'
+    });
     
     // Подписываем транзакцию
-    console.log(`✍️ Подписываем транзакцию...`);
+    console.log('✍️ Подписываем транзакцию...');
     const signedTx = await web3.eth.accounts.signTransaction(transaction, privateKey);
-    console.log(`✅ Транзакция подписана`);
     
     // Отправляем транзакцию
-    console.log(`📡 Отправляем транзакцию...`);
+    console.log('🚀 Отправляем транзакцию в блокчейн...');
     const receipt = await web3.eth.sendSignedTransaction(signedTx.rawTransaction);
     
-    console.log(`✅ Транзакция отправлена!`);
-    console.log(`📄 TX Hash: ${receipt.transactionHash}`);
-    console.log(`📊 Block: ${receipt.blockNumber}`);
+    console.log('✅ Транзакция отправлена успешно!');
+    console.log(`🔗 TX Hash: ${receipt.transactionHash}`);
+    console.log(`📊 Block Number: ${receipt.blockNumber}`);
     console.log(`⛽ Gas Used: ${receipt.gasUsed}`);
     
-    // Обновляем вывод в базе данных
-    await db.collection('withdrawals').updateOne(
-      { _id: withdrawal._id },
+    // Обновляем статус в базе данных
+    console.log('\n3️⃣ Обновление статуса в базе данных');
+    await database.collection('withdrawals').updateOne(
+      { _id: withdrawalId },
       {
         $set: {
-          txHash: receipt.transactionHash,
           status: 'sent',
-          processedAt: new Date()
-        },
-        $unset: { processingStartedAt: 1 }
+          txHash: receipt.transactionHash,
+          processedAt: new Date(),
+          blockNumber: receipt.blockNumber,
+          gasUsed: receipt.gasUsed
+        }
       }
     );
     
-    console.log(`✅ Вывод обновлен в базе данных`);
+    console.log('✅ Статус вывода обновлен в базе данных');
     
     await client.close();
+    console.log('🔌 Подключение к MongoDB закрыто');
+    
+    console.log('\n🎉 ПРИНУДИТЕЛЬНАЯ ОБРАБОТКА ЗАВЕРШЕНА УСПЕШНО!');
+    console.log(`✅ Вывод ${withdrawal.amount} DEL отправлен на адрес ${withdrawal.toAddress}`);
+    console.log(`🔗 TX Hash: ${receipt.transactionHash}`);
+    
+    return true;
     
   } catch (error) {
-    console.error('❌ Ошибка обработки вывода:', error);
-    console.error('📋 Детали ошибки:', {
-      message: error.message,
-      code: error.code,
-      stack: error.stack
-    });
+    console.error('❌ Ошибка принудительной обработки:', error);
+    return false;
   }
 }
 
-// Получаем ID вывода из аргументов
-const withdrawalId = process.argv[2];
-
-if (!withdrawalId) {
-  console.error('❌ Укажите ID вывода: node scripts/forceProcessWithdrawal.js <withdrawalId>');
-  process.exit(1);
+// Запускаем обработку если скрипт вызван напрямую
+if (require.main === module) {
+  forceProcessWithdrawal()
+    .then(success => {
+      if (success) {
+        console.log('\n🎉 ПРИНУДИТЕЛЬНАЯ ОБРАБОТКА ПРОШЛА УСПЕШНО!');
+        console.log('✅ 2222 DEL отправлены в блокчейн');
+        process.exit(0);
+      } else {
+        console.log('\n💥 ПРИНУДИТЕЛЬНАЯ ОБРАБОТКА ПРОВАЛИЛАСЬ!');
+        process.exit(1);
+      }
+    })
+    .catch(error => {
+      console.error('💥 Неожиданная ошибка:', error);
+      process.exit(1);
+    });
 }
 
-forceProcessWithdrawal(withdrawalId); 
+module.exports = { forceProcessWithdrawal }; 

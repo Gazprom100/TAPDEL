@@ -179,9 +179,8 @@ class RateLimiterMiddleware {
       const path = req.path;
       
       // Выбираем подходящий лимитер
-      if (path.includes('/withdraw')) {
-        return this.getWithdrawalLimiter()(req, res, next);
-      } else if (path.includes('/deposit')) {
+      // УБИРАЕМ RATE LIMITING ДЛЯ ВЫВОДОВ - они не должны ограничиваться
+      if (path.includes('/deposit')) {
         return this.getDepositLimiter()(req, res, next);
       } else if (path.includes('/leaderboard')) {
         return this.getLeaderboardLimiter()(req, res, next);
