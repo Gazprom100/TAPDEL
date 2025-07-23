@@ -705,6 +705,156 @@ router.post('/users/:userId/migrate', async (req, res) => {
   }
 });
 
+// Получить статистику для админ-панели
+router.get('/admin/statistics', async (req, res) => {
+  try {
+    const database = await connectToDatabase();
+    const usersCollection = database.collection('users');
+    const depositsCollection = database.collection('deposits');
+    const withdrawalsCollection = database.collection('withdrawals');
+
+    // Количество пользователей
+    const totalUsers = await usersCollection.countDocuments();
+    // Баланс системы (сумма tokens всех пользователей)
+    const users = await usersCollection.find({}, { projection: { 'gameState.tokens': 1 } }).toArray();
+    const totalTokens = users.reduce((sum, u) => sum + (u.gameState?.tokens || 0), 0);
+    // Количество и сумма депозитов
+    const totalDeposits = await depositsCollection.countDocuments();
+    const sumDeposits = await depositsCollection.aggregate([
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]).toArray();
+    // Количество и сумма выводов
+    const totalWithdrawals = await withdrawalsCollection.countDocuments();
+    const sumWithdrawals = await withdrawalsCollection.aggregate([
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]).toArray();
+    // Активные пользователи за 24ч
+    const since = new Date(Date.now() - 24*60*60*1000);
+    const activeUsers = await usersCollection.countDocuments({ 'profile.lastLogin': { $gte: since } });
+
+    res.json({
+      totalUsers,
+      totalTokens,
+      totalDeposits,
+      sumDeposits: sumDeposits[0]?.total || 0,
+      totalWithdrawals,
+      sumWithdrawals: sumWithdrawals[0]?.total || 0,
+      activeUsers
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Получить настройки админ-панели
+router.get('/admin/settings', async (req, res) => {
+  try {
+    const database = await connectToDatabase();
+    const settingsCollection = database.collection('adminSettings');
+    
+    // Получаем настройки или возвращаем дефолтные
+    const settings = await settingsCollection.findOne({ _id: 'gameSettings' });
+    
+    if (!settings) {
+      // Дефолтные настройки
+      const defaultSettings = {
+        token: {
+          symbol: 'DEL',
+          contractAddress: '',
+          decimals: 18
+        },
+        gameMechanics: {
+          baseReward: 1,
+          maxFingers: 5,
+          rateWindow: 1000
+        },
+        gearMultipliers: {
+          'N': 0,
+          '1': 1,
+          '2': 1.5,
+          '3': 2,
+          '4': 3,
+          'M': 5
+        },
+        gearThresholds: {
+          '1': 1,
+          '2': 5,
+          '3': 10,
+          '4': 15,
+          'M': 20
+        },
+        energy: {
+          recoveryRate: 0.033,
+          consumptionRate: {
+            'N': 0,
+            '1': 0.006,
+            '2': 0.009,
+            '3': 0.012,
+            '4': 0.015,
+            'M': 0.0165
+          }
+        },
+        components: {
+          engines: [100, 250, 500, 1000, 2000, 4000, 8000, 16000, 32000, 64000],
+          gearboxes: [50, 100, 200, 400, 800, 1600, 3200, 6400, 12800, 25600],
+          batteries: [100, 200, 400, 800, 1600, 3200, 6400, 12800, 25600, 51200],
+          hyperdrives: [5000, 10000, 20000, 40000, 80000],
+          powerGrids: [500, 1000, 2000, 4000, 8000]
+        }
+      };
+      
+      await settingsCollection.insertOne({
+        _id: 'gameSettings',
+        ...defaultSettings,
+        updatedAt: new Date()
+      });
+      
+      res.json(defaultSettings);
+    } else {
+      res.json({
+        token: settings.token,
+        gameMechanics: settings.gameMechanics,
+        gearMultipliers: settings.gearMultipliers,
+        gearThresholds: settings.gearThresholds,
+        energy: settings.energy,
+        components: settings.components
+      });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Сохранить настройки админ-панели
+router.post('/admin/settings', async (req, res) => {
+  try {
+    const { token, gameMechanics, gearMultipliers, gearThresholds, energy, components } = req.body;
+    const database = await connectToDatabase();
+    const settingsCollection = database.collection('adminSettings');
+    
+    const settings = {
+      _id: 'gameSettings',
+      token,
+      gameMechanics,
+      gearMultipliers,
+      gearThresholds,
+      energy,
+      components,
+      updatedAt: new Date()
+    };
+    
+    await settingsCollection.updateOne(
+      { _id: 'gameSettings' },
+      { $set: settings },
+      { upsert: true }
+    );
+    
+    res.json({ message: 'Настройки сохранены', settings });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Вспомогательная функция для обновления пользователя в лидерборде
 async function updateUserInLeaderboard(database, user, tokens) {
   try {

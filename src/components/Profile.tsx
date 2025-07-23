@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { Shop } from './Shop';
+import { AdminPanel } from './AdminPanel';
 
 type Tab = 'balance' | 'shop' | 'transactions' | 'leaderboard';
 
@@ -28,6 +29,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
   const [isLeaderboardLoading, setIsLeaderboardLoading] = useState(false);
   const [isTransactionsLoading, setIsTransactionsLoading] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
   
   // Периодическое обновление таблицы лидеров
   useEffect(() => {
@@ -741,6 +743,9 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           </div>
         </div>
       )}
+      
+      {/* Модальное окно админки */}
+      {showAdmin && <AdminPanel onClose={() => setShowAdmin(false)} />}
       
     </div>
   );
