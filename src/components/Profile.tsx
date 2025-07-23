@@ -14,6 +14,18 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     profile,
     refreshBalance
   } = useGameStore();
+  
+  // Отладочная информация для проверки профиля
+  console.log('🔍 Profile Component Debug:', { 
+    profile,
+    username: profile?.username,
+    telegramUsername: profile?.telegramUsername,
+    userId: profile?.userId,
+    isEvgeni: profile?.username === 'Evgeni_Krasnov' || profile?.telegramUsername === 'Evgeni_Krasnov',
+    // Временно показываем кнопку для всех для отладки
+    showAdminButton: true
+  });
+  
   const [activeTab, setActiveTab] = useState<Tab>('balance');
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawAddress, setWithdrawAddress] = useState('');
@@ -305,6 +317,37 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               {tab === 'leaderboard' && 'Лидеры'}
             </button>
           ))}
+          
+          {/* Кнопка ADMIN только для Evgeni_Krasnov */}
+          {(profile?.username === 'Evgeni_Krasnov' || 
+            profile?.telegramUsername === 'Evgeni_Krasnov' ||
+            profile?.telegramFirstName === 'Evgeni') && (
+            // Отладочная информация
+            console.log('🔍 ADMIN Button Debug:', { 
+              username: profile?.username, 
+              telegramUsername: profile?.telegramUsername,
+              telegramFirstName: profile?.telegramFirstName,
+              userId: profile?.userId,
+              showAdmin: true
+            }),
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowAdmin(true);
+              }}
+              onTouchStart={(e) => {
+                e.stopPropagation();
+              }}
+              className="cyber-button text-xs sm:text-sm whitespace-nowrap px-2 sm:px-4 py-2 bg-red-600 hover:bg-red-700"
+              style={{
+                minHeight: '36px',
+                pointerEvents: 'auto',
+                zIndex: 10
+              }}
+            >
+              ADMIN
+            </button>
+          )}
         </div>
 
         <div className="flex-1 min-h-0 overflow-hidden">
