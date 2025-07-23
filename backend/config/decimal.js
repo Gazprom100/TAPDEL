@@ -1,11 +1,12 @@
 const crypto = require('crypto');
 
 module.exports = {
-  // DecimalChain настройки
+  // DecimalChain API настройки
+  API_BASE_URL: process.env.DECIMAL_API_BASE_URL || 'https://api.decimalchain.com/api/v1',
   RPC_URL: process.env.DECIMAL_RPC_URL || 'https://node.decimalchain.com/web3/',
   CHAIN_ID: parseInt(process.env.DECIMAL_CHAIN_ID || '75'),
   GAS_LIMIT: 21000,
-  GAS_PRICE: parseInt(process.env.DECIMAL_GAS_PRICE_GWEI || '5'),
+  GAS_PRICE: parseInt(process.env.DECIMAL_GAS_PRICE_GWEI || '50000'), // Увеличено до 50,000 gwei
   
   // Рабочий кошелек
   WORKING_ADDRESS: process.env.DECIMAL_WORKING_ADDRESS,
@@ -62,6 +63,108 @@ module.exports = {
     }
   },
 
+  // Получение актуального газ прайса из сети
+  async getCurrentGasPrice() {
+    try {
+      const response = await fetch(this.RPC_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          method: 'eth_gasPrice',
+          params: [],
+          id: 1
+        })
+      });
+
+      const data = await response.json();
+      if (data.result) {
+        const gasPriceWei = parseInt(data.result, 16);
+        const gasPriceGwei = gasPriceWei / 1000000000;
+        
+        // Добавляем 20% к текущему прайсу для надежности
+        const adjustedGasPrice = Math.ceil(gasPriceGwei * 1.2);
+        
+        console.log(`Current gas price: ${gasPriceGwei} gwei, using: ${adjustedGasPrice} gwei`);
+        return adjustedGasPrice;
+      }
+    } catch (error) {
+      console.error('Error getting gas price:', error);
+    }
+    
+    // Возвращаем значение по умолчанию если не удалось получить
+    return this.GAS_PRICE;
+  },
+
+  // API методы для работы с DecimalChain
+  async getAddressBalance(address) {
+    try {
+      const response = await fetch(`${this.API_BASE_URL}/addresses/${address}/balance`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error getting address balance:', error);
+      throw error;
+    }
+  },
+
+  async getAddressTransactions(address, limit = 50) {
+    try {
+      const response = await fetch(`${this.API_BASE_URL}/addresses/${address}/transactions?limit=${limit}`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error getting address transactions:', error);
+      throw error;
+    }
+  },
+
+  async getTransaction(txHash) {
+    try {
+      const response = await fetch(`${this.API_BASE_URL}/transactions/${txHash}`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error getting transaction:', error);
+      throw error;
+    }
+  },
+
+  async sendTransaction(signedTx) {
+    try {
+      const response = await fetch(`${this.API_BASE_URL}/transactions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          signedTx: signedTx
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error sending transaction:', error);
+      throw error;
+    }
+  },
+
   // Расшифровка приватного ключа
   getPrivateKey() {
     if (!this.WORKING_PRIVKEY_ENC || !this.KEY_PASSPHRASE) {
@@ -80,7 +183,6 @@ module.exports = {
       let decrypted = decipher.update(encrypted, null, 'utf8');
       decrypted += decipher.final('utf8');
       
-      // Добавляем префикс "0x" если его нет
       // Добавляем префикс "0x" если его нет
       if (!decrypted.startsWith('0x')) {
         decrypted = '0x' + decrypted;

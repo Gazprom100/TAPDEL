@@ -41,9 +41,21 @@ class DecimalService {
       const pong = await this.redis.ping();
       console.log(`✅ Redis ping: ${pong}`);
       
-      // Проверяем подключение к DecimalChain
+      // Проверяем подключение к DecimalChain API
+      try {
+        const testResponse = await fetch(`${config.API_BASE_URL}/addresses/`);
+        if (testResponse.ok) {
+          console.log('✅ DecimalService: API подключен');
+        } else {
+          console.log('⚠️ DecimalService: API недоступен, используем RPC');
+        }
+      } catch (error) {
+        console.log('⚠️ DecimalService: API недоступен, используем RPC');
+      }
+      
+      // Проверяем подключение к RPC
       const blockNumber = await this.web3.eth.getBlockNumber();
-      console.log(`✅ DecimalService: Подключен к DecimalChain, блок: ${blockNumber}`);
+      console.log(`✅ DecimalService: Подключен к DecimalChain RPC, блок: ${blockNumber}`);
       
       return true;
     } catch (error) {
@@ -62,6 +74,20 @@ class DecimalService {
   
   async getBalance(address) {
     try {
+      // Сначала пробуем через API
+      try {
+        const balanceData = await config.getAddressBalance(address);
+        if (balanceData && balanceData.result && balanceData.result.balance) {
+          // Конвертируем из wei в DEL (1 DEL = 10^18 wei)
+          const balanceWei = BigInt(balanceData.result.balance);
+          const balanceDel = Number(balanceWei) / 1000000000000000000;
+          return balanceDel;
+        }
+      } catch (apiError) {
+        console.log('API недоступен, используем RPC для получения баланса');
+      }
+      
+      // Fallback на RPC
       const wei = await this.web3.eth.getBalance(this.web3.utils.toChecksumAddress(address));
       return parseFloat(this.web3.utils.fromWei(wei, 'ether'));
     } catch (error) {
@@ -122,6 +148,10 @@ class DecimalService {
       const nonce = await this.getNonce(fromAddress);
       console.log(`📝 DecimalService: Nonce: ${nonce}`);
       
+      // Получаем актуальный газ прайс из сети
+      const currentGasPrice = await config.getCurrentGasPrice();
+      console.log(`⛽ DecimalService: Используем газ прайс: ${currentGasPrice} gwei`);
+      
       // Создаем транзакцию
       // DecimalChain использует 18 десятичных знаков как Ethereum
       const transaction = {
@@ -129,7 +159,7 @@ class DecimalService {
         to: this.web3.utils.toChecksumAddress(toAddress),
         value: this.web3.utils.toWei(amountNum.toString(), 'ether'), // 1 DEL = 10^18 wei
         gas: config.GAS_LIMIT,
-        gasPrice: this.web3.utils.toWei(config.GAS_PRICE.toString(), 'gwei'),
+        gasPrice: this.web3.utils.toWei(currentGasPrice.toString(), 'gwei'),
         nonce: nonce,
         chainId: config.CHAIN_ID
       };
@@ -140,17 +170,28 @@ class DecimalService {
         value: amountNum + ' DEL',
         valueWei: transaction.value,
         gas: transaction.gas,
-        gasPrice: config.GAS_PRICE + ' gwei'
+        gasPrice: currentGasPrice + ' gwei'
       });
 
       // Подписываем транзакцию
       const signedTx = await this.web3.eth.accounts.signTransaction(transaction, privateKey);
       console.log(`✍️ DecimalService: Транзакция подписана`);
       
-      // Отправляем транзакцию
+      // Сначала пробуем отправить через API
+      try {
+        const apiResult = await config.sendTransaction(signedTx.rawTransaction);
+        if (apiResult && apiResult.result && apiResult.result.hash) {
+          console.log(`✅ DecimalService: Транзакция отправлена через API: ${apiResult.result.hash}`);
+          return apiResult.result.hash;
+        }
+      } catch (apiError) {
+        console.log('API недоступен, используем RPC для отправки транзакции');
+      }
+      
+      // Fallback на RPC
       const receipt = await this.web3.eth.sendSignedTransaction(signedTx.rawTransaction);
       
-      console.log(`✅ DecimalService: Транзакция отправлена: ${receipt.transactionHash}`);
+      console.log(`✅ DecimalService: Транзакция отправлена через RPC: ${receipt.transactionHash}`);
       return receipt.transactionHash;
       
     } catch (error) {

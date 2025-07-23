@@ -1,6 +1,8 @@
-require('dotenv').config({ path: './backend/TAPDEL.env' });
+require('dotenv').config({ path: './backend/.env' });
 
 const { MongoClient } = require('mongodb');
+const { Web3 } = require('web3');
+const redis = require('redis');
 const decimalService = require('../backend/services/decimalService');
 
 // Генерация чистого MongoDB URI

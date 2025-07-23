@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ path: './backend/.env' });
 const { MongoClient } = require('mongodb');
 
 async function monitorDatabase() {

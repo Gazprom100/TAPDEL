@@ -10,7 +10,7 @@ const botService = require('./services/botService');
 const decimalService = require('./services/decimalService');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001; // Изменили порт чтобы избежать конфликта
 
 // Middleware
 app.use(cors());
