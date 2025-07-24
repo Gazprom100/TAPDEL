@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { GAME_MECHANICS, COMPONENTS } from '../types/game';
 import '../styles/admin.css';
+import { UserManagement } from './admin/UserManagement';
+import { SystemMonitoring } from './admin/SystemMonitoring';
 
 interface AdminStats {
   totalUsers: number;
@@ -149,7 +151,7 @@ export const FullAdminPanel: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'analytics' | 'settings' | 'users' | 'transactions'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'analytics' | 'settings' | 'users' | 'transactions' | 'monitoring'>('dashboard');
 
   // Локальные копии для редактирования
   const [token, setToken] = useState<TokenConfig>({ symbol: 'DEL', contractAddress: '', decimals: 18 });
@@ -373,6 +375,16 @@ export const FullAdminPanel: React.FC = () => {
             }`}
           >
             💰 Транзакции
+          </button>
+          <button
+            onClick={() => setActiveTab('monitoring')}
+            className={`admin-nav-item py-4 px-2 border-b-2 font-medium ${
+              activeTab === 'monitoring' 
+                ? 'border-blue-500 text-blue-400' 
+                : 'border-transparent text-gray-400 hover:text-gray-300'
+            }`}
+          >
+            📊 Мониторинг
           </button>
         </div>
       </div>
@@ -681,12 +693,10 @@ export const FullAdminPanel: React.FC = () => {
         )}
 
         {activeTab === 'users' && (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold">Управление пользователями</h2>
-            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-              <p className="text-gray-400">Функции управления пользователями будут добавлены позже.</p>
-            </div>
-          </div>
+          <UserManagement onUserUpdate={(userId, updates) => {
+            console.log('Обновление пользователя:', userId, updates);
+            // Здесь будет API вызов для обновления пользователя
+          }} />
         )}
 
         {activeTab === 'transactions' && (
@@ -696,6 +706,10 @@ export const FullAdminPanel: React.FC = () => {
               <p className="text-gray-400">Функции просмотра транзакций будут добавлены позже.</p>
             </div>
           </div>
+        )}
+
+        {activeTab === 'monitoring' && (
+          <SystemMonitoring />
         )}
       </div>
     </div>
