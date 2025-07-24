@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { GAME_MECHANICS, COMPONENTS } from '../types/game';
+import '../styles/admin.css';
 
 interface AdminStats {
   totalUsers: number;
@@ -300,9 +301,9 @@ export const FullAdminPanel: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className="admin-container min-h-screen bg-gray-900 text-white">
       {/* Header */}
-      <div className="bg-gray-800 border-b border-gray-700 p-6">
+      <div className="admin-header bg-gray-800 border-b border-gray-700 p-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">TAPDEL Dashboard</h1>
@@ -321,11 +322,11 @@ export const FullAdminPanel: React.FC = () => {
       </div>
 
       {/* Navigation */}
-      <div className="bg-gray-800 border-b border-gray-700 px-6">
+      <div className="admin-navigation bg-gray-800 border-b border-gray-700 px-6">
         <div className="flex space-x-8">
           <button
             onClick={() => setActiveTab('dashboard')}
-            className={`py-4 px-2 border-b-2 font-medium ${
+            className={`admin-nav-item py-4 px-2 border-b-2 font-medium ${
               activeTab === 'dashboard' 
                 ? 'border-blue-500 text-blue-400' 
                 : 'border-transparent text-gray-400 hover:text-gray-300'
@@ -335,7 +336,7 @@ export const FullAdminPanel: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('analytics')}
-            className={`py-4 px-2 border-b-2 font-medium ${
+            className={`admin-nav-item py-4 px-2 border-b-2 font-medium ${
               activeTab === 'analytics' 
                 ? 'border-blue-500 text-blue-400' 
                 : 'border-transparent text-gray-400 hover:text-gray-300'
@@ -345,7 +346,7 @@ export const FullAdminPanel: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('settings')}
-            className={`py-4 px-2 border-b-2 font-medium ${
+            className={`admin-nav-item py-4 px-2 border-b-2 font-medium ${
               activeTab === 'settings' 
                 ? 'border-blue-500 text-blue-400' 
                 : 'border-transparent text-gray-400 hover:text-gray-300'
@@ -355,7 +356,7 @@ export const FullAdminPanel: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('users')}
-            className={`py-4 px-2 border-b-2 font-medium ${
+            className={`admin-nav-item py-4 px-2 border-b-2 font-medium ${
               activeTab === 'users' 
                 ? 'border-blue-500 text-blue-400' 
                 : 'border-transparent text-gray-400 hover:text-gray-300'
@@ -365,7 +366,7 @@ export const FullAdminPanel: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('transactions')}
-            className={`py-4 px-2 border-b-2 font-medium ${
+            className={`admin-nav-item py-4 px-2 border-b-2 font-medium ${
               activeTab === 'transactions' 
                 ? 'border-blue-500 text-blue-400' 
                 : 'border-transparent text-gray-400 hover:text-gray-300'
@@ -377,11 +378,11 @@ export const FullAdminPanel: React.FC = () => {
       </div>
 
       {/* Content */}
-      <div className="p-6">
+      <div className="admin-content p-6">
         {activeTab === 'dashboard' && (
-          <div className="space-y-6">
-            {/* Top Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                      <div className="admin-scrollable space-y-6">
+              {/* Top Stats Cards */}
+              <div className="admin-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <StatCard 
                 title="Всего пользователей" 
                 value={stats?.totalUsers || 0} 
@@ -413,7 +414,7 @@ export const FullAdminPanel: React.FC = () => {
             </div>
 
             {/* Charts Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="admin-grid grid grid-cols-1 lg:grid-cols-3 gap-6">
               <ActivityChart 
                 data={mockActivityData} 
                 labels={mockActivityLabels} 
@@ -459,7 +460,7 @@ export const FullAdminPanel: React.FC = () => {
             </div>
 
             {/* Circular Progress */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="admin-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <CircularProgress 
                 value={stats?.totalUsers || 0} 
                 max={1000} 
@@ -492,20 +493,20 @@ export const FullAdminPanel: React.FC = () => {
               <div className="flex flex-wrap gap-4">
                 <button
                   onClick={resetLeaderboard}
-                  className="px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors"
+                  className="admin-button px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors"
                 >
                   🔄 Сбросить лидерборд
                 </button>
                 <button
                   onClick={() => setActiveTab('settings')}
-                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
+                  className="admin-button px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
                 >
                   ⚙️ Настройки игры
                 </button>
-                <button className="px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg font-medium transition-colors">
+                <button className="admin-button px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg font-medium transition-colors">
                   📊 Экспорт данных
                 </button>
-                <button className="px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg font-medium transition-colors">
+                <button className="admin-button px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg font-medium transition-colors">
                   🔔 Уведомления
                 </button>
               </div>
@@ -581,22 +582,22 @@ export const FullAdminPanel: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">Базовое вознаграждение</label>
-                  <input
-                    type="number"
-                    value={baseReward}
-                    onChange={(e) => setBaseReward(Number(e.target.value))}
-                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+                                      <input
+                      type="number"
+                      value={baseReward}
+                      onChange={(e) => setBaseReward(Number(e.target.value))}
+                      className="admin-input w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">Символ токена</label>
-                  <input
-                    type="text"
-                    value={token.symbol}
-                    onChange={(e) => setToken({...token, symbol: e.target.value})}
-                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+                                      <input
+                      type="text"
+                      value={token.symbol}
+                      onChange={(e) => setToken({...token, symbol: e.target.value})}
+                      className="admin-input w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
                 </div>
               </div>
 
@@ -670,7 +671,7 @@ export const FullAdminPanel: React.FC = () => {
                 <button
                   onClick={saveSettings}
                   disabled={saving}
-                  className="px-8 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 rounded-lg font-medium transition-colors"
+                  className="admin-button px-8 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 rounded-lg font-medium transition-colors"
                 >
                   {saving ? 'Сохранение...' : '💾 Сохранить настройки'}
                 </button>
