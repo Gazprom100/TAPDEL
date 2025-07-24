@@ -66,14 +66,34 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         setIsTransactionsLoading(true);
         try {
           const { decimalApi } = await import('../services/decimalApi');
-          const [depositsData, withdrawalsData] = await Promise.all([
+          
+          // Добавляем таймаут для API вызовов
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Таймаут запроса')), 10000)
+          );
+          
+          const depositsPromise = Promise.race([
             decimalApi.getUserDeposits(profile.userId).catch(() => []),
-            decimalApi.getUserWithdrawals(profile.userId).catch(() => [])
+            timeoutPromise
+          ]).catch(() => []) as Promise<any[]>;
+          
+          const withdrawalsPromise = Promise.race([
+            decimalApi.getUserWithdrawals(profile.userId).catch(() => []),
+            timeoutPromise
+          ]).catch(() => []) as Promise<any[]>;
+          
+          const [depositsData, withdrawalsData] = await Promise.all([
+            depositsPromise,
+            withdrawalsPromise
           ]);
+          
           setDeposits(depositsData);
           setWithdrawals(withdrawalsData);
         } catch (error) {
           console.error('❌ Profile: Ошибка загрузки данных транзакций:', error);
+          // Устанавливаем пустые массивы при ошибке
+          setDeposits([]);
+          setWithdrawals([]);
         } finally {
           setIsTransactionsLoading(false);
         }

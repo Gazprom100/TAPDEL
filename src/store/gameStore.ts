@@ -875,7 +875,17 @@ export const useGameStore = create<GameStore>()(
       refreshLeaderboard: async () => {
         try {
           const state = get();
-          const dbLeaderboard = await apiService.getLeaderboard();
+          
+          // Добавляем таймаут для API вызова
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Таймаут запроса лидерборда')), 10000)
+          );
+          
+          const dbLeaderboard = await Promise.race([
+            apiService.getLeaderboard(),
+            timeoutPromise
+          ]) as any[];
+          
           if (dbLeaderboard && dbLeaderboard.length > 0) {
             const leaderboard = dbLeaderboard.map(entry => ({
               id: entry._id.toString(),
@@ -895,6 +905,7 @@ export const useGameStore = create<GameStore>()(
           }
         } catch (error) {
           console.error('❌ Ошибка обновления лидерборда:', error);
+          // При ошибке оставляем текущий лидерборд
         }
       },
 

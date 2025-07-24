@@ -136,7 +136,7 @@ export const AdminPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
   return (
     <div className="cyber-modal" onClick={onClose}>
-      <div className="cyber-panel w-[95vw] max-w-4xl p-6" onClick={e => e.stopPropagation()}>
+      <div className="cyber-panel w-[95vw] max-w-4xl p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-4">
           <h2 className="cyber-text text-xl">Админ-панель</h2>
           <button className="cyber-button" onClick={onClose}>✕</button>
