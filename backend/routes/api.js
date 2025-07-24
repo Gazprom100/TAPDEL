@@ -185,7 +185,7 @@ router.post('/users/:userId/deposit', async (req, res) => {
       return res.status(400).json({ error: 'Invalid amount' });
     }
     
-    console.log(`💰 Обновление игрового состояния при депозите: ${userId} +${amount} DEL`);
+            console.log(`💰 Обновление игрового состояния при депозите: ${userId} +${amount} BOOST`);
     
     // Получаем текущее состояние пользователя
     const user = await database.collection('users').findOne({ userId });
@@ -759,7 +759,7 @@ router.get('/admin/settings', async (req, res) => {
       // Дефолтные настройки
       const defaultSettings = {
         token: {
-          symbol: 'DEL',
+          symbol: 'BOOST',
           contractAddress: '',
           decimals: 18
         },

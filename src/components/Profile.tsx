@@ -12,7 +12,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     leaderboard,
     refreshLeaderboard,
     profile,
-    refreshBalance
+    refreshBoostBalance
   } = useGameStore();
   
   // Отладочная информация для проверки профиля
@@ -124,42 +124,30 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   }, [activeTab, refreshLeaderboard, profile?.userId]);
 
   const handleWithdraw = async () => {
-    const amount = Number(withdrawAmount);
-    if (!profile?.userId) {
-      alert('Ошибка: пользователь не найден');
+    if (!withdrawAmount || !withdrawAddress) {
+      alert('Введите количество BOOST для вывода');
       return;
     }
 
-    if (!withdrawAmount || withdrawAmount.trim() === '') {
-      alert('Введите количество DEL для вывода');
-      return;
-    }
-
-    if (amount <= 0) {
-      alert('Количество должно быть больше 0');
-      return;
-    }
-
-    // Проверяем что адрес введен
-    if (!withdrawAddress.trim()) {
-      alert('Введите адрес для вывода');
-      return;
-    }
-
-    // Проверяем формат адреса
-    if (!withdrawAddress.match(/^(xdc|0x)[0-9a-fA-F]{40}$/)) {
-      alert('Неверный формат адреса. Используйте формат: xdc... или 0x...');
+    const amount = parseFloat(withdrawAmount);
+    if (isNaN(amount) || amount <= 0) {
+      alert('Введите корректную сумму для вывода');
       return;
     }
 
     try {
-      // Проверяем общий DEL баланс (tokens) перед выводом
+      // Проверяем общий BOOST баланс (tokens) перед выводом
       if (tokens < amount) {
-        alert(`Недостаточно DEL средств. Доступно: ${Math.floor(tokens)} DEL`);
+        alert(`Недостаточно BOOST средств. Доступно: ${Math.floor(tokens)} BOOST`);
         return;
       }
 
       const { decimalApi } = await import('../services/decimalApi');
+      if (!profile?.userId) {
+        alert('Ошибка: пользователь не найден');
+        return;
+      }
+
       const response = await decimalApi.createWithdrawal({
         userId: profile.userId,
         toAddress: withdrawAddress,
@@ -168,90 +156,42 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
       setWithdrawAmount('');
       setWithdrawAddress('');
-      alert(`Запрос на вывод создан успешно!\nID: ${response.withdrawalId}\nСумма: ${response.amount} DEL\nАдрес: ${response.toAddress}`);
-      
-      // Обновляем баланс
-      await refreshBalance();
-      
-      // Перезагружаем данные транзакций если мы на вкладке транзакций
-      if (activeTab === 'transactions') {
-        try {
-          const { decimalApi } = await import('../services/decimalApi');
-          const [depositsData, withdrawalsData] = await Promise.all([
-            decimalApi.getUserDeposits(profile.userId).catch(() => []),
-            decimalApi.getUserWithdrawals(profile.userId).catch(() => [])
-          ]);
-          setDeposits(depositsData);
-          setWithdrawals(withdrawalsData);
-        } catch (error) {
-          console.error('Ошибка обновления данных транзакций:', error);
-        }
-      }
-      
+      alert(`Запрос на вывод создан успешно!\nID: ${response.withdrawalId}\nСумма: ${response.amount} BOOST\nАдрес: ${response.toAddress}`);
     } catch (error) {
       console.error('Ошибка вывода:', error);
-      alert('Ошибка создания вывода: ' + (error instanceof Error ? error.message : 'Неизвестная ошибка'));
+      alert('Ошибка при создании запроса на вывод');
     }
   };
 
   const handleDeposit = async () => {
-    const amount = Number(depositAmount);
-    if (!profile?.userId) {
-      alert('Ошибка: пользователь не найден');
+    if (!depositAmount) {
+      alert('Введите количество BOOST для депозита');
       return;
     }
 
-    if (!depositAmount || depositAmount.trim() === '') {
-      alert('Введите количество DEL для депозита');
-      return;
-    }
-
-    if (amount <= 0) {
-      alert('Количество должно быть больше 0');
-      return;
-    }
-
-    if (amount < 0.001) {
-      alert('Минимальная сумма депозита: 0.001 DEL');
+    const amount = parseFloat(depositAmount);
+    if (isNaN(amount) || amount < 0.001) {
+      alert('Минимальная сумма депозита: 0.001 BOOST');
       return;
     }
 
     try {
       const { decimalApi } = await import('../services/decimalApi');
-      const deposit = await decimalApi.createDeposit({
+      if (!profile?.userId) {
+        alert('Ошибка: пользователь не найден');
+        return;
+      }
+
+      const response = await decimalApi.createDeposit({
         userId: profile.userId,
         baseAmount: amount
       });
 
       setDepositAmount('');
-      
-      // Показываем детали депозита в удобном интерфейсе
-      setShowDepositDetails({
-        depositId: deposit.depositId,
-        uniqueAmount: deposit.uniqueAmount,
-        address: deposit.address,
-        expires: new Date(deposit.expires).toLocaleString('ru-RU'),
-        amountRequested: deposit.amountRequested
-      });
-      
-      // Перезагружаем данные транзакций если мы на вкладке транзакций
-      if (activeTab === 'transactions') {
-        try {
-          const { decimalApi } = await import('../services/decimalApi');
-          const [depositsData, withdrawalsData] = await Promise.all([
-            decimalApi.getUserDeposits(profile.userId).catch(() => []),
-            decimalApi.getUserWithdrawals(profile.userId).catch(() => [])
-          ]);
-          setDeposits(depositsData);
-          setWithdrawals(withdrawalsData);
-        } catch (error) {
-          console.error('Ошибка обновления данных транзакций:', error);
-        }
-      }
-      
+      alert(`Депозит создан успешно!\nID: ${response.depositId}\nСумма: ${response.amountRequested} BOOST\nАдрес: ${response.address}\nУникальная сумма: ${response.uniqueAmount} BOOST`);
     } catch (error) {
       console.error('Ошибка депозита:', error);
-      alert('Ошибка создания депозита: ' + (error instanceof Error ? error.message : 'Неизвестная ошибка'));
+      alert('Ошибка при создании депозита');
     }
   };
 
@@ -392,12 +332,12 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               }}
             >
               <div className="space-y-4 sm:space-y-6 p-4">
-                <div className="cyber-text text-lg sm:text-xl">
-                  DEL Баланс: {Math.floor(tokens)} DEL
+                <div className="cyber-text text-lg font-bold mb-4">
+                  BOOST Баланс: {Math.floor(tokens)} BOOST
                 </div>
                 
                 <div className="cyber-panel space-y-3 sm:space-y-4 p-3 sm:p-4">
-                  <div className="cyber-text text-sm sm:text-base">Вывод DEL</div>
+                  <div className="cyber-text text-sm sm:text-base">Вывод BOOST</div>
                   <div className="space-y-2">
                     <input
                       type="number"
@@ -407,7 +347,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         e.stopPropagation();
                       }}
                       className="cyber-input w-full text-sm sm:text-base"
-                      placeholder="Количество DEL для вывода"
+                      placeholder="Количество BOOST для вывода"
                       style={{
                         minHeight: '40px',
                         pointerEvents: 'auto'
@@ -438,13 +378,13 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         pointerEvents: 'auto'
                       }}
                     >
-                      Вывести DEL
+                      Вывести BOOST
                     </button>
                   </div>
                 </div>
 
                 <div className="cyber-panel space-y-3 sm:space-y-4 p-3 sm:p-4">
-                  <div className="cyber-text text-sm sm:text-base">Ввод DEL</div>
+                  <div className="cyber-text text-sm sm:text-base">Ввод BOOST</div>
                   <div className="flex flex-col sm:flex-row gap-2">
                     <input
                       type="number"
@@ -512,7 +452,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     {/* Депозиты */}
                     {Array.isArray(deposits) && deposits.length > 0 && (
                       <div className="space-y-2">
-                        <div className="cyber-text text-base font-bold">Депозиты DEL</div>
+                        <div className="cyber-text text-base font-bold">Депозиты BOOST</div>
                         {deposits.map((deposit: any) => {
                           const isExpired = deposit.status === 'expired';
                           const expiresIn = !isExpired ? Math.max(0, Math.floor((new Date(deposit.expiresAt).getTime() - Date.now()) / 1000)) : 0;
@@ -524,13 +464,13 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                               <div className="flex justify-between items-start gap-2">
                                 <div className="flex-1">
                                   <div className="cyber-text text-sm sm:text-base">
-                                    Депозит {deposit.amountRequested} DEL
+                                    Депозит {deposit.amountRequested} BOOST
                                   </div>
                                   <div className="text-xs sm:text-sm opacity-70">
                                     {new Date(deposit.createdAt).toLocaleString('ru-RU')}
                                   </div>
                                   <div className="text-xs sm:text-sm mt-1">
-                                    Отправить: {deposit.uniqueAmount} DEL
+                                    Отправить: {deposit.uniqueAmount} BOOST
                                   </div>
                                   {deposit.txHash && (
                                     <div className="text-xs sm:text-sm opacity-70 break-all">
@@ -562,7 +502,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                                   </div>
                                   {!isExpired && (
                                     <div className="cyber-text text-sm font-bold mt-1 text-green-400">
-                                      +{deposit.amountRequested} DEL
+                                      +{deposit.amountRequested} BOOST
                                     </div>
                                   )}
                                 </div>
@@ -576,7 +516,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     {/* Выводы */}
                     {withdrawals.length > 0 && (
                       <div className="space-y-2">
-                        <div className="cyber-text text-base font-bold">Выводы DEL</div>
+                        <div className="cyber-text text-base font-bold">Выводы BOOST</div>
                         {withdrawals.map((withdrawal) => (
                           <div
                             key={withdrawal.withdrawalId}
@@ -585,7 +525,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                             <div className="flex justify-between items-start gap-2">
                               <div className="flex-1">
                                 <div className="cyber-text text-sm sm:text-base">
-                                  Вывод {withdrawal.amount} DEL
+                                  Вывод {withdrawal.amount} BOOST
                                 </div>
                                 <div className="text-xs sm:text-sm opacity-70">
                                   {new Date(withdrawal.requestedAt).toLocaleString('ru-RU')}
@@ -610,7 +550,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                                    'В очереди'}
                                 </div>
                                 <div className="cyber-text text-sm font-bold mt-1 text-red-400">
-                                  -{withdrawal.amount} DEL
+                                  -{withdrawal.amount} BOOST
                                 </div>
                               </div>
                             </div>
@@ -657,7 +597,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                             <div className={`cyber-text text-sm sm:text-base font-bold ${
                               tx.amount > 0 ? 'text-[#00ff88]' : 'text-[#ff4444]'
                             }`}>
-                              {tx.amount > 0 ? '+' : ''}{tx.amount} DEL
+                              {tx.amount > 0 ? '+' : ''}{tx.amount} BOOST
                             </div>
                           </div>
                         ))}
@@ -729,7 +669,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                           }`}>
                             Уровень: {entry.level} • Рейтинг: {Math.floor(entry.score)}
                             {entry.userId === profile?.userId && (
-                              <span className="ml-2">• Баланс: {Math.floor(entry.tokens)} DEL</span>
+                              <span className="ml-2">• Баланс: {Math.floor(entry.tokens)} BOOST</span>
                             )}
                           </div>
                         </div>
@@ -777,7 +717,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                       alert('Сумма скопирована!');
                     }}
                   >
-                    {showDepositDetails.uniqueAmount} DEL
+                    {showDepositDetails.uniqueAmount} BOOST
                     <div className="text-xs opacity-70 mt-1">Нажмите чтобы скопировать</div>
                   </div>
                 </div>

@@ -68,7 +68,7 @@ router.post('/deposits', async (req, res) => {
 
     if (baseAmount < 0.001) {
       return res.status(400).json({ 
-        error: 'Минимальная сумма депозита: 0.001 DEL' 
+        error: 'Минимальная сумма депозита: 0.001 BOOST' 
       });
     }
 
@@ -105,7 +105,7 @@ router.post('/deposits', async (req, res) => {
 
     const result = await database.collection('deposits').insertOne(deposit);
     
-    console.log(`💳 Создан депозит: ${userId} → ${uniqueAmount} DEL`);
+    console.log(`💳 Создан депозит: ${userId} → ${uniqueAmount} BOOST`);
 
     res.json({
       depositId: result.insertedId.toString(),
@@ -207,7 +207,7 @@ router.post('/withdrawals', async (req, res) => {
 
     if (amount < 0.001) {
       return res.status(400).json({ 
-        error: 'Минимальная сумма вывода: 0.001 DEL' 
+        error: 'Минимальная сумма вывода: 0.001 BOOST' 
       });
     }
 
@@ -231,7 +231,7 @@ router.post('/withdrawals', async (req, res) => {
     
     if (gameBalance < amount) {
       return res.status(400).json({ 
-        error: `Недостаточно средств. Доступно: ${gameBalance} DEL` 
+        error: `Недостаточно средств. Доступно: ${gameBalance} BOOST` 
       });
     }
 
@@ -254,7 +254,7 @@ router.post('/withdrawals', async (req, res) => {
 
     const result = await database.collection('withdrawals').insertOne(withdrawal);
     
-    console.log(`💸 Создан вывод: ${userId} → ${amount} DEL на ${toAddress}`);
+    console.log(`💸 Создан вывод: ${userId} → ${amount} BOOST на ${toAddress}`);
 
     res.json({
       withdrawalId: result.insertedId.toString(),
@@ -332,7 +332,7 @@ router.get('/users/:userId/withdrawals', async (req, res) => {
 
 // === БАЛАНС ===
 
-// Получить DEL баланс пользователя
+// Получить BOOST баланс пользователя
 router.get('/users/:userId/balance', async (req, res) => {
   try {
     const { userId } = req.params;

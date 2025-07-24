@@ -45,8 +45,8 @@ interface ExtendedGameState extends GameStateBase {
   error: string | null;
   lastSyncTime: number; // Добавляем поле для отслеживания синхронизации
   lastLeaderboardUpdate?: number; // Время последнего обновления лидерборда
-  delBalance?: number; // Реальный DEL баланс из блокчейна (отдельно от игровых tokens)
-  // tokens = игровые очки из тапанья, delBalance = реальные DEL токены
+  boostBalance?: number; // Реальный BOOST баланс из блокчейна (отдельно от игровых tokens)
+  // tokens = игровые очки из тапанья, boostBalance = реальные BOOST токены
 }
 
 interface GameActions {
@@ -56,7 +56,7 @@ interface GameActions {
   
   // Действия с токенами
   addTokens: (amount: number) => Promise<void>;
-  addDelFromDeposit: (amount: number) => Promise<void>; // Для ввода DEL извне (не тапанье)
+  addBoostFromDeposit: (amount: number) => Promise<void>; // Для ввода BOOST извне (не тапанье)
   spendTokens: (amount: number, itemInfo?: { type: 'engine' | 'gearbox' | 'battery' | 'hyperdrive' | 'powerGrid'; level: string }) => Promise<boolean>;
   withdrawTokens: (amount: number) => Promise<boolean>;
   depositTokens: (amount: number) => Promise<boolean>;
@@ -97,8 +97,8 @@ interface GameActions {
   // Обновление только лидерборда
   refreshLeaderboard: () => Promise<void>;
   
-  // Обновление DEL баланса (общий баланс: натапанные + пополненные)
-  refreshBalance: () => Promise<void>;
+  // Обновление BOOST баланса (общий баланс: натапанные + пополненные)
+  refreshBoostBalance: () => Promise<void>;
 }
 
 type GameStore = ExtendedGameState & GameActions;
@@ -422,13 +422,13 @@ export const useGameStore = create<GameStore>()(
             set({ leaderboard: [] });
           }
           
-          // Инициализируем DEL баланс
+          // Инициализируем BOOST баланс
           try {
-            console.log('💰 Инициализация DEL баланса...');
-            await get().refreshBalance();
-            console.log('✅ DEL баланс загружен из блокчейна');
-          } catch (delBalanceError) {
-            console.warn('⚠️ Не удалось загрузить DEL баланс (нормально для новых пользователей):', delBalanceError);
+            console.log('💰 Инициализация BOOST баланса...');
+            await get().refreshBoostBalance();
+            console.log('✅ BOOST баланс загружен из блокчейна');
+          } catch (boostBalanceError) {
+            console.warn('⚠️ Не удалось загрузить BOOST баланс (нормально для новых пользователей):', boostBalanceError);
           }
           
         } catch (error) {
@@ -486,7 +486,7 @@ export const useGameStore = create<GameStore>()(
         }
       },
 
-      // Действия с токенами (DEL - единственная валюта)
+      // Действия с токенами (BOOST - единственная валюта)
       addTokens: async (amount) => {
         try {
           set((state) => ({ 
@@ -496,17 +496,17 @@ export const useGameStore = create<GameStore>()(
           
           // НЕМЕДЛЕННАЯ синхронизация с MongoDB
           await get().syncGameState();
-          console.log(`💰 Добавлено ${amount} DEL (баланс: ${get().tokens}, натапано всего: ${get().highScore})`);
+          console.log(`💰 Добавлено ${amount} BOOST (баланс: ${get().tokens}, натапано всего: ${get().highScore})`);
         } catch (error) {
           set({ error: (error as Error).message });
         }
       },
 
-      addDelFromDeposit: async (amount) => {
+      addBoostFromDeposit: async (amount) => {
         try {
           set((state) => ({ tokens: state.tokens + amount }));
           await get().syncGameState();
-          console.log(`💰 Добавлено ${amount} DEL из депозита (баланс: ${get().tokens})`);
+          console.log(`💰 Добавлено ${amount} BOOST из депозита (баланс: ${get().tokens})`);
         } catch (error) {
           set({ error: (error as Error).message });
         }
@@ -525,7 +525,7 @@ export const useGameStore = create<GameStore>()(
           });
           
           if (state.tokens < amount) {
-            console.warn(`❌ spendTokens: Недостаточно средств: нужно ${amount}, доступно ${state.tokens} DEL`);
+            console.warn(`❌ spendTokens: Недостаточно средств: нужно ${amount}, доступно ${state.tokens} BOOST`);
             return false;
           }
           
@@ -574,7 +574,7 @@ export const useGameStore = create<GameStore>()(
             // Продолжаем выполнение несмотря на ошибку
           }
           
-          console.log(`💸 spendTokens завершен успешно: потрачено ${amount} DEL`);
+          console.log(`💸 spendTokens завершен успешно: потрачено ${amount} BOOST`);
           return true;
         } catch (error) {
           console.error('❌ spendTokens: Критическая ошибка:', error);
@@ -921,8 +921,8 @@ export const useGameStore = create<GameStore>()(
         }
       },
 
-      // Обновление DEL баланса (общий баланс: натапанные + пополненные)
-      refreshBalance: async () => {
+      // Обновление BOOST баланса (общий баланс: натапанные + пополненные)
+      refreshBoostBalance: async () => {
         try {
           const state = get();
           if (!state.profile?.userId) return;
@@ -930,16 +930,16 @@ export const useGameStore = create<GameStore>()(
           const { decimalApi } = await import('../services/decimalApi');
           const balance = await decimalApi.getUserBalance(state.profile.userId);
           
-          // ИСПРАВЛЕНО: tokens = общий DEL баланс (натапанные + пополненные)
+          // ИСПРАВЛЕНО: tokens = общий BOOST баланс (натапанные + пополненные)
           // Этот баланс можно использовать для покупок И для вывода
           set({ tokens: balance.gameBalance });
-          console.log(`💰 Обновлен общий DEL баланс: ${balance.gameBalance} DEL`);
+          console.log(`💰 Обновлен общий BOOST баланс: ${balance.gameBalance} BOOST`);
           
           // Автоматически обновляем рейтинг (используя highScore, НЕ tokens)
           await get().refreshLeaderboard();
           
         } catch (error) {
-          console.error('❌ Ошибка обновления DEL баланса:', error);
+          console.error('❌ Ошибка обновления BOOST баланса:', error);
         }
       }
     }),

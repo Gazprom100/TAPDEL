@@ -36,7 +36,7 @@ export const TokenCounter = ({ tokens }: TokenCounterProps) => {
         shadow-[0_0_15px_rgba(0,255,136,0.3)]
       "
     >
-      <div className="text-sm text-green-400 mb-1">DEL</div>
+      <div className="text-sm text-green-400 mb-1">BOOST</div>
       <div className="text-4xl font-mono text-neon-green">
         {tokens.toLocaleString()}
       </div>

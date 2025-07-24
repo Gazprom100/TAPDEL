@@ -72,7 +72,7 @@ class BotService {
       const welcomeMessage = `🎮 Добро пожаловать в TAPDEL!
 
 🚀 Tap-to-Earn игра на блокчейне DecimalChain
-💎 Зарабатывайте DEL токены простыми тапами
+💎 Зарабатывайте BOOST токены простыми тапами
 🏆 Соревнуйтесь в рейтинге с другими игроками
 
 Ваш Telegram ID: ${user.id}

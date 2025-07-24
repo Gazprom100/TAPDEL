@@ -8,6 +8,11 @@ module.exports = {
   GAS_LIMIT: 21000,
   GAS_PRICE: parseInt(process.env.DECIMAL_GAS_PRICE_GWEI || '50000'), // Увеличено до 50,000 gwei
   
+  // BOOST токен конфигурация
+  BOOST_TOKEN_ADDRESS: process.env.BOOST_TOKEN_ADDRESS || '0x15cefa2ffb0759b519c15e23025a718978be9322',
+  BOOST_TOKEN_DECIMALS: 18,
+  BOOST_TOKEN_SYMBOL: 'BOOST',
+  
   // Рабочий кошелек
   WORKING_ADDRESS: process.env.DECIMAL_WORKING_ADDRESS,
   WORKING_PRIVKEY_ENC: process.env.DECIMAL_WORKING_PRIVKEY_ENC,
