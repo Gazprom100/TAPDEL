@@ -3,6 +3,8 @@ import { GAME_MECHANICS, COMPONENTS } from '../types/game';
 import '../styles/admin.css';
 import { UserManagement } from './admin/UserManagement';
 import { SystemMonitoring } from './admin/SystemMonitoring';
+import { EconomyManagement } from './admin/EconomyManagement';
+import { TransactionManagement } from './admin/TransactionManagement';
 
 interface AdminStats {
   totalUsers: number;
@@ -151,7 +153,7 @@ export const FullAdminPanel: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'analytics' | 'settings' | 'users' | 'transactions' | 'monitoring'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'analytics' | 'settings' | 'users' | 'transactions' | 'monitoring' | 'economy'>('dashboard');
 
   // Локальные копии для редактирования
   const [token, setToken] = useState<TokenConfig>({ symbol: 'DEL', contractAddress: '', decimals: 18 });
@@ -385,6 +387,16 @@ export const FullAdminPanel: React.FC = () => {
             }`}
           >
             📊 Мониторинг
+          </button>
+          <button
+            onClick={() => setActiveTab('economy')}
+            className={`admin-nav-item py-4 px-2 border-b-2 font-medium ${
+              activeTab === 'economy' 
+                ? 'border-blue-500 text-blue-400' 
+                : 'border-transparent text-gray-400 hover:text-gray-300'
+            }`}
+          >
+            💰 Экономика
           </button>
         </div>
       </div>
@@ -700,16 +712,15 @@ export const FullAdminPanel: React.FC = () => {
         )}
 
         {activeTab === 'transactions' && (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold">Транзакции</h2>
-            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-              <p className="text-gray-400">Функции просмотра транзакций будут добавлены позже.</p>
-            </div>
-          </div>
+          <TransactionManagement />
         )}
 
         {activeTab === 'monitoring' && (
           <SystemMonitoring />
+        )}
+
+        {activeTab === 'economy' && (
+          <EconomyManagement />
         )}
       </div>
     </div>
