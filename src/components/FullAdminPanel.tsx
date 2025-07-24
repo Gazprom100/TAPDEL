@@ -39,13 +39,116 @@ interface GameSettings {
   };
 }
 
+// Компонент для кругового прогресса
+const CircularProgress: React.FC<{ value: number; max: number; size?: number; color?: string; label: string }> = ({ 
+  value, max, size = 120, color = '#3B82F6', label 
+}) => {
+  const radius = size / 2 - 10;
+  const circumference = 2 * Math.PI * radius;
+  const progress = (value / max) * circumference;
+  const percentage = Math.round((value / max) * 100);
+
+  return (
+    <div className="flex flex-col items-center">
+      <div className="relative" style={{ width: size, height: size }}>
+        <svg width={size} height={size} className="transform -rotate-90">
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke="#374151"
+            strokeWidth="8"
+            fill="none"
+          />
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke={color}
+            strokeWidth="8"
+            fill="none"
+            strokeDasharray={circumference}
+            strokeDashoffset={circumference - progress}
+            strokeLinecap="round"
+            style={{ transition: 'stroke-dashoffset 0.5s ease-in-out' }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-white">{percentage}%</div>
+            <div className="text-xs text-gray-400">{value.toLocaleString()}</div>
+          </div>
+        </div>
+      </div>
+      <div className="text-sm font-medium text-gray-300 mt-2">{label}</div>
+    </div>
+  );
+};
+
+// Компонент для карточки статистики
+const StatCard: React.FC<{ title: string; value: string | number; change?: string; icon?: string; color?: string }> = ({ 
+  title, value, change, icon, color = 'blue' 
+}) => {
+  const colorClasses = {
+    blue: 'bg-blue-600',
+    green: 'bg-green-600',
+    purple: 'bg-purple-600',
+    red: 'bg-red-600',
+    yellow: 'bg-yellow-600'
+  };
+
+  return (
+    <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-gray-400">{title}</p>
+          <p className="text-2xl font-bold text-white mt-1">{value}</p>
+          {change && (
+            <p className="text-sm text-green-400 mt-1">{change}</p>
+          )}
+        </div>
+        {icon && (
+          <div className={`w-12 h-12 rounded-lg ${colorClasses[color as keyof typeof colorClasses]} flex items-center justify-center`}>
+            <span className="text-white text-xl">{icon}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Компонент для графика активности
+const ActivityChart: React.FC<{ data: number[]; labels: string[]; title: string }> = ({ data, labels, title }) => {
+  const maxValue = Math.max(...data);
+  
+  return (
+    <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+      <h3 className="text-lg font-semibold text-white mb-4">{title}</h3>
+      <div className="flex items-end space-x-2 h-32">
+        {data.map((value, index) => {
+          const height = (value / maxValue) * 100;
+          return (
+            <div key={index} className="flex-1 flex flex-col items-center">
+              <div 
+                className="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-t"
+                style={{ height: `${height}%` }}
+              />
+              <div className="text-xs text-gray-400 mt-2">{labels[index]}</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 export const FullAdminPanel: React.FC = () => {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [settings, setSettings] = useState<GameSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'settings' | 'users' | 'transactions'>('overview');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'analytics' | 'settings' | 'users' | 'transactions'>('dashboard');
 
   // Локальные копии для редактирования
   const [token, setToken] = useState<TokenConfig>({ symbol: 'DEL', contractAddress: '', decimals: 18 });
@@ -59,6 +162,12 @@ export const FullAdminPanel: React.FC = () => {
   const [batteryCosts, setBatteryCosts] = useState<number[]>([]);
   const [hyperdriveCosts, setHyperdriveCosts] = useState<number[]>([]);
   const [powerGridCosts, setPowerGridCosts] = useState<number[]>([]);
+
+  // Моковые данные для демонстрации
+  const mockActivityData = [65, 78, 90, 85, 92, 88, 95];
+  const mockActivityLabels = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+  const mockGearData = [120, 85, 65, 45, 30, 15];
+  const mockGearLabels = ['N', '1', '2', '3', '4', 'M'];
 
   useEffect(() => {
     setLoading(true);
@@ -193,80 +302,270 @@ export const FullAdminPanel: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       {/* Header */}
-      <div className="bg-gray-800 border-b border-gray-700 p-4">
+      <div className="bg-gray-800 border-b border-gray-700 p-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">TAPDEL Админпанель</h1>
-          <div className="flex space-x-4">
-            <button
-              onClick={() => setActiveTab('overview')}
-              className={`px-4 py-2 rounded ${activeTab === 'overview' ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'}`}
-            >
-              Обзор
-            </button>
-            <button
-              onClick={() => setActiveTab('settings')}
-              className={`px-4 py-2 rounded ${activeTab === 'settings' ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'}`}
-            >
-              Настройки
-            </button>
-            <button
-              onClick={() => setActiveTab('users')}
-              className={`px-4 py-2 rounded ${activeTab === 'users' ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'}`}
-            >
-              Пользователи
-            </button>
-            <button
-              onClick={() => setActiveTab('transactions')}
-              className={`px-4 py-2 rounded ${activeTab === 'transactions' ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'}`}
-            >
-              Транзакции
-            </button>
+          <div>
+            <h1 className="text-3xl font-bold">TAPDEL Dashboard</h1>
+            <p className="text-gray-400 mt-1">Панель управления игровой системой</p>
           </div>
+          <div className="flex items-center space-x-4">
+            <div className="text-right">
+              <div className="text-sm text-gray-400">Администратор</div>
+              <div className="font-semibold">Evgeni_Krasnov</div>
+            </div>
+            <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
+              <span className="text-white font-bold">E</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <div className="bg-gray-800 border-b border-gray-700 px-6">
+        <div className="flex space-x-8">
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            className={`py-4 px-2 border-b-2 font-medium ${
+              activeTab === 'dashboard' 
+                ? 'border-blue-500 text-blue-400' 
+                : 'border-transparent text-gray-400 hover:text-gray-300'
+            }`}
+          >
+            📊 Дашборд
+          </button>
+          <button
+            onClick={() => setActiveTab('analytics')}
+            className={`py-4 px-2 border-b-2 font-medium ${
+              activeTab === 'analytics' 
+                ? 'border-blue-500 text-blue-400' 
+                : 'border-transparent text-gray-400 hover:text-gray-300'
+            }`}
+          >
+            📈 Аналитика
+          </button>
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`py-4 px-2 border-b-2 font-medium ${
+              activeTab === 'settings' 
+                ? 'border-blue-500 text-blue-400' 
+                : 'border-transparent text-gray-400 hover:text-gray-300'
+            }`}
+          >
+            ⚙️ Настройки
+          </button>
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`py-4 px-2 border-b-2 font-medium ${
+              activeTab === 'users' 
+                ? 'border-blue-500 text-blue-400' 
+                : 'border-transparent text-gray-400 hover:text-gray-300'
+            }`}
+          >
+            👥 Пользователи
+          </button>
+          <button
+            onClick={() => setActiveTab('transactions')}
+            className={`py-4 px-2 border-b-2 font-medium ${
+              activeTab === 'transactions' 
+                ? 'border-blue-500 text-blue-400' 
+                : 'border-transparent text-gray-400 hover:text-gray-300'
+            }`}
+          >
+            💰 Транзакции
+          </button>
         </div>
       </div>
 
       {/* Content */}
       <div className="p-6">
-        {activeTab === 'overview' && (
+        {activeTab === 'dashboard' && (
           <div className="space-y-6">
-            <h2 className="text-xl font-bold mb-4">Общая статистика</h2>
-            
-            {stats && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-gray-800 p-4 rounded">
-                  <div className="text-gray-400 text-sm">Всего пользователей</div>
-                  <div className="text-2xl font-bold">{stats.totalUsers}</div>
-                </div>
-                <div className="bg-gray-800 p-4 rounded">
-                  <div className="text-gray-400 text-sm">Всего токенов</div>
-                  <div className="text-2xl font-bold">{Math.floor(stats.totalTokens)} DEL</div>
-                </div>
-                <div className="bg-gray-800 p-4 rounded">
-                  <div className="text-gray-400 text-sm">Активных пользователей</div>
-                  <div className="text-2xl font-bold">{stats.activeUsers}</div>
-                </div>
-                <div className="bg-gray-800 p-4 rounded">
-                  <div className="text-gray-400 text-sm">Депозитов</div>
-                  <div className="text-2xl font-bold">{stats.totalDeposits}</div>
+            {/* Top Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <StatCard 
+                title="Всего пользователей" 
+                value={stats?.totalUsers || 0} 
+                change="+12% за неделю"
+                icon="👥"
+                color="blue"
+              />
+              <StatCard 
+                title="Общий баланс DEL" 
+                value={`${Math.floor((stats?.totalTokens || 0) / 1000)}K DEL`}
+                change="+8% за день"
+                icon="💰"
+                color="green"
+              />
+              <StatCard 
+                title="Активные пользователи" 
+                value={stats?.activeUsers || 0}
+                change="+5% за час"
+                icon="🔥"
+                color="purple"
+              />
+              <StatCard 
+                title="Транзакций сегодня" 
+                value={(stats?.totalDeposits || 0) + (stats?.totalWithdrawals || 0)}
+                change="+15% за день"
+                icon="📊"
+                color="yellow"
+              />
+            </div>
+
+            {/* Charts Row */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <ActivityChart 
+                data={mockActivityData} 
+                labels={mockActivityLabels} 
+                title="Активность за неделю"
+              />
+              <ActivityChart 
+                data={mockGearData} 
+                labels={mockGearLabels} 
+                title="Использование передач"
+              />
+              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <h3 className="text-lg font-semibold text-white mb-4">Прогресс системы</h3>
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span>Выполнение плана</span>
+                      <span>73%</span>
+                    </div>
+                    <div className="w-full bg-gray-700 rounded-full h-2">
+                      <div className="bg-blue-600 h-2 rounded-full" style={{ width: '73%' }}></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span>Стабильность сервера</span>
+                      <span>99.8%</span>
+                    </div>
+                    <div className="w-full bg-gray-700 rounded-full h-2">
+                      <div className="bg-green-600 h-2 rounded-full" style={{ width: '99.8%' }}></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span>Скорость ответа API</span>
+                      <span>45ms</span>
+                    </div>
+                    <div className="w-full bg-gray-700 rounded-full h-2">
+                      <div className="bg-yellow-600 h-2 rounded-full" style={{ width: '85%' }}></div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            )}
+            </div>
 
-            <div className="bg-gray-800 p-6 rounded">
-              <h3 className="text-lg font-bold mb-4">Быстрые действия</h3>
-              <div className="flex space-x-4">
+            {/* Circular Progress */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <CircularProgress 
+                value={stats?.totalUsers || 0} 
+                max={1000} 
+                label="Пользователи"
+                color="#3B82F6"
+              />
+              <CircularProgress 
+                value={stats?.totalTokens || 0} 
+                max={1000000} 
+                label="DEL Токены"
+                color="#10B981"
+              />
+              <CircularProgress 
+                value={stats?.totalDeposits || 0} 
+                max={100} 
+                label="Депозиты"
+                color="#8B5CF6"
+              />
+              <CircularProgress 
+                value={stats?.totalWithdrawals || 0} 
+                max={50} 
+                label="Выводы"
+                color="#F59E0B"
+              />
+            </div>
+
+            {/* Quick Actions */}
+            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+              <h3 className="text-lg font-semibold text-white mb-4">Быстрые действия</h3>
+              <div className="flex flex-wrap gap-4">
                 <button
                   onClick={resetLeaderboard}
-                  className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded"
+                  className="px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors"
                 >
-                  Сбросить лидерборд
+                  🔄 Сбросить лидерборд
                 </button>
                 <button
                   onClick={() => setActiveTab('settings')}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded"
+                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
                 >
-                  Настройки игры
+                  ⚙️ Настройки игры
                 </button>
+                <button className="px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg font-medium transition-colors">
+                  📊 Экспорт данных
+                </button>
+                <button className="px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg font-medium transition-colors">
+                  🔔 Уведомления
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'analytics' && (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold">Аналитика и метрики</h2>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <h3 className="text-lg font-semibold text-white mb-4">Топ игроков</h3>
+                <div className="space-y-3">
+                  {[1, 2, 3, 4, 5].map((rank) => (
+                    <div key={rank} className="flex items-center justify-between p-3 bg-gray-700 rounded">
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                          rank === 1 ? 'bg-yellow-500' : 
+                          rank === 2 ? 'bg-gray-400' : 
+                          rank === 3 ? 'bg-orange-600' : 'bg-gray-600'
+                        }`}>
+                          {rank}
+                        </div>
+                        <div>
+                          <div className="font-medium">Игрок {rank}</div>
+                          <div className="text-sm text-gray-400">{10000 - rank * 1000} DEL</div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm text-gray-400">Уровень {rank + 5}</div>
+                        <div className="text-xs text-green-400">+{rank * 5}%</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <h3 className="text-lg font-semibold text-white mb-4">Статистика передач</h3>
+                <div className="space-y-4">
+                  {Object.entries(GAME_MECHANICS.GEAR.MULTIPLIERS).map(([gear, multiplier]) => (
+                    <div key={gear} className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center font-bold">
+                          {gear}
+                        </div>
+                        <div>
+                          <div className="font-medium">Передача {gear}</div>
+                          <div className="text-sm text-gray-400">Множитель: {multiplier}x</div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-medium">{Math.floor(Math.random() * 100)}%</div>
+                        <div className="text-xs text-gray-400">использование</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -274,39 +573,39 @@ export const FullAdminPanel: React.FC = () => {
 
         {activeTab === 'settings' && (
           <div className="space-y-6">
-            <h2 className="text-xl font-bold mb-4">Настройки игры</h2>
+            <h2 className="text-2xl font-bold">Настройки игры</h2>
             
-            <div className="bg-gray-800 p-6 rounded">
-              <h3 className="text-lg font-bold mb-4">Основные настройки</h3>
+            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+              <h3 className="text-lg font-semibold text-white mb-6">Основные параметры</h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Базовое вознаграждение</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Базовое вознаграждение</label>
                   <input
                     type="number"
                     value={baseReward}
                     onChange={(e) => setBaseReward(Number(e.target.value))}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded"
+                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium mb-2">Символ токена</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Символ токена</label>
                   <input
                     type="text"
                     value={token.symbol}
                     onChange={(e) => setToken({...token, symbol: e.target.value})}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded"
+                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
               </div>
 
-              <div className="mt-6">
-                <h4 className="text-md font-bold mb-3">Множители передач</h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="mt-8">
+                <h4 className="text-md font-semibold text-white mb-4">Множители передач</h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                   {Object.entries(GAME_MECHANICS.GEAR.MULTIPLIERS).map(([gear, multiplier]) => (
-                    <div key={gear}>
-                      <label className="block text-sm font-medium mb-1">{gear}</label>
+                    <div key={gear} className="bg-gray-700 rounded-lg p-4">
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Передача {gear}</label>
                       <input
                         type="number"
                         step="0.1"
@@ -315,18 +614,18 @@ export const FullAdminPanel: React.FC = () => {
                           ...gearMultipliers,
                           [gear]: Number(e.target.value)
                         })}
-                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded"
+                        className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="mt-6">
-                <h4 className="text-md font-bold mb-3">Стоимость компонентов</h4>
+              <div className="mt-8">
+                <h4 className="text-md font-semibold text-white mb-4">Стоимость компонентов</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <h5 className="font-medium mb-2">Двигатели</h5>
+                    <h5 className="font-medium text-gray-300 mb-3">Двигатели</h5>
                     <div className="space-y-2">
                       {engineCosts.map((cost, index) => (
                         <input
@@ -338,7 +637,7 @@ export const FullAdminPanel: React.FC = () => {
                             newCosts[index] = Number(e.target.value);
                             setEngineCosts(newCosts);
                           }}
-                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded"
+                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           placeholder={`Уровень ${index + 1}`}
                         />
                       ))}
@@ -346,7 +645,7 @@ export const FullAdminPanel: React.FC = () => {
                   </div>
                   
                   <div>
-                    <h5 className="font-medium mb-2">Коробки передач</h5>
+                    <h5 className="font-medium text-gray-300 mb-3">Коробки передач</h5>
                     <div className="space-y-2">
                       {gearboxCosts.map((cost, index) => (
                         <input
@@ -358,7 +657,7 @@ export const FullAdminPanel: React.FC = () => {
                             newCosts[index] = Number(e.target.value);
                             setGearboxCosts(newCosts);
                           }}
-                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded"
+                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           placeholder={`Уровень ${index + 1}`}
                         />
                       ))}
@@ -367,13 +666,13 @@ export const FullAdminPanel: React.FC = () => {
                 </div>
               </div>
 
-              <div className="mt-6">
+              <div className="mt-8">
                 <button
                   onClick={saveSettings}
                   disabled={saving}
-                  className="px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 rounded"
+                  className="px-8 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 rounded-lg font-medium transition-colors"
                 >
-                  {saving ? 'Сохранение...' : 'Сохранить настройки'}
+                  {saving ? 'Сохранение...' : '💾 Сохранить настройки'}
                 </button>
               </div>
             </div>
@@ -382,8 +681,8 @@ export const FullAdminPanel: React.FC = () => {
 
         {activeTab === 'users' && (
           <div className="space-y-6">
-            <h2 className="text-xl font-bold mb-4">Управление пользователями</h2>
-            <div className="bg-gray-800 p-6 rounded">
+            <h2 className="text-2xl font-bold">Управление пользователями</h2>
+            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
               <p className="text-gray-400">Функции управления пользователями будут добавлены позже.</p>
             </div>
           </div>
@@ -391,8 +690,8 @@ export const FullAdminPanel: React.FC = () => {
 
         {activeTab === 'transactions' && (
           <div className="space-y-6">
-            <h2 className="text-xl font-bold mb-4">Транзакции</h2>
-            <div className="bg-gray-800 p-6 rounded">
+            <h2 className="text-2xl font-bold">Транзакции</h2>
+            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
               <p className="text-gray-400">Функции просмотра транзакций будут добавлены позже.</p>
             </div>
           </div>
