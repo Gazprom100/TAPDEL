@@ -362,7 +362,9 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                setShowAdmin(true);
+                // Открываем админпанель в новой вкладке браузера
+                const adminUrl = `${window.location.origin}/admin`;
+                window.open(adminUrl, '_blank');
               }}
               onTouchStart={(e) => {
                 e.stopPropagation();

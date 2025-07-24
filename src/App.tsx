@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Profile } from './components/Profile'
 import { EnergyIndicator } from './components/EnergyIndicator'
+import { FullAdminPanel } from './components/FullAdminPanel'
 import { useGameStore } from './store/gameStore'
 import { useGameMechanics } from './hooks/useGameMechanics'
 import { useFullscreen } from './hooks/useFullscreen'
@@ -12,6 +13,14 @@ const App: React.FC = () => {
   
   // Инициализация полноэкранного режима Telegram WebApp
   useFullscreen();
+  
+  // Простая система роутинга для админпанели
+  const isAdminRoute = window.location.pathname === '/admin';
+  
+  // Если это админский роут, показываем админпанель
+  if (isAdminRoute) {
+    return <FullAdminPanel />;
+  }
   
   const { 
     tokens, 
