@@ -5,6 +5,8 @@ import { UserManagement } from './admin/UserManagement';
 import { SystemMonitoring } from './admin/SystemMonitoring';
 import { EconomyManagement } from './admin/EconomyManagement';
 import { TransactionManagement } from './admin/TransactionManagement';
+import { AnalyticsReports } from './admin/AnalyticsReports';
+import { SystemSettings } from './admin/SystemSettings';
 
 interface AdminStats {
   totalUsers: number;
@@ -153,7 +155,7 @@ export const FullAdminPanel: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'analytics' | 'settings' | 'users' | 'transactions' | 'monitoring' | 'economy'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'analytics' | 'settings' | 'users' | 'transactions' | 'monitoring' | 'economy' | 'reports' | 'system'>('dashboard');
 
   // Локальные копии для редактирования
   const [token, setToken] = useState<TokenConfig>({ symbol: 'DEL', contractAddress: '', decimals: 18 });
@@ -397,6 +399,26 @@ export const FullAdminPanel: React.FC = () => {
             }`}
           >
             💰 Экономика
+          </button>
+          <button
+            onClick={() => setActiveTab('reports')}
+            className={`admin-nav-item py-4 px-2 border-b-2 font-medium ${
+              activeTab === 'reports' 
+                ? 'border-blue-500 text-blue-400' 
+                : 'border-transparent text-gray-400 hover:text-gray-300'
+            }`}
+          >
+            📊 Аналитика
+          </button>
+          <button
+            onClick={() => setActiveTab('system')}
+            className={`admin-nav-item py-4 px-2 border-b-2 font-medium ${
+              activeTab === 'system' 
+                ? 'border-blue-500 text-blue-400' 
+                : 'border-transparent text-gray-400 hover:text-gray-300'
+            }`}
+          >
+            ⚙️ Система
           </button>
         </div>
       </div>
@@ -721,6 +743,14 @@ export const FullAdminPanel: React.FC = () => {
 
         {activeTab === 'economy' && (
           <EconomyManagement />
+        )}
+
+        {activeTab === 'reports' && (
+          <AnalyticsReports />
+        )}
+
+        {activeTab === 'system' && (
+          <SystemSettings />
         )}
       </div>
     </div>
