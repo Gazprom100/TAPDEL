@@ -42,6 +42,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [isLeaderboardLoading, setIsLeaderboardLoading] = useState(false);
   const [isTransactionsLoading, setIsTransactionsLoading] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
+  const [lastTransactionsUpdate, setLastTransactionsUpdate] = useState(0);
   
   // Периодическое обновление таблицы лидеров
   useEffect(() => {
@@ -63,6 +64,13 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
     const loadTransactionsData = async () => {
       if (activeTab === 'transactions' && profile?.userId) {
+        // Дебаунсинг: не загружаем чаще чем раз в 10 секунд
+        const now = Date.now();
+        if (now - lastTransactionsUpdate < 10000) {
+          console.log('⏱️ Дебаунсинг транзакций: пропускаем загрузку');
+          return;
+        }
+        
         setIsTransactionsLoading(true);
         try {
           const { decimalApi } = await import('../services/decimalApi');
@@ -89,6 +97,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           
           setDeposits(depositsData);
           setWithdrawals(withdrawalsData);
+          setLastTransactionsUpdate(now);
         } catch (error) {
           console.error('❌ Profile: Ошибка загрузки данных транзакций:', error);
           // Устанавливаем пустые массивы при ошибке

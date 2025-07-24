@@ -44,6 +44,7 @@ interface ExtendedGameState extends GameStateBase {
   isLoading: boolean;
   error: string | null;
   lastSyncTime: number; // Добавляем поле для отслеживания синхронизации
+  lastLeaderboardUpdate?: number; // Время последнего обновления лидерборда
   delBalance?: number; // Реальный DEL баланс из блокчейна (отдельно от игровых tokens)
   // tokens = игровые очки из тапанья, delBalance = реальные DEL токены
 }
@@ -871,10 +872,18 @@ export const useGameStore = create<GameStore>()(
         }
       },
 
-      // Обновление только лидерборда
+      // Обновление только лидерборда (с дебаунсингом)
       refreshLeaderboard: async () => {
         try {
           const state = get();
+          
+          // Дебаунсинг: не обновляем чаще чем раз в 5 секунд
+          const now = Date.now();
+          const lastUpdate = state.lastLeaderboardUpdate || 0;
+          if (now - lastUpdate < 5000) {
+            console.log('⏱️ Дебаунсинг лидерборда: пропускаем обновление');
+            return;
+          }
           
           // Добавляем таймаут для API вызова
           const timeoutPromise = new Promise((_, reject) => 
@@ -898,7 +907,10 @@ export const useGameStore = create<GameStore>()(
               rank: entry.rank,
               updatedAt: entry.updatedAt
             }));
-            set({ leaderboard });
+            set({ 
+              leaderboard,
+              lastLeaderboardUpdate: now
+            });
             console.log(`✅ Обновлен лидерборд (${leaderboard.length} участников)`);
           } else {
             console.log('⚠️ Обновление лидерборда: лидерборд пуст');

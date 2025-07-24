@@ -459,10 +459,10 @@ router.get('/leaderboard', async (req, res) => {
       console.log('🏆 Топ-3:', leaderboard.slice(0, 3).map(u => `${u.telegramFirstName || u.username}: ${u.tokens}`));
     }
     
-    // ОПТИМИЗАЦИЯ: Сохраняем в кеш
+    // ОПТИМИЗАЦИЯ: Сохраняем в кеш на 10 минут
     try {
       if (cacheService.isConnected && leaderboard.length > 0) {
-        await cacheService.set(`leaderboard:page:${page}:limit:${limit}`, leaderboard, 300); // 5 минут
+        await cacheService.set(`leaderboard:page:${page}:limit:${limit}`, leaderboard, 600); // 10 минут
       }
     } catch (cacheError) {
       console.warn('⚠️ Не удалось сохранить в кеш:', cacheError.message);

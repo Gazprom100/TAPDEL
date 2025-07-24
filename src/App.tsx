@@ -21,7 +21,7 @@ const App: React.FC = () => {
     powerGridLevel,
     initializeUser
   } = useGameStore();
-
+  
   const {
     fuelLevel,
     hyperdriveCharge,
@@ -585,8 +585,8 @@ const App: React.FC = () => {
               marginTop: '5px'
             }}>
               ТОПЛИВО
-            </div>
-            
+        </div>
+
             {/* Передача */}
             <div className="cyber-text text-sm opacity-80" style={{
               color: '#00ff88',
