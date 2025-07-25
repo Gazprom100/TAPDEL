@@ -1,4 +1,5 @@
 const { connectToDatabase } = require('../config/database');
+const tokenBalanceService = require('./tokenBalanceService');
 
 class TokenService {
   constructor() {
@@ -99,6 +100,9 @@ class TokenService {
       const tokenConfig = await database.collection('system_config').findOne({ key: 'tokens' });
       const tokens = tokenConfig?.value || [];
       
+      // Находим старый активный токен
+      const oldActiveToken = tokens.find(token => token.isActive);
+      
       // Обновляем активный токен
       const updatedTokens = tokens.map(token => ({
         ...token,
@@ -120,6 +124,12 @@ class TokenService {
         changedBy: 'admin',
         reason: 'Смена активного токена'
       });
+      
+      // Если есть старый активный токен, выполняем миграцию
+      if (oldActiveToken && oldActiveToken.symbol !== symbol) {
+        console.log(`🔄 Выполняем миграцию с ${oldActiveToken.symbol} на ${symbol}`);
+        await tokenBalanceService.migrateToNewToken(oldActiveToken.symbol, symbol);
+      }
       
       // Сбрасываем кеш
       this.activeToken = null;

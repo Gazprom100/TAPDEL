@@ -8,6 +8,7 @@ import { TransactionManagement } from './admin/TransactionManagement';
 import { AnalyticsReports } from './admin/AnalyticsReports';
 import { SystemSettings } from './admin/SystemSettings';
 import { TokenManagement } from './admin/TokenManagement';
+import { TokenHistory } from './admin/TokenHistory';
 
 interface AdminStats {
   totalUsers: number;
@@ -156,7 +157,7 @@ export const FullAdminPanel: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'analytics' | 'settings' | 'users' | 'transactions' | 'monitoring' | 'economy' | 'reports' | 'system' | 'tokens'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'analytics' | 'settings' | 'users' | 'transactions' | 'monitoring' | 'economy' | 'reports' | 'system' | 'tokens' | 'tokenHistory'>('dashboard');
 
   // Локальные копии для редактирования
   const [token, setToken] = useState<TokenConfig>({ symbol: 'DEL', contractAddress: '', decimals: 18 });
@@ -180,7 +181,7 @@ export const FullAdminPanel: React.FC = () => {
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      fetch('/api/admin/statistics').then(res => res.json()),
+          fetch('/api/admin/statistics').then(res => res.json()),
       fetch('/api/admin/settings').then(res => res.json())
     ])
       .then(([statsData, settingsData]) => {
@@ -203,8 +204,8 @@ export const FullAdminPanel: React.FC = () => {
         setLoading(false);
       })
       .catch(e => {
-        setError('Ошибка загрузки данных');
-        setLoading(false);
+      setError('Ошибка загрузки данных');
+      setLoading(false);
       });
   }, []);
 
@@ -257,7 +258,7 @@ export const FullAdminPanel: React.FC = () => {
     if (!confirm('Вы уверены, что хотите сбросить лидерборд? Это действие нельзя отменить.')) {
       return;
     }
-
+    
     try {
       const response = await fetch('/api/admin/reset-leaderboard', {
         method: 'POST',
@@ -291,19 +292,19 @@ export const FullAdminPanel: React.FC = () => {
   }
 
   if (error) {
-    return (
+  return (
       <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
         <div className="text-center">
           <div className="text-2xl mb-4 text-red-500">Ошибка</div>
           <div className="text-gray-400">{error}</div>
-          <button 
+            <button 
             onClick={() => window.location.reload()} 
             className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded"
           >
             Перезагрузить
-          </button>
+            </button>
+          </div>
         </div>
-      </div>
     );
   }
 
@@ -315,18 +316,18 @@ export const FullAdminPanel: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold">TAPDEL Dashboard</h1>
             <p className="text-gray-400 mt-1">Панель управления игровой системой</p>
-          </div>
+        </div>
           <div className="flex items-center space-x-4">
             <div className="text-right">
               <div className="text-sm text-gray-400">Администратор</div>
               <div className="font-semibold">Evgeni_Krasnov</div>
-            </div>
+      </div>
             <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
               <span className="text-white font-bold">E</span>
-            </div>
-          </div>
-        </div>
-      </div>
+                    </div>
+                    </div>
+                    </div>
+                    </div>
 
       {/* Navigation */}
       <div className="admin-navigation bg-gray-800 border-b border-gray-700 px-6">
@@ -340,7 +341,7 @@ export const FullAdminPanel: React.FC = () => {
             }`}
           >
             📊 Дашборд
-          </button>
+                      </button>
           <button
             onClick={() => setActiveTab('analytics')}
             className={`admin-nav-item py-4 px-2 border-b-2 font-medium ${
@@ -350,7 +351,7 @@ export const FullAdminPanel: React.FC = () => {
             }`}
           >
             📈 Аналитика
-          </button>
+                      </button>
           <button
             onClick={() => setActiveTab('settings')}
             className={`admin-nav-item py-4 px-2 border-b-2 font-medium ${
@@ -360,8 +361,8 @@ export const FullAdminPanel: React.FC = () => {
             }`}
           >
             ⚙️ Настройки
-          </button>
-          <button
+                      </button>
+                        <button
             onClick={() => setActiveTab('users')}
             className={`admin-nav-item py-4 px-2 border-b-2 font-medium ${
               activeTab === 'users' 
@@ -370,7 +371,7 @@ export const FullAdminPanel: React.FC = () => {
             }`}
           >
             👥 Пользователи
-          </button>
+                        </button>
           <button
             onClick={() => setActiveTab('transactions')}
             className={`admin-nav-item py-4 px-2 border-b-2 font-medium ${
@@ -380,18 +381,18 @@ export const FullAdminPanel: React.FC = () => {
             }`}
           >
             💰 Транзакции
-          </button>
-          <button
+                      </button>
+                          <button
             onClick={() => setActiveTab('monitoring')}
             className={`admin-nav-item py-4 px-2 border-b-2 font-medium ${
               activeTab === 'monitoring' 
                 ? 'border-blue-500 text-blue-400' 
                 : 'border-transparent text-gray-400 hover:text-gray-300'
             }`}
-          >
+                          >
             📊 Мониторинг
-          </button>
-          <button
+                          </button>
+                          <button
             onClick={() => setActiveTab('economy')}
             className={`admin-nav-item py-4 px-2 border-b-2 font-medium ${
               activeTab === 'economy' 
@@ -431,8 +432,18 @@ export const FullAdminPanel: React.FC = () => {
           >
             🪙 Токены
           </button>
-        </div>
-      </div>
+          <button
+            onClick={() => setActiveTab('tokenHistory')}
+            className={`admin-nav-item py-4 px-2 border-b-2 font-medium ${
+              activeTab === 'tokenHistory' 
+                ? 'border-blue-500 text-blue-400' 
+                : 'border-transparent text-gray-400 hover:text-gray-300'
+            }`}
+          >
+            📈 История токенов
+                          </button>
+                        </div>
+                      </div>
 
       {/* Content */}
       <div className="admin-content p-6">
@@ -468,7 +479,7 @@ export const FullAdminPanel: React.FC = () => {
                 icon="📊"
                 color="yellow"
               />
-            </div>
+                </div>
 
             {/* Charts Row */}
             <div className="admin-grid grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -484,8 +495,8 @@ export const FullAdminPanel: React.FC = () => {
               />
               <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
                 <h3 className="text-lg font-semibold text-white mb-4">Прогресс системы</h3>
-                <div className="space-y-4">
-                  <div>
+                      <div className="space-y-4">
+                        <div>
                     <div className="flex justify-between text-sm mb-1">
                       <span>Выполнение плана</span>
                       <span>73%</span>
@@ -493,16 +504,16 @@ export const FullAdminPanel: React.FC = () => {
                     <div className="w-full bg-gray-700 rounded-full h-2">
                       <div className="bg-blue-600 h-2 rounded-full" style={{ width: '73%' }}></div>
                     </div>
-                  </div>
-                  <div>
+                        </div>
+                        <div>
                     <div className="flex justify-between text-sm mb-1">
                       <span>Стабильность сервера</span>
                       <span>99.8%</span>
-                    </div>
+                        </div>
                     <div className="w-full bg-gray-700 rounded-full h-2">
                       <div className="bg-green-600 h-2 rounded-full" style={{ width: '99.8%' }}></div>
-                    </div>
-                  </div>
+                        </div>
+                      </div>
                   <div>
                     <div className="flex justify-between text-sm mb-1">
                       <span>Скорость ответа API</span>
@@ -510,11 +521,11 @@ export const FullAdminPanel: React.FC = () => {
                     </div>
                     <div className="w-full bg-gray-700 rounded-full h-2">
                       <div className="bg-yellow-600 h-2 rounded-full" style={{ width: '85%' }}></div>
-                    </div>
+                  </div>
+              </div>
+                </div>
                   </div>
                 </div>
-              </div>
-            </div>
 
             {/* Circular Progress */}
             <div className="admin-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -542,40 +553,40 @@ export const FullAdminPanel: React.FC = () => {
                 label="Выводы"
                 color="#F59E0B"
               />
-            </div>
+                        </div>
 
             {/* Quick Actions */}
             <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
               <h3 className="text-lg font-semibold text-white mb-4">Быстрые действия</h3>
               <div className="flex flex-wrap gap-4">
-                <button
+                          <button
                   onClick={resetLeaderboard}
                   className="admin-button px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors"
-                >
+                          >
                   🔄 Сбросить лидерборд
-                </button>
-                <button
+                          </button>
+                          <button
                   onClick={() => setActiveTab('settings')}
                   className="admin-button px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
-                >
+                          >
                   ⚙️ Настройки игры
-                </button>
+                          </button>
                 <button className="admin-button px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg font-medium transition-colors">
                   📊 Экспорт данных
                 </button>
                 <button className="admin-button px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg font-medium transition-colors">
                   🔔 Уведомления
-                </button>
+                          </button>
+                        </div>
+                </div>
               </div>
-            </div>
-          </div>
-        )}
+            )}
 
-        {activeTab === 'analytics' && (
-          <div className="space-y-6">
+            {activeTab === 'analytics' && (
+              <div className="space-y-6">
             <h2 className="text-2xl font-bold">Аналитика и метрики</h2>
             
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
                 <h3 className="text-lg font-semibold text-white mb-4">Топ игроков</h3>
                 <div className="space-y-3">
@@ -593,15 +604,15 @@ export const FullAdminPanel: React.FC = () => {
                           <div className="font-medium">Игрок {rank}</div>
                           <div className="text-sm text-gray-400">{10000 - rank * 1000} DEL</div>
                         </div>
-                      </div>
+                        </div>
                       <div className="text-right">
                         <div className="text-sm text-gray-400">Уровень {rank + 5}</div>
                         <div className="text-xs text-green-400">+{rank * 5}%</div>
                       </div>
                     </div>
                   ))}
-                </div>
-              </div>
+                        </div>
+                        </div>
 
               <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
                 <h3 className="text-lg font-semibold text-white mb-4">Статистика передач</h3>
@@ -611,26 +622,26 @@ export const FullAdminPanel: React.FC = () => {
                       <div className="flex items-center space-x-3">
                         <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center font-bold">
                           {gear}
-                        </div>
+                  </div>
                         <div>
                           <div className="font-medium">Передача {gear}</div>
                           <div className="text-sm text-gray-400">Множитель: {multiplier}x</div>
+              </div>
                         </div>
-                      </div>
                       <div className="text-right">
                         <div className="text-sm font-medium">{Math.floor(Math.random() * 100)}%</div>
                         <div className="text-xs text-gray-400">использование</div>
+                        </div>
+                        </div>
+                  ))}
+                        </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+                  </div>
+                )}
 
-        {activeTab === 'settings' && (
-          <div className="space-y-6">
+            {activeTab === 'settings' && (
+              <div className="space-y-6">
             <h2 className="text-2xl font-bold">Настройки игры</h2>
             
             <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
@@ -645,8 +656,8 @@ export const FullAdminPanel: React.FC = () => {
                       onChange={(e) => setBaseReward(Number(e.target.value))}
                       className="admin-input w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
-                </div>
-                
+                      </div>
+                      
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">Символ токена</label>
                                       <input
@@ -655,8 +666,8 @@ export const FullAdminPanel: React.FC = () => {
                       onChange={(e) => setToken({...token, symbol: e.target.value})}
                       className="admin-input w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
+                  </div>
                 </div>
-              </div>
 
               <div className="mt-8">
                 <h4 className="text-md font-semibold text-white mb-4">Множители передач</h4>
@@ -674,15 +685,15 @@ export const FullAdminPanel: React.FC = () => {
                         })}
                         className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
+                  </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
+                    </div>
 
               <div className="mt-8">
                 <h4 className="text-md font-semibold text-white mb-4">Стоимость компонентов</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
+                    <div>
                     <h5 className="font-medium text-gray-300 mb-3">Двигатели</h5>
                     <div className="space-y-2">
                       {engineCosts.map((cost, index) => (
@@ -700,9 +711,9 @@ export const FullAdminPanel: React.FC = () => {
                         />
                       ))}
                     </div>
-                  </div>
+                    </div>
                   
-                  <div>
+                    <div>
                     <h5 className="font-medium text-gray-300 mb-3">Коробки передач</h5>
                     <div className="space-y-2">
                       {gearboxCosts.map((cost, index) => (
@@ -733,9 +744,9 @@ export const FullAdminPanel: React.FC = () => {
                   {saving ? 'Сохранение...' : '💾 Сохранить настройки'}
                 </button>
               </div>
-            </div>
-          </div>
-        )}
+                </div>
+              </div>
+            )}
 
         {activeTab === 'users' && (
           <UserManagement onUserUpdate={(userId, updates) => {
@@ -766,6 +777,10 @@ export const FullAdminPanel: React.FC = () => {
 
         {activeTab === 'tokens' && (
           <TokenManagement />
+        )}
+
+        {activeTab === 'tokenHistory' && (
+          <TokenHistory />
         )}
       </div>
     </div>

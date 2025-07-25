@@ -584,8 +584,8 @@ const App: React.FC = () => {
               position: 'relative'
             }}>
               {Math.floor(fuelLevel)}%
-            </div>
-            
+        </div>
+
             <div className="cyber-text text-sm opacity-80" style={{
               color: '#00ff88',
               textShadow: '0 0 10px rgba(0, 255, 136, 0.8)',

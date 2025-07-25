@@ -3,9 +3,12 @@ const { MongoClient } = require('mongodb');
 require('dotenv').config();
 const router = express.Router();
 
+console.log('🔗 api.js загружен, создаю роутер...');
+
 // ОПТИМИЗАЦИЯ: Импортируем cache service
 const cacheService = require('../services/cacheService');
 const tokenService = require('../services/tokenService');
+const tokenBalanceService = require('../services/tokenBalanceService');
 
 // Безопасная функция форматирования имени пользователя
 const formatUserName = (username, telegramFirstName, telegramLastName, telegramUsername, userId) => {
@@ -64,13 +67,16 @@ router.get('/health', async (req, res) => {
 });
 
 // Тестовый роут
+console.log('🔗 Регистрирую роут /test');
 router.get('/test', (req, res) => {
+  console.log('==> /api/test вызван');
   res.json({
     message: 'API работает!',
     timestamp: new Date().toISOString(),
     endpoint: '/api/test'
   });
 });
+console.log('✅ Роут /test зарегистрирован');
 
 let client = null;
 let db = null;
@@ -913,6 +919,7 @@ async function updateAllRanks(database) {
 
 // Получить текущую конфигурацию токенов
 router.get('/admin/tokens', async (req, res) => {
+  console.log('==> /api/admin/tokens вызван');
   try {
     const database = await connectToDatabase();
     
@@ -935,8 +942,8 @@ router.get('/admin/tokens', async (req, res) => {
         isActive: false
       }
     ];
-
-    res.json({
+    
+    res.json({ 
       success: true,
       tokens: tokenConfig?.value || defaultTokens
     });
@@ -1031,9 +1038,9 @@ router.post('/admin/tokens/add', async (req, res) => {
     await database.collection('system_config').updateOne(
       { key: 'tokens' },
       { $set: { value: updatedTokens, updatedAt: new Date() } },
-      { upsert: true }
-    );
-    
+        { upsert: true }
+      );
+      
     console.log(`➕ Токен ${symbol} добавлен`);
     
     res.json({ success: true, message: `Токен ${symbol} добавлен` });
@@ -1061,6 +1068,59 @@ router.get('/admin/tokens/history', async (req, res) => {
   }
 });
 
+// Получить балансы пользователя по токенам (только админ)
+router.get('/admin/token-balances/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    const balances = await tokenBalanceService.getAllUserTokenBalances(userId);
+    
+    res.json({ success: true, balances });
+  } catch (error) {
+    console.error('Ошибка получения балансов токенов:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
+
+// Получить статистику по токенам (только админ)
+router.get('/admin/token-statistics', async (req, res) => {
+  console.log('✅ /api/admin/token-statistics вызван');
+  try {
+    const stats = await tokenBalanceService.getTokenStatistics();
+    
+    res.json({ success: true, statistics: stats });
+  } catch (error) {
+    console.error('Ошибка получения статистики токенов:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
+
+// Принудительная миграция токенов (только админ)
+router.post('/admin/token-balances/migrate', async (req, res) => {
+  try {
+    const { oldTokenSymbol, newTokenSymbol } = req.body;
+    
+    if (!oldTokenSymbol || !newTokenSymbol) {
+      return res.status(400).json({ success: false, error: 'Укажите старый и новый токен' });
+    }
+    
+    const result = await tokenBalanceService.migrateToNewToken(oldTokenSymbol, newTokenSymbol);
+    
+    if (result.success) {
+    res.json({
+        success: true, 
+        message: `Миграция завершена: ${result.migratedCount} пользователей, ошибок: ${result.errorCount}`,
+        result 
+      });
+    } else {
+      res.status(500).json({ success: false, error: result.error });
+    }
+  } catch (error) {
+    console.error('Ошибка миграции токенов:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
+
 // Закрытие соединения при завершении работы
 process.on('SIGINT', async () => {
   if (client) {
@@ -1068,4 +1128,7 @@ process.on('SIGINT', async () => {
   }
 });
 
+console.log('🔗 api.js завершен, экспортирую роутер...');
+console.log('📋 Количество зарегистрированных роутов:', router.stack.length);
+console.log('📋 Роуты:', router.stack.map(layer => layer.route?.path).filter(Boolean));
 module.exports = router;
