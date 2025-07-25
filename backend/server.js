@@ -76,12 +76,14 @@ app.use('/api/telegram', telegramRoutes);
 app.use('/api', apiRoutes);
 app.use('/api/decimal', decimalRoutes);
 
-// Тестовый роут для отладки
-app.get('/api/test', (req, res) => {
-  res.json({ message: 'API работает!', timestamp: new Date() });
+// 404 middleware для API роутов (после всех API роутов)
+app.use('/api/*', (req, res) => {
+  res.status(404).json({
+    error: 'Маршрут не найден',
+    path: req.path,
+    timestamp: new Date().toISOString()
+  });
 });
-
-// DecimalChain роуты будут подключены после инициализации сервиса
 
 // Static files только для не-API роутов
 app.use((req, res, next) => {
@@ -99,6 +101,8 @@ app.get('*', (req, res) => {
 });
 
 // DecimalChain роуты будут подключены после инициализации сервиса
+
+
 
 // Start server
 const startServer = () => {
@@ -169,16 +173,17 @@ const startServer = () => {
             configured: false
           });
         });
+        
+
+        
+
+        
+
+        
+
       }
 
-      // Serve SPA - только для НЕ-API роутов
-      app.get('*', (req, res) => {
-        // Проверяем что это не API запрос
-        if (req.path.startsWith('/api/')) {
-          return res.status(404).json({ error: 'API endpoint not found', path: req.path });
-        }
-        res.sendFile(path.join(__dirname, '../dist/index.html'));
-      });
+
 
       const server = app.listen(PORT, async () => {
         console.log('==> Server Configuration:');

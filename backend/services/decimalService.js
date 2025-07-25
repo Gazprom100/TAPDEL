@@ -2,6 +2,7 @@ const { Web3 } = require('web3');
 const redis = require('redis');
 const config = require('../config/decimal');
 const UpstashRedisService = require('./upstashRedisService');
+const tokenService = require('./tokenService');
 
 // Импорт fetch для Node.js
 const fetch = require('node-fetch');
@@ -114,8 +115,13 @@ class DecimalService {
   
   async getBalance(address) {
     try {
-      // Получаем баланс BOOST токена через ERC-20 контракт
-      const boostContract = new this.web3.eth.Contract([
+      // Получаем активный токен
+      const activeToken = await tokenService.getActiveToken();
+      const tokenSymbol = activeToken.symbol;
+      const tokenAddress = activeToken.address;
+      
+      // Получаем баланс активного токена через ERC-20 контракт
+      const tokenContract = new this.web3.eth.Contract([
         {
           "constant": true,
           "inputs": [{"name": "_owner", "type": "address"}],
@@ -123,15 +129,15 @@ class DecimalService {
           "outputs": [{"name": "balance", "type": "uint256"}],
           "type": "function"
         }
-      ], config.BOOST_TOKEN_ADDRESS);
+      ], tokenAddress);
       
-      const balanceWei = await boostContract.methods.balanceOf(address).call();
+      const balanceWei = await tokenContract.methods.balanceOf(address).call();
       const balance = parseFloat(this.web3.utils.fromWei(balanceWei, 'ether'));
-      console.log(`💰 DecimalService: Баланс BOOST ${address}: ${balance} BOOST`);
+      console.log(`💰 DecimalService: Баланс ${tokenSymbol} ${address}: ${balance} ${tokenSymbol}`);
       return balance;
       
     } catch (error) {
-      console.error('❌ DecimalService: Ошибка получения баланса BOOST:', error);
+      console.error(`❌ DecimalService: Ошибка получения баланса ${tokenSymbol}:`, error);
       throw error;
     }
   }
@@ -195,7 +201,12 @@ class DecimalService {
   
   async signAndSend(toAddress, amount) {
     try {
-      console.log(`🔍 DecimalService: Подготовка транзакции ${amount} BOOST → ${toAddress}`);
+      // Получаем активный токен
+      const activeToken = await tokenService.getActiveToken();
+      const tokenSymbol = activeToken.symbol;
+      const tokenAddress = activeToken.address;
+      
+      console.log(`🔍 DecimalService: Подготовка транзакции ${amount} ${tokenSymbol} → ${toAddress}`);
       
       const privateKey = config.getPrivateKey();
       const fromAddress = config.WORKING_ADDRESS;
@@ -206,7 +217,7 @@ class DecimalService {
         throw new Error(`Invalid amount: ${amount}`);
       }
       
-      console.log(`📊 DecimalService: Сумма: ${amountNum} BOOST`);
+      console.log(`📊 DecimalService: Сумма: ${amountNum} ${tokenSymbol}`);
       
       // Получаем nonce
       const nonce = await this.getNonce(fromAddress);
@@ -216,8 +227,8 @@ class DecimalService {
       const currentGasPrice = await config.getCurrentGasPrice();
       console.log(`⛽ DecimalService: Используем газ прайс: ${currentGasPrice} gwei`);
       
-      // Создаем контракт BOOST токена
-      const boostContract = new this.web3.eth.Contract([
+      // Создаем контракт активного токена
+      const tokenContract = new this.web3.eth.Contract([
         {
           "constant": false,
           "inputs": [
@@ -228,10 +239,10 @@ class DecimalService {
           "outputs": [{"name": "", "type": "bool"}],
           "type": "function"
         }
-      ], config.BOOST_TOKEN_ADDRESS);
+      ], tokenAddress);
       
       // Создаем данные для вызова transfer функции
-      const transferData = boostContract.methods.transfer(
+      const transferData = tokenContract.methods.transfer(
         this.web3.utils.toChecksumAddress(toAddress),
         this.web3.utils.toWei(amountNum.toString(), 'ether')
       ).encodeABI();
@@ -239,7 +250,7 @@ class DecimalService {
       // Создаем транзакцию для вызова контракта
       const transaction = {
         from: this.web3.utils.toChecksumAddress(fromAddress),
-        to: config.BOOST_TOKEN_ADDRESS,
+        to: tokenAddress,
         data: transferData,
         gas: 100000, // Увеличиваем лимит газа для ERC-20 транзакций
         gasPrice: this.web3.utils.toWei(currentGasPrice.toString(), 'gwei'),
@@ -247,26 +258,26 @@ class DecimalService {
         chainId: config.CHAIN_ID
       };
 
-      console.log(`📋 DecimalService: Транзакция BOOST создана:`, {
+      console.log(`📋 DecimalService: Транзакция ${tokenSymbol} создана:`, {
         from: transaction.from,
         to: transaction.to,
-        amount: amountNum + ' BOOST',
+        amount: amountNum + ' ' + tokenSymbol,
         gas: transaction.gas,
         gasPrice: currentGasPrice + ' gwei'
       });
 
       // Подписываем транзакцию
       const signedTx = await this.web3.eth.accounts.signTransaction(transaction, privateKey);
-      console.log(`✍️ DecimalService: Транзакция BOOST подписана`);
+      console.log(`✍️ DecimalService: Транзакция ${tokenSymbol} подписана`);
       
       // Отправляем через RPC (для ERC-20 токенов лучше использовать RPC)
       const receipt = await this.web3.eth.sendSignedTransaction(signedTx.rawTransaction);
       
-      console.log(`✅ DecimalService: Транзакция BOOST отправлена: ${receipt.transactionHash}`);
+      console.log(`✅ DecimalService: Транзакция ${tokenSymbol} отправлена: ${receipt.transactionHash}`);
       return receipt.transactionHash;
       
     } catch (error) {
-      console.error('❌ DecimalService: Ошибка отправки транзакции BOOST:', error);
+      console.error(`❌ DecimalService: Ошибка отправки транзакции ${tokenSymbol}:`, error);
       throw error;
     }
   }
@@ -390,7 +401,8 @@ class DecimalService {
           });
 
           if (deposit) {
-            console.log(`💰 DecimalService: Найден депозит! ${deposit.userId}: ${deposit.amountRequested} BOOST (tx: ${tx.hash})`);
+            const activeToken = await tokenService.getActiveToken();
+            console.log(`💰 DecimalService: Найден депозит! ${deposit.userId}: ${deposit.amountRequested} ${activeToken.symbol} (tx: ${tx.hash})`);
             
             // Обновляем депозит
             await database.collection('deposits').updateOne(
@@ -430,7 +442,7 @@ class DecimalService {
             // Обновляем лидерборд
             await this.updateUserInLeaderboard(database, user, newTokens);
 
-            console.log(`✅ DecimalService: Баланс обновлен! ${deposit.userId}: ${currentTokens} → ${newTokens} BOOST`);
+            console.log(`✅ DecimalService: Баланс обновлен! ${deposit.userId}: ${currentTokens} → ${newTokens} ${activeToken.symbol}`);
           }
         }
       }
@@ -527,7 +539,8 @@ class DecimalService {
             { $inc: { "gameState.tokens": stuck.amount } }
           );
           
-                      console.log(`💰 DecimalService: Средства возвращены пользователю ${stuck.userId}: +${stuck.amount} BOOST`);
+                      const activeToken = await tokenService.getActiveToken();
+                      console.log(`💰 DecimalService: Средства возвращены пользователю ${stuck.userId}: +${stuck.amount} ${activeToken.symbol}`);
         }
 
         // Находим ожидающий вывод и сразу помечаем его как обрабатываемый
@@ -541,7 +554,8 @@ class DecimalService {
           const withdrawalData = withdrawal.value;
           try {
             console.log(`🔄 DecimalService: Начинаем обработку вывода ${withdrawalData._id} для ${withdrawalData.userId}`);
-            console.log(`📋 Детали вывода: ${withdrawalData.amount} BOOST → ${withdrawalData.toAddress}`);
+            const activeToken = await tokenService.getActiveToken();
+            console.log(`📋 Детали вывода: ${withdrawalData.amount} ${activeToken.symbol} → ${withdrawalData.toAddress}`);
             
             // Гарантируем parseFloat для суммы
             const amountNum = parseFloat(withdrawalData.amount);
@@ -555,7 +569,7 @@ class DecimalService {
               throw new Error(`Insufficient working wallet balance: ${workingBalance} < ${amountNum}`);
             }
             
-            console.log(`💰 DecimalService: Баланс рабочего кошелька: ${workingBalance} BOOST`);
+            console.log(`💰 DecimalService: Баланс рабочего кошелька: ${workingBalance} ${activeToken.symbol}`);
             
             const txHash = await this.signAndSend(withdrawalData.toAddress, amountNum);
             
@@ -571,7 +585,7 @@ class DecimalService {
               }
             );
 
-            console.log(`💸 DecimalService: Вывод обработан: ${amountNum} BOOST → ${withdrawalData.toAddress}`);
+            console.log(`💸 DecimalService: Вывод обработан: ${amountNum} ${activeToken.symbol} → ${withdrawalData.toAddress}`);
             console.log(`📄 TX Hash: ${txHash}`);
             
           } catch (error) {
@@ -582,7 +596,7 @@ class DecimalService {
               { userId: withdrawalData.userId },
               { $inc: { "gameState.tokens": parseFloat(withdrawalData.amount) } }
             );
-            console.log(`💰 DecimalService: Средства возвращены пользователю ${withdrawalData.userId}: +${withdrawalData.amount} BOOST (ошибка вывода)`);
+            console.log(`💰 DecimalService: Средства возвращены пользователю ${withdrawalData.userId}: +${withdrawalData.amount} ${activeToken.symbol} (ошибка вывода)`);
             
             // Помечаем как failed
             await database.collection('withdrawals').updateOne(
@@ -619,7 +633,8 @@ class DecimalService {
           
           for (const deposit of expiredDeposits) {
             const timeExpired = Math.round((new Date() - deposit.expiresAt) / 1000 / 60);
-            console.log(`   - ${deposit.userId}: ${deposit.uniqueAmount} BOOST (истек ${timeExpired} мин назад)`);
+            const activeToken = await tokenService.getActiveToken();
+            console.log(`   - ${deposit.userId}: ${deposit.uniqueAmount} ${activeToken.symbol} (истек ${timeExpired} мин назад)`);
           }
           
           // Помечаем истекшие депозиты как expired

@@ -5,6 +5,7 @@ const router = express.Router();
 
 // ОПТИМИЗАЦИЯ: Импортируем cache service
 const cacheService = require('../services/cacheService');
+const tokenService = require('../services/tokenService');
 
 // Безопасная функция форматирования имени пользователя
 const formatUserName = (username, telegramFirstName, telegramLastName, telegramUsername, userId) => {
@@ -185,7 +186,8 @@ router.post('/users/:userId/deposit', async (req, res) => {
       return res.status(400).json({ error: 'Invalid amount' });
     }
     
-            console.log(`💰 Обновление игрового состояния при депозите: ${userId} +${amount} BOOST`);
+            const activeToken = await tokenService.getActiveToken();
+    console.log(`💰 Обновление игрового состояния при депозите: ${userId} +${amount} ${activeToken.symbol}`);
     
     // Получаем текущее состояние пользователя
     const user = await database.collection('users').findOne({ userId });
@@ -906,6 +908,158 @@ async function updateAllRanks(database) {
     console.error('Error updating ranks:', error);
   }
 }
+
+// === УПРАВЛЕНИЕ ТОКЕНАМИ ===
+
+// Получить текущую конфигурацию токенов
+router.get('/admin/tokens', async (req, res) => {
+  try {
+    const database = await connectToDatabase();
+    
+    // Получаем конфигурацию токенов из БД или используем дефолтную
+    const tokenConfig = await database.collection('system_config').findOne({ key: 'tokens' });
+    
+    const defaultTokens = [
+      {
+        symbol: 'BOOST',
+        address: '0x15cefa2ffb0759b519c15e23025a718978be9322',
+        decimals: 18,
+        name: 'BOOST Token',
+        isActive: true
+      },
+      {
+        symbol: 'DEL',
+        address: '0x0000000000000000000000000000000000000000',
+        decimals: 18,
+        name: 'Decimal Token',
+        isActive: false
+      }
+    ];
+
+    res.json({
+      success: true,
+      tokens: tokenConfig?.value || defaultTokens
+    });
+  } catch (error) {
+    console.error('Ошибка получения токенов:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
+
+// Обновить активный токен
+router.post('/admin/tokens/activate', async (req, res) => {
+  try {
+    const { symbol } = req.body;
+    
+    if (!symbol) {
+      return res.status(400).json({ success: false, error: 'Символ токена обязателен' });
+    }
+
+    const database = await connectToDatabase();
+    
+    // Получаем текущую конфигурацию
+    const tokenConfig = await database.collection('system_config').findOne({ key: 'tokens' });
+    const tokens = tokenConfig?.value || [];
+    
+    // Обновляем активный токен
+    const updatedTokens = tokens.map(token => ({
+      ...token,
+      isActive: token.symbol === symbol
+    }));
+    
+    // Сохраняем в БД
+    await database.collection('system_config').updateOne(
+      { key: 'tokens' },
+      { $set: { value: updatedTokens, updatedAt: new Date() } },
+      { upsert: true }
+    );
+    
+    // Добавляем в историю
+    await database.collection('token_history').insertOne({
+      symbol,
+      address: tokens.find(t => t.symbol === symbol)?.address || '',
+      changedAt: new Date(),
+      changedBy: 'admin',
+      reason: 'Смена активного токена'
+    });
+    
+    console.log(`🔄 Токен ${symbol} активирован`);
+    
+    res.json({ success: true, message: `Токен ${symbol} активирован` });
+  } catch (error) {
+    console.error('Ошибка активации токена:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
+
+// Добавить новый токен
+router.post('/admin/tokens/add', async (req, res) => {
+  try {
+    const { symbol, address, decimals, name } = req.body;
+    
+    if (!symbol || !address || !name) {
+      return res.status(400).json({ success: false, error: 'Все поля обязательны' });
+    }
+    
+    if (!address.match(/^0x[a-fA-F0-9]{40}$/)) {
+      return res.status(400).json({ success: false, error: 'Неверный формат адреса' });
+    }
+
+    const database = await connectToDatabase();
+    
+    // Получаем текущую конфигурацию
+    const tokenConfig = await database.collection('system_config').findOne({ key: 'tokens' });
+    const tokens = tokenConfig?.value || [];
+    
+    // Проверяем, что токен не существует
+    if (tokens.find(t => t.symbol === symbol)) {
+      return res.status(400).json({ success: false, error: 'Токен с таким символом уже существует' });
+    }
+    
+    // Добавляем новый токен
+    const newToken = {
+      symbol: symbol.toUpperCase(),
+      address,
+      decimals: decimals || 18,
+      name,
+      isActive: false
+    };
+    
+    const updatedTokens = [...tokens, newToken];
+    
+    // Сохраняем в БД
+    await database.collection('system_config').updateOne(
+      { key: 'tokens' },
+      { $set: { value: updatedTokens, updatedAt: new Date() } },
+      { upsert: true }
+    );
+    
+    console.log(`➕ Токен ${symbol} добавлен`);
+    
+    res.json({ success: true, message: `Токен ${symbol} добавлен` });
+  } catch (error) {
+    console.error('Ошибка добавления токена:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
+
+// Получить историю изменений токенов
+router.get('/admin/tokens/history', async (req, res) => {
+  try {
+    const database = await connectToDatabase();
+    
+    const history = await database.collection('token_history')
+      .find({})
+      .sort({ changedAt: -1 })
+      .limit(50)
+      .toArray();
+    
+    res.json({ success: true, history });
+  } catch (error) {
+    console.error('Ошибка получения истории токенов:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
 
 // Закрытие соединения при завершении работы
 process.on('SIGINT', async () => {

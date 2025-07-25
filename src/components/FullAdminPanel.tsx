@@ -7,6 +7,7 @@ import { EconomyManagement } from './admin/EconomyManagement';
 import { TransactionManagement } from './admin/TransactionManagement';
 import { AnalyticsReports } from './admin/AnalyticsReports';
 import { SystemSettings } from './admin/SystemSettings';
+import { TokenManagement } from './admin/TokenManagement';
 
 interface AdminStats {
   totalUsers: number;
@@ -155,7 +156,7 @@ export const FullAdminPanel: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'analytics' | 'settings' | 'users' | 'transactions' | 'monitoring' | 'economy' | 'reports' | 'system'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'analytics' | 'settings' | 'users' | 'transactions' | 'monitoring' | 'economy' | 'reports' | 'system' | 'tokens'>('dashboard');
 
   // Локальные копии для редактирования
   const [token, setToken] = useState<TokenConfig>({ symbol: 'DEL', contractAddress: '', decimals: 18 });
@@ -419,6 +420,16 @@ export const FullAdminPanel: React.FC = () => {
             }`}
           >
             ⚙️ Система
+          </button>
+          <button
+            onClick={() => setActiveTab('tokens')}
+            className={`admin-nav-item py-4 px-2 border-b-2 font-medium ${
+              activeTab === 'tokens' 
+                ? 'border-blue-500 text-blue-400' 
+                : 'border-transparent text-gray-400 hover:text-gray-300'
+            }`}
+          >
+            🪙 Токены
           </button>
         </div>
       </div>
@@ -751,6 +762,10 @@ export const FullAdminPanel: React.FC = () => {
 
         {activeTab === 'system' && (
           <SystemSettings />
+        )}
+
+        {activeTab === 'tokens' && (
+          <TokenManagement />
         )}
       </div>
     </div>

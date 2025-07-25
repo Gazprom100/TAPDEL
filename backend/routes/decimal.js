@@ -2,6 +2,7 @@ const express = require('express');
 const { MongoClient } = require('mongodb');
 const decimalService = require('../services/decimalService');
 const config = require('../config/decimal');
+const tokenService = require('../services/tokenService');
 const router = express.Router();
 
 // Используем подключение к MongoDB из основного API
@@ -67,8 +68,9 @@ router.post('/deposits', async (req, res) => {
     }
 
     if (baseAmount < 0.001) {
+      const activeToken = await tokenService.getActiveToken();
       return res.status(400).json({ 
-        error: 'Минимальная сумма депозита: 0.001 BOOST' 
+        error: `Минимальная сумма депозита: 0.001 ${activeToken.symbol}` 
       });
     }
 
@@ -105,7 +107,8 @@ router.post('/deposits', async (req, res) => {
 
     const result = await database.collection('deposits').insertOne(deposit);
     
-    console.log(`💳 Создан депозит: ${userId} → ${uniqueAmount} BOOST`);
+    const activeToken = await tokenService.getActiveToken();
+    console.log(`💳 Создан депозит: ${userId} → ${uniqueAmount} ${activeToken.symbol}`);
 
     res.json({
       depositId: result.insertedId.toString(),
@@ -206,8 +209,9 @@ router.post('/withdrawals', async (req, res) => {
     }
 
     if (amount < 0.001) {
+      const activeToken = await tokenService.getActiveToken();
       return res.status(400).json({ 
-        error: 'Минимальная сумма вывода: 0.001 BOOST' 
+        error: `Минимальная сумма вывода: 0.001 ${activeToken.symbol}` 
       });
     }
 
@@ -230,8 +234,9 @@ router.post('/withdrawals', async (req, res) => {
     const gameBalance = user.gameState?.tokens || 0;
     
     if (gameBalance < amount) {
+      const activeToken = await tokenService.getActiveToken();
       return res.status(400).json({ 
-        error: `Недостаточно средств. Доступно: ${gameBalance} BOOST` 
+        error: `Недостаточно средств. Доступно: ${gameBalance} ${activeToken.symbol}` 
       });
     }
 
@@ -254,7 +259,8 @@ router.post('/withdrawals', async (req, res) => {
 
     const result = await database.collection('withdrawals').insertOne(withdrawal);
     
-    console.log(`💸 Создан вывод: ${userId} → ${amount} BOOST на ${toAddress}`);
+    const activeToken = await tokenService.getActiveToken();
+    console.log(`💸 Создан вывод: ${userId} → ${amount} ${activeToken.symbol} на ${toAddress}`);
 
     res.json({
       withdrawalId: result.insertedId.toString(),
@@ -332,7 +338,7 @@ router.get('/users/:userId/withdrawals', async (req, res) => {
 
 // === БАЛАНС ===
 
-// Получить BOOST баланс пользователя
+// Получить баланс пользователя (активный токен)
 router.get('/users/:userId/balance', async (req, res) => {
   try {
     const { userId } = req.params;
@@ -345,10 +351,13 @@ router.get('/users/:userId/balance', async (req, res) => {
     }
 
     const gameBalance = user.gameState?.tokens || 0;
+    const activeToken = await tokenService.getActiveToken();
 
     res.json({
       userId: userId,
       gameBalance: gameBalance,
+      tokenSymbol: activeToken.symbol,
+      tokenName: activeToken.name,
       workingWalletBalance: await decimalService.getWorkingBalance()
     });
 
