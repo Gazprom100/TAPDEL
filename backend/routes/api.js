@@ -3,7 +3,7 @@ const { MongoClient } = require('mongodb');
 require('dotenv').config();
 const router = express.Router();
 
-console.log('🔗 api.js загружен, создаю роутер...');
+
 
 // ОПТИМИЗАЦИЯ: Импортируем cache service
 const cacheService = require('../services/cacheService');
@@ -67,16 +67,13 @@ router.get('/health', async (req, res) => {
 });
 
 // Тестовый роут
-console.log('🔗 Регистрирую роут /test');
 router.get('/test', (req, res) => {
-  console.log('==> /api/test вызван');
   res.json({
     message: 'API работает!',
     timestamp: new Date().toISOString(),
     endpoint: '/api/test'
   });
 });
-console.log('✅ Роут /test зарегистрирован');
 
 let client = null;
 let db = null;
@@ -1121,6 +1118,26 @@ router.post('/admin/token-balances/migrate', async (req, res) => {
   }
 });
 
+// Получить активный токен (публичный endpoint)
+router.get('/active-token', async (req, res) => {
+  try {
+    const activeToken = await tokenService.getActiveToken();
+    
+    res.json({
+      success: true,
+      token: {
+        symbol: activeToken.symbol,
+        name: activeToken.name,
+        address: activeToken.address,
+        decimals: activeToken.decimals
+      }
+    });
+  } catch (error) {
+    console.error('Ошибка получения активного токена:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
+
 // Закрытие соединения при завершении работы
 process.on('SIGINT', async () => {
   if (client) {
@@ -1128,7 +1145,4 @@ process.on('SIGINT', async () => {
   }
 });
 
-console.log('🔗 api.js завершен, экспортирую роутер...');
-console.log('📋 Количество зарегистрированных роутов:', router.stack.length);
-console.log('📋 Роуты:', router.stack.map(layer => layer.route?.path).filter(Boolean));
 module.exports = router;

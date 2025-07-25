@@ -99,6 +99,9 @@ interface GameActions {
   
   // Обновление BOOST баланса (общий баланс: натапанные + пополненные)
   refreshBoostBalance: () => Promise<void>;
+  
+  // Обновление активного токена
+  refreshActiveToken: () => Promise<void>;
 }
 
 type GameStore = ExtendedGameState & GameActions;
@@ -940,6 +943,17 @@ export const useGameStore = create<GameStore>()(
           
         } catch (error) {
           console.error('❌ Ошибка обновления BOOST баланса:', error);
+        }
+      },
+
+      // Обновление активного токена
+      refreshActiveToken: async () => {
+        try {
+          const activeToken = await apiService.getActiveToken();
+          console.log(`🪙 Обновлен активный токен: ${activeToken.symbol}`);
+          // Эта функция будет вызываться из компонентов для обновления названия токена
+        } catch (error) {
+          console.error('❌ Ошибка обновления активного токена:', error);
         }
       }
     }),

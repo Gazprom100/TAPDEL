@@ -13,23 +13,33 @@ class TokenService {
     try {
       // Проверяем кеш (обновляем каждые 5 минут)
       if (this.activeToken && this.lastUpdate && (Date.now() - this.lastUpdate) < 300000) {
+        console.log(`🪙 Возвращаем кешированный токен: ${this.activeToken.symbol}`);
         return this.activeToken;
       }
 
+      console.log(`🪙 Загружаем активный токен из БД...`);
       const database = await connectToDatabase();
       
       // Получаем конфигурацию токенов
       const tokenConfig = await database.collection('system_config').findOne({ key: 'tokens' });
       
+      console.log(`📋 Конфигурация токенов из БД:`, tokenConfig);
+      
       if (tokenConfig && tokenConfig.value) {
         this.tokens = tokenConfig.value;
+        console.log(`📋 Все токены:`, this.tokens.map(t => ({ symbol: t.symbol, isActive: t.isActive })));
+        
         this.activeToken = this.tokens.find(token => token.isActive);
         this.lastUpdate = Date.now();
         
-        console.log(`🪙 Активный токен: ${this.activeToken?.symbol || 'не найден'}`);
-        return this.activeToken;
+        console.log(`🪙 Найден активный токен: ${this.activeToken?.symbol || 'не найден'}`);
+        
+        if (this.activeToken) {
+          return this.activeToken;
+        }
       }
 
+      console.log(`⚠️ Активный токен не найден, возвращаем дефолтный BOOST`);
       // Дефолтная конфигурация
       const defaultToken = {
         symbol: 'BOOST',
@@ -94,20 +104,33 @@ class TokenService {
   // Обновить активный токен
   async activateToken(symbol) {
     try {
+      console.log(`🔄 Начинаем активацию токена: ${symbol}`);
       const database = await connectToDatabase();
       
       // Получаем текущую конфигурацию
       const tokenConfig = await database.collection('system_config').findOne({ key: 'tokens' });
       const tokens = tokenConfig?.value || [];
       
+      console.log(`📋 Текущие токены в БД:`, tokens.map(t => ({ symbol: t.symbol, isActive: t.isActive })));
+      
+      // Проверяем, что токен существует
+      const targetToken = tokens.find(t => t.symbol === symbol);
+      if (!targetToken) {
+        console.error(`❌ Токен ${symbol} не найден в базе данных`);
+        return false;
+      }
+      
       // Находим старый активный токен
       const oldActiveToken = tokens.find(token => token.isActive);
+      console.log(`🔄 Старый активный токен: ${oldActiveToken?.symbol || 'нет'}`);
       
       // Обновляем активный токен
       const updatedTokens = tokens.map(token => ({
         ...token,
         isActive: token.symbol === symbol
       }));
+      
+      console.log(`📋 Обновленные токены:`, updatedTokens.map(t => ({ symbol: t.symbol, isActive: t.isActive })));
       
       // Сохраняем в БД
       await database.collection('system_config').updateOne(
@@ -135,7 +158,7 @@ class TokenService {
       this.activeToken = null;
       this.lastUpdate = null;
       
-      console.log(`🔄 Токен ${symbol} активирован`);
+      console.log(`✅ Токен ${symbol} активирован успешно`);
       return true;
     } catch (error) {
       console.error('Ошибка активации токена:', error);

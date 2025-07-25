@@ -26,7 +26,7 @@ const PORT = process.env.PORT || 3001; // Изменили порт чтобы �
 
 // === ГЛОБАЛЬНЫЙ ЛОГГЕР ===
 app.use((req, res, next) => {
-  console.log('==> GLOBAL:', req.method, req.path, 'User-Agent:', req.get('User-Agent'));
+  console.log('==> GLOBAL:', req.method, req.path);
   next();
 });
 
@@ -47,15 +47,7 @@ console.log('⚠️ Rate limiting временно отключен для ди�
 // === API ROUTES (правильный порядок: сначала специфичные, потом общие) ===
 console.log('🔗 Регистрирую API роуты...');
 
-// ВРЕМЕННЫЙ ТЕСТОВЫЙ РОУТ
-app.get('/api/test-direct', (req, res) => {
-  console.log('==> /api/test-direct вызван напрямую');
-  res.json({
-    message: 'Прямой тестовый роут работает!',
-    timestamp: new Date().toISOString(),
-    endpoint: '/api/test-direct'
-  });
-});
+
 
 // 1. Специфичные роуты (более конкретные)
 app.use('/api/telegram', (req, res, next) => { 
@@ -69,12 +61,10 @@ app.use('/api/decimal', (req, res, next) => {
 }, decimalRoutes);
 
 // 2. Общий API роут (должен быть последним среди API)
-console.log('🔗 Подключаю apiRoutes...');
 app.use('/api', (req, res, next) => { 
-  console.log('➡️ /api middleware сработал:', req.method, req.path, 'Original URL:', req.originalUrl); 
+  console.log('➡️ /api', req.method, req.path); 
   next(); 
 }, apiRoutes);
-console.log('✅ apiRoutes подключен');
 
 // === 404 для API (после всех API-роутов!) ===
 app.use('/api/*', (req, res) => {
