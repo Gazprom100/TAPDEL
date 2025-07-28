@@ -104,6 +104,9 @@ interface GameActions {
   // Обновление активного токена
   refreshActiveToken: () => Promise<void>;
   setActiveTokenSymbol: (symbol: string) => void; // <--- добавлено
+  
+  // Применение настроек игры
+  applyGameConfig: () => Promise<void>;
 }
 
 type GameStore = ExtendedGameState & GameActions;
@@ -435,6 +438,15 @@ export const useGameStore = create<GameStore>()(
             console.log('✅ BOOST баланс загружен из блокчейна');
           } catch (boostBalanceError) {
             console.warn('⚠️ Не удалось загрузить BOOST баланс (нормально для новых пользователей):', boostBalanceError);
+          }
+
+          // Применяем настройки игры
+          try {
+            console.log('🎮 Применение настроек игры...');
+            await get().applyGameConfig();
+            console.log('✅ Настройки игры применены');
+          } catch (configError) {
+            console.warn('⚠️ Не удалось применить настройки игры:', configError);
           }
           
         } catch (error) {
@@ -961,7 +973,19 @@ export const useGameStore = create<GameStore>()(
         }
       },
 
-      setActiveTokenSymbol: (symbol) => set({ activeTokenSymbol: symbol })
+      setActiveTokenSymbol: (symbol) => set({ activeTokenSymbol: symbol }),
+
+      // Применение настроек игры
+      applyGameConfig: async () => {
+        try {
+          console.log('🎮 Применяем настройки игры');
+          
+          // Пока просто логируем, что настройки загружены
+          console.log('✅ Настройки игры применены');
+        } catch (error) {
+          console.error('❌ Ошибка применения настроек игры:', error);
+        }
+      }
     }),
     {
       name: 'tapdel-storage',

@@ -12,7 +12,9 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     leaderboard,
     refreshLeaderboard,
     profile,
-    refreshBoostBalance
+    refreshBoostBalance,
+    activeTokenSymbol,
+    refreshActiveToken
   } = useGameStore();
   
   // Отладочная информация для проверки профиля
@@ -45,6 +47,20 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [lastTransactionsUpdate, setLastTransactionsUpdate] = useState(0);
   const [isLoading, setIsLoading] = useState(false); // Общий индикатор загрузки
   
+  // Обновление активного токена при монтировании
+  useEffect(() => {
+    refreshActiveToken();
+    
+    // Периодическое обновление активного токена каждые 30 секунд
+    const tokenInterval = setInterval(() => {
+      refreshActiveToken();
+    }, 30000);
+    
+    return () => {
+      clearInterval(tokenInterval);
+    };
+  }, [refreshActiveToken]);
+
   // Периодическое обновление таблицы лидеров
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -126,6 +142,11 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       // Увеличиваем интервал до 60 секунд для снижения нагрузки
       interval = setInterval(updateLeaderboard, 60000); // Обновляем каждые 60 секунд
     } else if (activeTab === 'transactions' && profile?.userId) {
+      loadTransactionsData();
+    }
+
+    // Загружаем данные при первом открытии вкладки транзакций
+    if (activeTab === 'transactions' && profile?.userId && deposits.length === 0 && withdrawals.length === 0) {
       loadTransactionsData();
     }
 
@@ -346,11 +367,11 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             >
               <div className="space-y-4 sm:space-y-6 p-4">
                 <div className="cyber-text text-lg font-bold mb-4">
-                  BOOST Баланс: {Math.floor(tokens)} BOOST
+                  {activeTokenSymbol || 'BOOST'} Баланс: {Math.floor(tokens)} {activeTokenSymbol || 'BOOST'}
                 </div>
                 
                 <div className="cyber-panel space-y-3 sm:space-y-4 p-3 sm:p-4">
-                  <div className="cyber-text text-sm sm:text-base">Вывод BOOST</div>
+                  <div className="cyber-text text-sm sm:text-base">Вывод {activeTokenSymbol || 'BOOST'}</div>
                   <div className="space-y-2">
                     <input
                       type="number"
@@ -360,7 +381,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         e.stopPropagation();
                       }}
                       className="cyber-input w-full text-sm sm:text-base"
-                      placeholder="Количество BOOST для вывода"
+                      placeholder={`Количество ${activeTokenSymbol || 'BOOST'} для вывода`}
                       style={{
                         minHeight: '40px',
                         pointerEvents: 'auto'
@@ -391,13 +412,13 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         pointerEvents: 'auto'
                       }}
                     >
-                      Вывести BOOST
+                      Вывести {activeTokenSymbol || 'BOOST'}
                     </button>
                   </div>
                 </div>
 
                 <div className="cyber-panel space-y-3 sm:space-y-4 p-3 sm:p-4">
-                  <div className="cyber-text text-sm sm:text-base">Ввод BOOST</div>
+                  <div className="cyber-text text-sm sm:text-base">Ввод {activeTokenSymbol || 'BOOST'}</div>
                   <div className="flex flex-col sm:flex-row gap-2">
                     <input
                       type="number"

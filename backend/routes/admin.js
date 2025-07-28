@@ -716,29 +716,61 @@ router.get('/wallet-balance', async (req, res) => {
     
     for (const token of tokens) {
       try {
-        // Здесь должна быть логика получения баланса с DecimalChain
-        // Пока используем моковые данные
-        const balance = {
+        // Получаем реальный баланс с DecimalChain
+        const { decimalService } = require('../services/decimalService');
+        const workingAddress = process.env.DECIMAL_WORKING_ADDRESS;
+        
+        if (!workingAddress) {
+          throw new Error('Рабочий адрес не настроен');
+        }
+        
+        // Получаем баланс токена через ERC-20 контракт
+        const tokenContract = new decimalService.web3.eth.Contract([
+          {
+            "constant": true,
+            "inputs": [{"name": "_owner", "type": "address"}],
+            "name": "balanceOf",
+            "outputs": [{"name": "balance", "type": "uint256"}],
+            "type": "function"
+          }
+        ], token.address);
+        
+        const balanceWei = await tokenContract.methods.balanceOf(workingAddress).call();
+        const balance = parseFloat(decimalService.web3.utils.fromWei(balanceWei, 'ether'));
+        
+        const balanceData = {
           symbol: token.symbol,
           name: token.name,
           address: token.address,
-          balance: Math.random() * 10000, // Моковый баланс
+          balance: balance,
           decimals: token.decimals,
           lastUpdated: new Date().toISOString(),
           status: 'active'
         };
         
-        walletBalances.push(balance);
+        walletBalances.push(balanceData);
+        
+        // Сохраняем в БД для кеширования
+        await database.collection('wallet_balances').updateOne(
+          { symbol: token.symbol },
+          { $set: balanceData },
+          { upsert: true }
+        );
+        
       } catch (error) {
         console.error(`Ошибка получения баланса для ${token.symbol}:`, error);
+        
+        // Пытаемся получить кешированный баланс
+        const cachedBalance = await database.collection('wallet_balances').findOne({ symbol: token.symbol });
+        
         walletBalances.push({
           symbol: token.symbol,
           name: token.name,
           address: token.address,
-          balance: 0,
+          balance: cachedBalance?.balance || 0,
           decimals: token.decimals,
-          lastUpdated: new Date().toISOString(),
-          status: 'error',
+          lastUpdated: cachedBalance?.lastUpdated || new Date().toISOString(),
+          status: 'cached',
           error: error.message
         });
       }

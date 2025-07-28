@@ -15,11 +15,27 @@ export const Shop: React.FC = () => {
     upgradeGearbox,
     upgradeBattery,
     upgradeHyperdrive,
-    upgradePowerGrid
+    upgradePowerGrid,
+    activeTokenSymbol,
+    refreshActiveToken
   } = useGameStore();
   
   const [purchaseInProgress, setPurchaseInProgress] = useState(false);
   const [purchaseAnimation, setPurchaseAnimation] = useState<string | null>(null);
+
+  // Обновление активного токена при монтировании
+  React.useEffect(() => {
+    refreshActiveToken();
+    
+    // Периодическое обновление активного токена каждые 30 секунд
+    const tokenInterval = setInterval(() => {
+      refreshActiveToken();
+    }, 30000);
+    
+    return () => {
+      clearInterval(tokenInterval);
+    };
+  }, [refreshActiveToken]);
 
   // Функция для получения следующего доступного апгрейда
   const getNextUpgrade = useCallback((type: string, currentLevel: string) => {
@@ -291,7 +307,7 @@ export const Shop: React.FC = () => {
               minWidth: '120px'
             }}
           >
-            {isMaxLevel ? 'Максимум' : `${nextUpgrade?.cost || 0} DEL`}
+            {isMaxLevel ? 'Максимум' : `${nextUpgrade?.cost || 0} ${activeTokenSymbol || 'DEL'}`}
           </button>
         </div>
       </div>
