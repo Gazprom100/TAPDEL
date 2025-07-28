@@ -126,6 +126,11 @@ const App: React.FC = () => {
     const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
     console.log('📱 Текущие Telegram данные:', telegramUser);
     
+    // Проверяем существование telegramUser
+    if (!telegramUser) {
+      console.warn('⚠️ Telegram данные недоступны!');
+    }
+    
     // Периодическое обновление активного токена каждые 30 секунд
     const tokenUpdateInterval = setInterval(() => {
       refreshActiveToken();
@@ -147,8 +152,9 @@ const App: React.FC = () => {
     console.log('  - version:', (window.Telegram?.WebApp as any)?.version || 'unknown');
     console.log('  - user agent:', navigator.userAgent);
     
-    if (telegramUser?.id) {
-      const correctUserId = `telegram-${telegramUser.id}`;
+                // @ts-ignore
+        if (telegramUser && telegramUser.id !== undefined && telegramUser.id !== null && telegramUser.id !== 0) {
+          const correctUserId = `telegram-${telegramUser?.id || 0}`;
       console.log('🎯 Корректный userId из Telegram:', correctUserId);
       
       // Если userId отличается от правильного, обновляем
@@ -161,22 +167,22 @@ const App: React.FC = () => {
         if (userId && userId !== correctUserId) {
           const existingOldUserId = localStorage.getItem('oldUserId');
           if (!existingOldUserId || existingOldUserId !== userId) {
-            localStorage.setItem('oldUserId', userId);
+            localStorage.setItem('oldUserId', userId || '');
             console.log('💾 Сохранен oldUserId для миграции:', userId);
           }
         }
         
         userId = correctUserId;
-        localStorage.setItem('userId', userId);
+        localStorage.setItem('userId', userId || '');
         
         // Сохраняем актуальные Telegram данные
         const userData = {
           userId: userId,
-          username: telegramUser.username || `${telegramUser.first_name} ${telegramUser.last_name}`.trim(),
-          telegramFirstName: telegramUser.first_name || '',
-          telegramLastName: telegramUser.last_name || '',
-          telegramUsername: telegramUser.username || '',
-          telegramId: telegramUser.id
+          username: telegramUser?.username || `${telegramUser?.first_name || ''} ${telegramUser?.last_name || ''}`.trim(),
+          telegramFirstName: telegramUser?.first_name || '',
+          telegramLastName: telegramUser?.last_name || '',
+          telegramUsername: telegramUser?.username || '',
+          telegramId: telegramUser?.id || 0
         };
         localStorage.setItem('telegramUserData', JSON.stringify(userData));
         console.log('✅ Обновлены Telegram данные для синхронизации:', userData);
@@ -199,22 +205,23 @@ const App: React.FC = () => {
       console.log('📱 window.Telegram.WebApp.initDataUnsafe:', !!window.Telegram?.WebApp?.initDataUnsafe);
       console.log('📱 window.Telegram.WebApp.initDataUnsafe.user:', window.Telegram?.WebApp?.initDataUnsafe?.user);
       
-      if (telegramUser?.id) {
+      // @ts-ignore
+      if (telegramUser && telegramUser.id !== undefined && telegramUser.id !== null && telegramUser.id !== 0) {
         // Используем реальный Telegram ID
-        userId = `telegram-${telegramUser.id}`;
+        userId = `telegram-${telegramUser?.id || 0}`;
         
         // Сохраняем дополнительные данные пользователя
         const userData = {
           userId: userId,
-          username: telegramUser.username || `${telegramUser.first_name} ${telegramUser.last_name}`.trim(),
-          telegramFirstName: telegramUser.first_name || '',
-          telegramLastName: telegramUser.last_name || '',
-          telegramUsername: telegramUser.username || '',
-          telegramId: telegramUser.id
+          username: telegramUser?.username || `${telegramUser?.first_name || ''} ${telegramUser?.last_name || ''}`.trim(),
+          telegramFirstName: telegramUser?.first_name || '',
+          telegramLastName: telegramUser?.last_name || '',
+          telegramUsername: telegramUser?.username || '',
+          telegramId: telegramUser?.id || 0
         };
         
         // Сохраняем в localStorage
-        localStorage.setItem('userId', userId);
+        localStorage.setItem('userId', userId || '');
         localStorage.setItem('telegramUserData', JSON.stringify(userData));
         
         console.log('📱 Получены реальные Telegram данные:', userData);
@@ -224,8 +231,8 @@ const App: React.FC = () => {
         const storedTelegramData = localStorage.getItem('telegramUserData');
         if (storedTelegramData) {
           try {
-            const parsedData = JSON.parse(storedTelegramData);
-            if (parsedData.telegramId) {
+            const parsedData = JSON.parse(storedTelegramData || '{}');
+            if (parsedData.telegramId && typeof parsedData.telegramId === 'number') {
               userId = `telegram-${parsedData.telegramId}`;
               console.log('📱 Используем сохраненный Telegram ID:', userId);
             }
@@ -259,7 +266,7 @@ const App: React.FC = () => {
         }
       }
       
-      localStorage.setItem('userId', userId);
+      localStorage.setItem('userId', userId || '');
       console.log('💾 Установлен userId:', userId);
     } else {
       console.log('✅ userId найден в localStorage:', userId);
@@ -272,7 +279,7 @@ const App: React.FC = () => {
     console.log('🔄 Вызываем initializeUser с userId:', userId);
     
     // Инициализируем пользователя
-    initializeUser(userId).then(() => {
+    initializeUser(userId || '').then(() => {
       console.log('✅ initializeUser завершён успешно');
       
       // Запускаем автосинхронизацию лидерборда каждые 30 секунд
