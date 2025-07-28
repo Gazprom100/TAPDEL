@@ -205,7 +205,7 @@ export const TokenManagement: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="admin-scrollable space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Управление токенами</h2>
         <div className="flex space-x-2">
@@ -214,13 +214,13 @@ export const TokenManagement: React.FC = () => {
               loadTokens();
               loadTokenHistory();
             }}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white"
+            className="admin-button px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white"
           >
             Обновить
           </button>
           <button
             onClick={() => setShowAddToken(true)}
-            className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-white"
+            className="admin-button px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-white"
           >
             ➕ Добавить токен
           </button>

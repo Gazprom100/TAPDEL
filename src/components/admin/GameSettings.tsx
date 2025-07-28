@@ -231,7 +231,7 @@ export const GameSettings: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="admin-scrollable space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-white">Настройки игры</h2>
@@ -240,14 +240,14 @@ export const GameSettings: React.FC = () => {
         <div className="flex space-x-4">
           <button
             onClick={resetToDefaults}
-            className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg"
+            className="admin-button px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg"
           >
             Сбросить
           </button>
           <button
             onClick={saveConfig}
             disabled={saving}
-            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white rounded-lg"
+            className="admin-button px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white rounded-lg"
           >
             {saving ? 'Сохранение...' : 'Сохранить'}
           </button>
@@ -271,7 +271,7 @@ export const GameSettings: React.FC = () => {
         <div className="flex space-x-4 overflow-x-auto">
           <button
             onClick={() => setActiveTab('basic')}
-            className={`px-4 py-2 rounded-lg text-sm whitespace-nowrap ${
+            className={`admin-nav-item px-4 py-2 rounded-lg text-sm whitespace-nowrap ${
               activeTab === 'basic' 
                 ? 'bg-blue-600 text-white' 
                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
@@ -281,7 +281,7 @@ export const GameSettings: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('components')}
-            className={`px-4 py-2 rounded-lg text-sm whitespace-nowrap ${
+            className={`admin-nav-item px-4 py-2 rounded-lg text-sm whitespace-nowrap ${
               activeTab === 'components' 
                 ? 'bg-blue-600 text-white' 
                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
@@ -291,7 +291,7 @@ export const GameSettings: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('economy')}
-            className={`px-4 py-2 rounded-lg text-sm whitespace-nowrap ${
+            className={`admin-nav-item px-4 py-2 rounded-lg text-sm whitespace-nowrap ${
               activeTab === 'economy' 
                 ? 'bg-blue-600 text-white' 
                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
@@ -301,7 +301,7 @@ export const GameSettings: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('events')}
-            className={`px-4 py-2 rounded-lg text-sm whitespace-nowrap ${
+            className={`admin-nav-item px-4 py-2 rounded-lg text-sm whitespace-nowrap ${
               activeTab === 'events' 
                 ? 'bg-blue-600 text-white' 
                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'

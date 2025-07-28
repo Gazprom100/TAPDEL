@@ -131,12 +131,12 @@ export const SystemMonitoring: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="admin-scrollable space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Мониторинг системы</h2>
         <button
           onClick={loadSystemData}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white"
+          className="admin-button px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white"
         >
           Обновить
         </button>

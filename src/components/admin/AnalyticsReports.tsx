@@ -192,7 +192,7 @@ export const AnalyticsReports: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="admin-scrollable space-y-6">
       <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
         <h2 className="text-2xl font-bold">Аналитика и отчеты</h2>
         <div className="flex space-x-2">

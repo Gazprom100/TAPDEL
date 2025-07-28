@@ -190,7 +190,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onUserUpdate }) 
   }
 
   return (
-    <div className="space-y-6">
+    <div className="admin-scrollable space-y-6">
       <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
         <h2 className="text-2xl font-bold">Управление пользователями</h2>
         <div className="text-sm text-gray-400">
@@ -205,13 +205,13 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onUserUpdate }) 
           placeholder="Поиск пользователей..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="admin-input px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
         
         <select
           value={filterRole}
           onChange={(e) => setFilterRole(e.target.value as any)}
-          className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="admin-input px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         >
           <option value="all">Все роли</option>
           <option value="admin">Администраторы</option>
@@ -222,7 +222,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onUserUpdate }) 
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value as any)}
-          className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="admin-input px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         >
           <option value="all">Все статусы</option>
           <option value="active">Активные</option>
@@ -231,7 +231,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onUserUpdate }) 
         
         <button
           onClick={loadUsers}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white"
+          className="admin-button px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white"
         >
           Обновить
         </button>
@@ -247,25 +247,25 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onUserUpdate }) 
             <div className="flex gap-2">
               <button
                 onClick={() => handleBulkAction('ban')}
-                className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm"
+                className="admin-button px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm"
               >
                 Забанить
               </button>
               <button
                 onClick={() => handleBulkAction('unban')}
-                className="px-3 py-1 bg-green-600 hover:bg-green-700 rounded text-sm"
+                className="admin-button px-3 py-1 bg-green-600 hover:bg-green-700 rounded text-sm"
               >
                 Разбанить
               </button>
               <button
                 onClick={() => handleBulkAction('resetBalance')}
-                className="px-3 py-1 bg-yellow-600 hover:bg-yellow-700 rounded text-sm"
+                className="admin-button px-3 py-1 bg-yellow-600 hover:bg-yellow-700 rounded text-sm"
               >
                 Сбросить баланс
               </button>
               <button
                 onClick={() => handleBulkAction('delete')}
-                className="px-3 py-1 bg-red-800 hover:bg-red-900 rounded text-sm"
+                className="admin-button px-3 py-1 bg-red-800 hover:bg-red-900 rounded text-sm"
               >
                 Удалить
               </button>
@@ -275,7 +275,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onUserUpdate }) 
       )}
 
       {/* Таблица пользователей */}
-      <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+      <div className="admin-table-container bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-700">

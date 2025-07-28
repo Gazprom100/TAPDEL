@@ -223,7 +223,7 @@ export const SystemSettings: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="admin-scrollable space-y-6">
       <h2 className="text-2xl font-bold">Настройки системы</h2>
 
       {/* Навигация по настройкам */}

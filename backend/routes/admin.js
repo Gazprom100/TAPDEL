@@ -701,6 +701,251 @@ router.get('/economy', async (req, res) => {
   }
 });
 
+// === БАЛАНС РАБОЧЕГО КОШЕЛЬКА ===
+
+// Получить баланс рабочего кошелька
+router.get('/wallet-balance', async (req, res) => {
+  try {
+    const database = await connectToDatabase();
+    
+    // Получаем все токены из БД
+    const tokens = await database.collection('tokens').find({}).toArray();
+    
+    // Получаем балансы рабочего кошелька для каждого токена
+    const walletBalances = [];
+    
+    for (const token of tokens) {
+      try {
+        // Здесь должна быть логика получения баланса с DecimalChain
+        // Пока используем моковые данные
+        const balance = {
+          symbol: token.symbol,
+          name: token.name,
+          address: token.address,
+          balance: Math.random() * 10000, // Моковый баланс
+          decimals: token.decimals,
+          lastUpdated: new Date().toISOString(),
+          status: 'active'
+        };
+        
+        walletBalances.push(balance);
+      } catch (error) {
+        console.error(`Ошибка получения баланса для ${token.symbol}:`, error);
+        walletBalances.push({
+          symbol: token.symbol,
+          name: token.name,
+          address: token.address,
+          balance: 0,
+          decimals: token.decimals,
+          lastUpdated: new Date().toISOString(),
+          status: 'error',
+          error: error.message
+        });
+      }
+    }
+    
+    // Общий баланс в USD (примерная оценка)
+    const totalBalanceUSD = walletBalances.reduce((total, token) => {
+      return total + (token.balance || 0);
+    }, 0);
+    
+    res.json({
+      success: true,
+      balances: walletBalances,
+      totalBalanceUSD,
+      lastUpdated: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Ошибка получения баланса кошелька:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Обновить балансы кошелька
+router.post('/wallet-balance/refresh', async (req, res) => {
+  try {
+    const database = await connectToDatabase();
+    
+    // Получаем все токены
+    const tokens = await database.collection('tokens').find({}).toArray();
+    
+    const updatedBalances = [];
+    
+    for (const token of tokens) {
+      try {
+        // Здесь должна быть реальная логика получения баланса
+        const balance = Math.random() * 10000; // Моковый баланс
+        
+        // Сохраняем обновленный баланс в БД
+        await database.collection('wallet_balances').updateOne(
+          { symbol: token.symbol },
+          { 
+            $set: { 
+              balance,
+              lastUpdated: new Date(),
+              status: 'active'
+            } 
+          },
+          { upsert: true }
+        );
+        
+        updatedBalances.push({
+          symbol: token.symbol,
+          balance,
+          lastUpdated: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error(`Ошибка обновления баланса для ${token.symbol}:`, error);
+      }
+    }
+    
+    console.log('💰 Балансы рабочего кошелька обновлены');
+    
+    res.json({
+      success: true,
+      message: 'Балансы кошелька обновлены',
+      updatedBalances
+    });
+  } catch (error) {
+    console.error('Ошибка обновления балансов кошелька:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// === ИСТОРИЯ БАЛАНСОВ ПОЛЬЗОВАТЕЛЕЙ ===
+
+// Получить историю балансов пользователя
+router.get('/user-balances/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const database = await connectToDatabase();
+    
+    // Получаем историю балансов пользователя
+    const userBalances = await database.collection('user_token_balances').find({
+      userId: userId
+    }).sort({ lastUpdated: -1 }).toArray();
+    
+    // Получаем информацию о пользователе
+    const user = await database.collection('users').findOne({ userId: userId });
+    
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'Пользователь не найден' });
+    }
+    
+    // Группируем балансы по токенам
+    const balancesByToken = {};
+    userBalances.forEach(balance => {
+      if (!balancesByToken[balance.tokenSymbol]) {
+        balancesByToken[balance.tokenSymbol] = [];
+      }
+      balancesByToken[balance.tokenSymbol].push(balance);
+    });
+    
+    // Получаем актуальные токены
+    const tokens = await database.collection('tokens').find({}).toArray();
+    
+    res.json({
+      success: true,
+      user: {
+        userId: user.userId,
+        username: user.username,
+        telegramUsername: user.telegramUsername
+      },
+      balances: balancesByToken,
+      tokens: tokens,
+      totalBalances: Object.keys(balancesByToken).map(symbol => {
+        const latestBalance = balancesByToken[symbol][0];
+        return {
+          symbol,
+          balance: latestBalance.balance,
+          highScore: latestBalance.highScore,
+          lastUpdated: latestBalance.lastUpdated
+        };
+      })
+    });
+  } catch (error) {
+    console.error('Ошибка получения балансов пользователя:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Получить все балансы пользователей по токенам
+router.get('/all-user-balances', async (req, res) => {
+  try {
+    const database = await connectToDatabase();
+    const { page = 1, limit = 50, tokenSymbol } = req.query;
+    
+    // Строим фильтр
+    const filter = {};
+    if (tokenSymbol) {
+      filter.tokenSymbol = tokenSymbol;
+    }
+    
+    // Получаем все балансы пользователей
+    const userBalances = await database.collection('user_token_balances')
+      .find(filter)
+      .sort({ lastUpdated: -1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit))
+      .toArray();
+    
+    // Получаем общее количество
+    const total = await database.collection('user_token_balances').countDocuments(filter);
+    
+    // Группируем по пользователям
+    const balancesByUser = {};
+    userBalances.forEach(balance => {
+      if (!balancesByUser[balance.userId]) {
+        balancesByUser[balance.userId] = [];
+      }
+      balancesByUser[balance.userId].push(balance);
+    });
+    
+    // Получаем информацию о пользователях
+    const userIds = Object.keys(balancesByUser);
+    const users = await database.collection('users').find({
+      userId: { $in: userIds }
+    }).toArray();
+    
+    const userInfo = {};
+    users.forEach(user => {
+      userInfo[user.userId] = user;
+    });
+    
+    // Формируем результат
+    const result = Object.keys(balancesByUser).map(userId => {
+      const balances = balancesByUser[userId];
+      const user = userInfo[userId];
+      
+      return {
+        userId,
+        username: user?.username || 'Неизвестно',
+        telegramUsername: user?.telegramUsername,
+        balances: balances.map(b => ({
+          symbol: b.tokenSymbol,
+          balance: b.balance,
+          highScore: b.highScore,
+          lastUpdated: b.lastUpdated
+        }))
+      };
+    });
+    
+    res.json({
+      success: true,
+      data: result,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Ошибка получения всех балансов пользователей:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // === НАСТРОЙКИ ИГРЫ ===
 
 // Получить конфигурацию игры

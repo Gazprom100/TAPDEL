@@ -4,10 +4,12 @@ import { SystemMonitoring } from './admin/SystemMonitoring';
 import { EconomyManagement } from './admin/EconomyManagement';
 import { TokenManagement } from './admin/TokenManagement';
 import { GameSettings } from './admin/GameSettings';
+import { WalletBalance } from './admin/WalletBalance';
+import { UserBalances } from './admin/UserBalances';
 import { adminApiService, AdminStats } from '../services/adminApi';
 
 export const FullAdminPanel: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'system' | 'economy' | 'tokens' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'system' | 'economy' | 'tokens' | 'settings' | 'wallet' | 'userBalances'>('overview');
   const [stats, setStats] = useState<AdminStats>({
     totalUsers: 0,
     totalTokens: 0,
@@ -87,9 +89,9 @@ export const FullAdminPanel: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className="admin-container min-h-screen bg-gray-900 text-white">
       {/* Заголовок */}
-      <div className="bg-gray-800 border-b border-gray-700 px-6 py-4">
+      <div className="admin-header bg-gray-800 border-b border-gray-700 px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">Админ панель TAPDEL</h1>
@@ -98,7 +100,7 @@ export const FullAdminPanel: React.FC = () => {
           <div className="flex items-center space-x-4">
             <button
               onClick={loadStats}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white"
+              className="admin-button px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white"
             >
               Обновить
             </button>
@@ -110,11 +112,11 @@ export const FullAdminPanel: React.FC = () => {
       </div>
 
       {/* Навигация */}
-      <div className="bg-gray-800 border-b border-gray-700 px-6">
+      <div className="admin-navigation bg-gray-800 border-b border-gray-700 px-6">
         <nav className="flex space-x-8">
           <button
             onClick={() => setActiveTab('overview')}
-            className={`py-4 px-2 border-b-2 font-medium text-sm ${
+            className={`admin-nav-item py-4 px-2 border-b-2 font-medium text-sm ${
               activeTab === 'overview'
                 ? 'border-blue-500 text-blue-400'
                 : 'border-transparent text-gray-400 hover:text-gray-300'
@@ -124,7 +126,7 @@ export const FullAdminPanel: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('users')}
-            className={`py-4 px-2 border-b-2 font-medium text-sm ${
+            className={`admin-nav-item py-4 px-2 border-b-2 font-medium text-sm ${
               activeTab === 'users'
                 ? 'border-blue-500 text-blue-400'
                 : 'border-transparent text-gray-400 hover:text-gray-300'
@@ -134,7 +136,7 @@ export const FullAdminPanel: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('system')}
-            className={`py-4 px-2 border-b-2 font-medium text-sm ${
+            className={`admin-nav-item py-4 px-2 border-b-2 font-medium text-sm ${
               activeTab === 'system'
                 ? 'border-blue-500 text-blue-400'
                 : 'border-transparent text-gray-400 hover:text-gray-300'
@@ -144,7 +146,7 @@ export const FullAdminPanel: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('economy')}
-            className={`py-4 px-2 border-b-2 font-medium text-sm ${
+            className={`admin-nav-item py-4 px-2 border-b-2 font-medium text-sm ${
               activeTab === 'economy'
                 ? 'border-blue-500 text-blue-400'
                 : 'border-transparent text-gray-400 hover:text-gray-300'
@@ -154,7 +156,7 @@ export const FullAdminPanel: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('tokens')}
-            className={`py-4 px-2 border-b-2 font-medium text-sm ${
+            className={`admin-nav-item py-4 px-2 border-b-2 font-medium text-sm ${
               activeTab === 'tokens'
                 ? 'border-blue-500 text-blue-400'
                 : 'border-transparent text-gray-400 hover:text-gray-300'
@@ -164,7 +166,7 @@ export const FullAdminPanel: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('settings')}
-            className={`py-4 px-2 border-b-2 font-medium text-sm ${
+            className={`admin-nav-item py-4 px-2 border-b-2 font-medium text-sm ${
               activeTab === 'settings'
                 ? 'border-blue-500 text-blue-400'
                 : 'border-transparent text-gray-400 hover:text-gray-300'
@@ -172,11 +174,31 @@ export const FullAdminPanel: React.FC = () => {
           >
             Настройки
           </button>
+          <button
+            onClick={() => setActiveTab('wallet')}
+            className={`admin-nav-item py-4 px-2 border-b-2 font-medium text-sm ${
+              activeTab === 'wallet'
+                ? 'border-blue-500 text-blue-400'
+                : 'border-transparent text-gray-400 hover:text-gray-300'
+            }`}
+          >
+            Баланс кошельков
+          </button>
+          <button
+            onClick={() => setActiveTab('userBalances')}
+            className={`admin-nav-item py-4 px-2 border-b-2 font-medium text-sm ${
+              activeTab === 'userBalances'
+                ? 'border-blue-500 text-blue-400'
+                : 'border-transparent text-gray-400 hover:text-gray-300'
+            }`}
+          >
+            Балансы пользователей
+          </button>
         </nav>
       </div>
 
       {/* Контент */}
-      <div className="p-6">
+      <div className="admin-content admin-scrollable p-6">
         {activeTab === 'overview' && (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold">Обзор системы</h2>
@@ -343,6 +365,14 @@ export const FullAdminPanel: React.FC = () => {
 
         {activeTab === 'settings' && (
           <GameSettings />
+        )}
+
+        {activeTab === 'wallet' && (
+          <WalletBalance />
+        )}
+
+        {activeTab === 'userBalances' && (
+          <UserBalances />
         )}
       </div>
     </div>

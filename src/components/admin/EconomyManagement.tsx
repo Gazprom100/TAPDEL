@@ -120,14 +120,14 @@ export const EconomyManagement: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="admin-scrollable space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Управление экономикой</h2>
         <div className="flex items-center space-x-4">
           <select
             value={selectedPeriod}
             onChange={(e) => setSelectedPeriod(e.target.value as any)}
-            className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="admin-input px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="1d">За 24 часа</option>
             <option value="7d">За 7 дней</option>
@@ -135,7 +135,7 @@ export const EconomyManagement: React.FC = () => {
           </select>
           <button
             onClick={loadEconomyData}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white"
+            className="admin-button px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white"
           >
             Обновить
           </button>
