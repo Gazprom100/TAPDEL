@@ -21,6 +21,16 @@ export const TokenCounter = ({ tokens }: TokenCounterProps) => {
     }
 
     loadActiveToken()
+    
+    // Периодическое обновление активного токена каждые 30 секунд
+    const tokenUpdateInterval = setInterval(() => {
+      refreshActiveToken()
+    }, 30000)
+    
+    // Очистка интервала при размонтировании
+    return () => {
+      clearInterval(tokenUpdateInterval)
+    }
   }, [refreshActiveToken])
 
   useEffect(() => {

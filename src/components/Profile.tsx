@@ -43,19 +43,21 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [isTransactionsLoading, setIsTransactionsLoading] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   const [lastTransactionsUpdate, setLastTransactionsUpdate] = useState(0);
+  const [isLoading, setIsLoading] = useState(false); // Общий индикатор загрузки
   
   // Периодическое обновление таблицы лидеров
   useEffect(() => {
     let interval: NodeJS.Timeout;
 
     const updateLeaderboard = async () => {
-      if (activeTab === 'leaderboard') {
+      if (activeTab === 'leaderboard' && !isLeaderboardLoading) {
         setIsLeaderboardLoading(true);
         try {
           console.log('🔄 Profile: Обновление лидерборда...');
           await refreshLeaderboard();
         } catch (error) {
           console.error('❌ Profile: Ошибка обновления лидерборда:', error);
+          // Не показываем ошибку пользователю, просто логируем
         } finally {
           setIsLeaderboardLoading(false);
         }
@@ -63,7 +65,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     };
 
     const loadTransactionsData = async () => {
-      if (activeTab === 'transactions' && profile?.userId) {
+      if (activeTab === 'transactions' && profile?.userId && !isTransactionsLoading) {
         // Дебаунсинг: не загружаем чаще чем раз в 10 секунд
         const now = Date.now();
         if (now - lastTransactionsUpdate < 10000) {
@@ -90,10 +92,20 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             timeoutPromise
           ]).catch(() => []) as Promise<any[]>;
           
-          const [depositsData, withdrawalsData] = await Promise.all([
-            depositsPromise,
-            withdrawalsPromise
-          ]);
+          // Добавляем общий таймаут для всей операции
+          const overallTimeout = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Общий таймаут транзакций')), 15000)
+          );
+          
+          const result = await Promise.race([
+            Promise.all([
+              depositsPromise,
+              withdrawalsPromise
+            ]),
+            overallTimeout
+          ]) as [any[], any[]];
+          
+          const [depositsData, withdrawalsData] = result;
           
           setDeposits(depositsData);
           setWithdrawals(withdrawalsData);
@@ -111,8 +123,9 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
     if (activeTab === 'leaderboard') {
       updateLeaderboard();
-      interval = setInterval(updateLeaderboard, 30000); // Обновляем каждые 30 секунд
-    } else if (activeTab === 'transactions') {
+      // Увеличиваем интервал до 60 секунд для снижения нагрузки
+      interval = setInterval(updateLeaderboard, 60000); // Обновляем каждые 60 секунд
+    } else if (activeTab === 'transactions' && profile?.userId) {
       loadTransactionsData();
     }
 
@@ -121,7 +134,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         clearInterval(interval);
       }
     };
-  }, [activeTab, refreshLeaderboard, profile?.userId]);
+  }, [activeTab, refreshLeaderboard, profile?.userId, lastTransactionsUpdate]);
 
   const handleWithdraw = async () => {
     if (!withdrawAmount || !withdrawAddress) {

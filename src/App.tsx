@@ -34,10 +34,9 @@ const App: React.FC = () => {
   } = useGameStore();
 
   useEffect(() => {
-    if (!activeTokenSymbol) {
-      refreshActiveToken();
-    }
-  }, [activeTokenSymbol, refreshActiveToken]);
+    // Всегда обновляем активный токен при загрузке приложения
+    refreshActiveToken();
+  }, [refreshActiveToken]);
   
   const {
     fuelLevel,
@@ -126,6 +125,16 @@ const App: React.FC = () => {
     // ПРИНУДИТЕЛЬНАЯ ПРОВЕРКА TELEGRAM ДАННЫХ НА КАЖДОМ ЗАПУСКЕ
     const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
     console.log('📱 Текущие Telegram данные:', telegramUser);
+    
+    // Периодическое обновление активного токена каждые 30 секунд
+    const tokenUpdateInterval = setInterval(() => {
+      refreshActiveToken();
+    }, 30000);
+    
+    // Очистка интервала при размонтировании
+    return () => {
+      clearInterval(tokenUpdateInterval);
+    };
     
     // РАСШИРЕННАЯ ДИАГНОСТИКА
     console.log('🔍 Диагностика Telegram WebApp:');

@@ -29,10 +29,19 @@ export const TapButton: React.FC = () => {
   } = useGameStore();
 
   useEffect(() => {
-    if (!activeTokenSymbol) {
+    // Всегда обновляем активный токен при монтировании компонента
+    refreshActiveToken();
+    
+    // Периодическое обновление активного токена каждые 30 секунд
+    const tokenUpdateInterval = setInterval(() => {
       refreshActiveToken();
-    }
-  }, [activeTokenSymbol, refreshActiveToken]);
+    }, 30000);
+    
+    // Очистка интервала при размонтировании
+    return () => {
+      clearInterval(tokenUpdateInterval);
+    };
+  }, [refreshActiveToken]);
   
   const [gear, setGear] = useState<Gear>('N');
   const [taps, setTaps] = useState<number[]>([]);
