@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../store/gameStore';
+import { useGameConfigStore } from '../store/gameConfigStore';
 import { Shop } from './Shop';
 import { AdminPanel } from './AdminPanel';
 
@@ -16,6 +17,8 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     activeTokenSymbol,
     refreshActiveToken
   } = useGameStore();
+
+  const { config } = useGameConfigStore();
   
   // Отладочная информация для проверки профиля
   console.log('🔍 Profile Component Debug:', { 
@@ -91,41 +94,40 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         
         setIsTransactionsLoading(true);
         try {
+          console.log('🔄 Загружаем данные транзакций для:', profile.userId);
+          
           const { decimalApi } = await import('../services/decimalApi');
           
-          // Добавляем таймаут для API вызовов
-          const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Таймаут запроса')), 10000)
-          );
+          // Загружаем депозиты с таймаутом
+          let depositsData = [];
+          try {
+            depositsData = await Promise.race([
+              decimalApi.getUserDeposits(profile.userId),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+            ]) as any[];
+            console.log('✅ Депозиты загружены:', depositsData.length);
+          } catch (error) {
+            console.warn('⚠️ Ошибка загрузки депозитов:', error);
+            depositsData = [];
+          }
           
-          const depositsPromise = Promise.race([
-            decimalApi.getUserDeposits(profile.userId).catch(() => []),
-            timeoutPromise
-          ]).catch(() => []) as Promise<any[]>;
-          
-          const withdrawalsPromise = Promise.race([
-            decimalApi.getUserWithdrawals(profile.userId).catch(() => []),
-            timeoutPromise
-          ]).catch(() => []) as Promise<any[]>;
-          
-          // Добавляем общий таймаут для всей операции
-          const overallTimeout = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Общий таймаут транзакций')), 15000)
-          );
-          
-          const result = await Promise.race([
-            Promise.all([
-              depositsPromise,
-              withdrawalsPromise
-            ]),
-            overallTimeout
-          ]) as [any[], any[]];
-          
-          const [depositsData, withdrawalsData] = result;
+          // Загружаем выводы с таймаутом
+          let withdrawalsData = [];
+          try {
+            withdrawalsData = await Promise.race([
+              decimalApi.getUserWithdrawals(profile.userId),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+            ]) as any[];
+            console.log('✅ Выводы загружены:', withdrawalsData.length);
+          } catch (error) {
+            console.warn('⚠️ Ошибка загрузки выводов:', error);
+            withdrawalsData = [];
+          }
           
           setDeposits(depositsData);
           setWithdrawals(withdrawalsData);
           setLastTransactionsUpdate(now);
+          console.log('✅ Данные транзакций обновлены');
         } catch (error) {
           console.error('❌ Profile: Ошибка загрузки данных транзакций:', error);
           // Устанавливаем пустые массивы при ошибке
@@ -140,7 +142,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     if (activeTab === 'leaderboard') {
       updateLeaderboard();
       // Увеличиваем интервал до 60 секунд для снижения нагрузки
-      interval = setInterval(updateLeaderboard, 60000); // Обновляем каждые 60 секунд
+              interval = setInterval(updateLeaderboard, config.leaderboard.updateInterval * 1000); // Используем настройки из админки
     } else if (activeTab === 'transactions' && profile?.userId) {
       loadTransactionsData();
     }

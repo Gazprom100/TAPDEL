@@ -1,17 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { COMPONENTS, GAME_MECHANICS } from '../types/game';
 import { useGameStore } from '../store/gameStore';
+import { useGameConfigStore } from '../store/gameConfigStore';
 
-// Новые константы механики
-const FUEL_MECHANICS = {
-  MAX_LEVEL: 100,
+// Базовые константы механики (динамические настройки подгружаются из config)
+const FUEL_MECHANICS_BASE = {
   MIN_LEVEL: 0,
   // За 3 минуты активного тапания 5 пальцами (максимальная скорость ~15 тапов/сек) тратится все топливо
   // При максимальной скорости: 15 тапов/сек * 180 сек = 2700 тапов
-  // 100% / 2700 тапов = ~0.037% за тап
-  CONSUMPTION_PER_TAP: 100 / (15 * 3 * 60), // ~0.037% за тап при максимальной скорости
+  BASE_CONSUMPTION_RATIO: 1 / (15 * 3 * 60), // Базовая пропорция потребления
   // За 3 минуты бездействия восстанавливается все топливо
-  RECOVERY_RATE: 100 / (3 * 60), // ~0.56% в секунду при бездействии
+  BASE_RECOVERY_RATIO: 1 / (3 * 60), // Базовая пропорция восстановления
   INACTIVITY_THRESHOLD: 2000 // 2 секунды без активности для начала восстановления
 };
 
@@ -37,12 +36,37 @@ export const useGameMechanics = () => {
     addTokens
   } = useGameStore();
 
-  const [fuelLevel, setFuelLevel] = useState(FUEL_MECHANICS.MAX_LEVEL);
+  const { config, isLoaded, loadConfig } = useGameConfigStore();
+
+  const [fuelLevel, setFuelLevel] = useState(100); // Начальное значение, будет обновлено из настроек
   const [hyperdriveCharge, setHyperdriveCharge] = useState(HYPERDRIVE_MECHANICS.MIN_CHARGE);
   const [isHyperdriveActive, setIsHyperdriveActive] = useState(false);
   const [lastTapTime, setLastTapTime] = useState(0);
   const [gear, setGear] = useState('N');
   const [taps, setTaps] = useState<number[]>([]);
+
+  // Загружаем настройки при инициализации
+  useEffect(() => {
+    if (!isLoaded) {
+      loadConfig();
+    }
+  }, [isLoaded, loadConfig]);
+
+  // Динамические константы на основе настроек
+  const FUEL_MECHANICS = {
+    MAX_LEVEL: config.energyMax,
+    MIN_LEVEL: FUEL_MECHANICS_BASE.MIN_LEVEL,
+    CONSUMPTION_PER_TAP: config.energyMax * FUEL_MECHANICS_BASE.BASE_CONSUMPTION_RATIO,
+    RECOVERY_RATE: config.energyMax * FUEL_MECHANICS_BASE.BASE_RECOVERY_RATIO * config.energyRegenRate,
+    INACTIVITY_THRESHOLD: 2000
+  };
+
+  // Обновляем максимальную энергию при изменении настроек
+  useEffect(() => {
+    if (isLoaded && fuelLevel === 100) {
+      setFuelLevel(config.energyMax);
+    }
+  }, [isLoaded, config.energyMax]);
 
   // Получаем текущие компоненты
   const currentEngine = COMPONENTS.ENGINES.find(e => e.level === engineLevel)!;
@@ -113,7 +137,7 @@ export const useGameMechanics = () => {
     }
     
     // Рассчитываем награду
-    const baseReward = 1;
+    const baseReward = config.baseTokensPerTap;
     const gearMultiplier = GAME_MECHANICS.GEAR.MULTIPLIERS[newGear] || 1;
     const engineBonus = 1 + (currentEngine.power / 100);
     const gearboxBonus = 1 + (currentGearbox.gear / 10);

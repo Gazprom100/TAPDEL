@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { useGameStore } from '../store/gameStore';
+import { useGameConfigStore } from '../store/gameConfigStore';
 import { COMPONENTS } from '../types/game';
 
 export const Shop: React.FC = () => {
@@ -19,6 +20,8 @@ export const Shop: React.FC = () => {
     activeTokenSymbol,
     refreshActiveToken
   } = useGameStore();
+
+  const { config } = useGameConfigStore();
   
   const [purchaseInProgress, setPurchaseInProgress] = useState(false);
   const [purchaseAnimation, setPurchaseAnimation] = useState<string | null>(null);
@@ -37,6 +40,30 @@ export const Shop: React.FC = () => {
     };
   }, [refreshActiveToken]);
 
+  // Генерируем компоненты из настроек
+  const generateComponents = useCallback((componentType: string) => {
+    const configComponent = config.components[componentType as keyof typeof config.components];
+    if (!configComponent) return [];
+    
+    const components = [];
+    for (let i = 0; i < configComponent.maxLevel; i++) {
+      const cost = configComponent.costs[i] || (configComponent.costs[configComponent.costs.length - 1] || 100) * Math.pow(2, i - configComponent.costs.length + 1);
+      const bonus = configComponent.bonuses[i] || (configComponent.bonuses[configComponent.bonuses.length - 1] || 1) * Math.pow(2, i - configComponent.bonuses.length + 1);
+      
+      components.push({
+        level: `Level ${i + 1}`,
+        cost,
+        bonus,
+        // Дополнительные поля для совместимости
+        power: bonus,
+        gear: bonus,
+        efficiency: bonus,
+        speedMultiplier: bonus / 10 + 1
+      });
+    }
+    return components;
+  }, [config]);
+
   // Функция для получения следующего доступного апгрейда
   const getNextUpgrade = useCallback((type: string, currentLevel: string) => {
     const getCurrentIndex = (array: any[], currentLevel: string) => {
@@ -46,19 +73,19 @@ export const Shop: React.FC = () => {
     let components: any[];
     switch (type) {
       case 'engine':
-        components = COMPONENTS.ENGINES;
+        components = generateComponents('engine');
         break;
       case 'gearbox':
-        components = COMPONENTS.GEARBOXES;
+        components = generateComponents('gearbox');
         break;
       case 'battery':
-        components = COMPONENTS.BATTERIES;
+        components = generateComponents('battery');
         break;
       case 'hyperdrive':
-        components = COMPONENTS.HYPERDRIVES;
+        components = generateComponents('hyperdrive');
         break;
       case 'powerGrid':
-        components = COMPONENTS.POWER_GRIDS;
+        components = generateComponents('powerGrid');
         break;
       default:
         return null;
@@ -72,33 +99,33 @@ export const Shop: React.FC = () => {
     }
     
     return null; // Максимальный уровень достигнут
-  }, [engineLevel, gearboxLevel, batteryLevel, hyperdriveLevel, powerGridLevel]);
+  }, [generateComponents]);
 
   // Функция для получения текущего компонента
   const getCurrentComponent = useCallback((type: string, currentLevel: string) => {
     let components: any[];
     switch (type) {
       case 'engine':
-        components = COMPONENTS.ENGINES;
+        components = generateComponents('engine');
         break;
       case 'gearbox':
-        components = COMPONENTS.GEARBOXES;
+        components = generateComponents('gearbox');
         break;
       case 'battery':
-        components = COMPONENTS.BATTERIES;
+        components = generateComponents('battery');
         break;
       case 'hyperdrive':
-        components = COMPONENTS.HYPERDRIVES;
+        components = generateComponents('hyperdrive');
         break;
       case 'powerGrid':
-        components = COMPONENTS.POWER_GRIDS;
+        components = generateComponents('powerGrid');
         break;
       default:
         return null;
     }
 
     return components.find(item => item.level === currentLevel) || null;
-  }, [engineLevel, gearboxLevel, batteryLevel, hyperdriveLevel, powerGridLevel]);
+  }, [generateComponents]);
 
   const handleUpgrade = async (
     type: 'engine' | 'gearbox' | 'battery' | 'hyperdrive' | 'powerGrid'

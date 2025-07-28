@@ -3,6 +3,7 @@ import { Profile } from './components/Profile'
 import { EnergyIndicator } from './components/EnergyIndicator'
 import { FullAdminPanel } from './components/FullAdminPanel'
 import { useGameStore } from './store/gameStore'
+import { useGameConfigStore } from './store/gameConfigStore'
 import { useGameMechanics } from './hooks/useGameMechanics'
 import { useFullscreen } from './hooks/useFullscreen'
 import { COMPONENTS } from './types/game'
@@ -33,10 +34,15 @@ const App: React.FC = () => {
     refreshActiveToken
   } = useGameStore();
 
+  const { loadConfig: loadGameConfig } = useGameConfigStore();
+
   useEffect(() => {
     // Всегда обновляем активный токен при загрузке приложения
     refreshActiveToken();
-  }, [refreshActiveToken]);
+    
+    // Загружаем настройки игры
+    loadGameConfig();
+  }, [refreshActiveToken, loadGameConfig]);
   
   const {
     fuelLevel,

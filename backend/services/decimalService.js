@@ -159,9 +159,17 @@ class DecimalService {
         try {
           const cached = await this.redis.get(key);
           
-          if (cached !== null) {
+          if (cached !== null && !isNaN(parseInt(cached))) {
             nonce = parseInt(cached) + 1;
           } else {
+            const transactionCount = await this.web3.eth.getTransactionCount(
+              this.web3.utils.toChecksumAddress(address)
+            );
+            nonce = Number(transactionCount);
+          }
+          
+          // Проверяем что nonce валиден
+          if (isNaN(nonce)) {
             const transactionCount = await this.web3.eth.getTransactionCount(
               this.web3.utils.toChecksumAddress(address)
             );
@@ -277,7 +285,8 @@ class DecimalService {
       return receipt.transactionHash;
       
     } catch (error) {
-      console.error(`❌ DecimalService: Ошибка отправки транзакции ${tokenSymbol}:`, error);
+      const activeToken = await tokenService.getActiveToken();
+      console.error(`❌ DecimalService: Ошибка отправки транзакции ${activeToken.symbol}:`, error);
       throw error;
     }
   }

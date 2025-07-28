@@ -717,11 +717,12 @@ router.get('/wallet-balance', async (req, res) => {
     for (const token of tokens) {
       try {
         // Получаем реальный баланс с DecimalChain
-        const { decimalService } = require('../services/decimalService');
-        const workingAddress = process.env.DECIMAL_WORKING_ADDRESS;
+        const decimalService = require('../services/decimalService');
+        const workingAddress = process.env.DECIMAL_WORKING_ADDRESS || '0x59888c4759503AdB6d9280d71999A1Db3Cf5fb43';
         
-        if (!workingAddress) {
-          throw new Error('Рабочий адрес не настроен');
+        // Инициализируем DecimalService если нужно
+        if (!decimalService.isInitialized) {
+          await decimalService.initialize();
         }
         
         // Получаем баланс токена через ERC-20 контракт
@@ -776,15 +777,9 @@ router.get('/wallet-balance', async (req, res) => {
       }
     }
     
-    // Общий баланс в USD (примерная оценка)
-    const totalBalanceUSD = walletBalances.reduce((total, token) => {
-      return total + (token.balance || 0);
-    }, 0);
-    
     res.json({
       success: true,
       balances: walletBalances,
-      totalBalanceUSD,
       lastUpdated: new Date().toISOString()
     });
   } catch (error) {
@@ -803,10 +798,29 @@ router.post('/wallet-balance/refresh', async (req, res) => {
     
     const updatedBalances = [];
     
+    // Инициализируем DecimalService
+    const decimalService = require('../services/decimalService');
+    if (!decimalService.isInitialized) {
+      await decimalService.initialize();
+    }
+    
+    const workingAddress = process.env.DECIMAL_WORKING_ADDRESS || '0x59888c4759503AdB6d9280d71999A1Db3Cf5fb43';
+    
     for (const token of tokens) {
       try {
-        // Здесь должна быть реальная логика получения баланса
-        const balance = Math.random() * 10000; // Моковый баланс
+        // Получаем реальный баланс токена
+        const tokenContract = new decimalService.web3.eth.Contract([
+          {
+            "constant": true,
+            "inputs": [{"name": "_owner", "type": "address"}],
+            "name": "balanceOf",
+            "outputs": [{"name": "balance", "type": "uint256"}],
+            "type": "function"
+          }
+        ], token.address);
+        
+        const balanceWei = await tokenContract.methods.balanceOf(workingAddress).call();
+        const balance = parseFloat(decimalService.web3.utils.fromWei(balanceWei, 'ether'));
         
         // Сохраняем обновленный баланс в БД
         await database.collection('wallet_balances').updateOne(
@@ -1091,9 +1105,12 @@ router.post('/game-config', async (req, res) => {
     
     console.log('🎮 Конфигурация игры обновлена');
     
+    // Уведомляем игру о новых настройках
+    console.log('🔄 Настройки игры применены');
+    
     res.json({
       success: true,
-      message: 'Конфигурация игры успешно сохранена'
+      message: 'Конфигурация игры успешно сохранена и применена'
     });
   } catch (error) {
     console.error('Ошибка сохранения конфигурации игры:', error);

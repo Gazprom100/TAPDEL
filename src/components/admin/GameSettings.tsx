@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useGameConfigStore } from '../../store/gameConfigStore';
 
 interface GameConfig {
   // Основные настройки игры
@@ -67,6 +68,7 @@ interface GameConfig {
 
 export const GameSettings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'basic' | 'components' | 'economy' | 'events'>('basic');
+  const { reloadConfig } = useGameConfigStore();
   const [config, setConfig] = useState<GameConfig>({
     baseTokensPerTap: 1,
     energyMax: 1000,
@@ -168,8 +170,12 @@ export const GameSettings: React.FC = () => {
       const data = await response.json();
       
       if (data.success) {
-        setSuccessMessage('Конфигурация игры успешно сохранена!');
+        setSuccessMessage('Конфигурация игры успешно сохранена и применена!');
         setTimeout(() => setSuccessMessage(null), 3000);
+        
+        // Перезагружаем настройки в глобальном сторе
+        await reloadConfig();
+        console.log('🔄 Настройки игры перезагружены в глобальном сторе');
       } else {
         setError('Ошибка сохранения: ' + data.error);
       }

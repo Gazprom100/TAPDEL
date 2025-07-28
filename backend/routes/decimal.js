@@ -270,10 +270,18 @@ router.post('/withdrawals', async (req, res) => {
       });
     }
 
-    if (amount < 0.001) {
+    // Получаем настройки игры для проверки минимальной суммы
+    const { MongoClient } = require('mongodb');
+    const configClient = await MongoClient.connect(process.env.MONGODB_URI);
+    const configDb = configClient.db('tapdel');
+    const systemConfig = await configDb.collection('system_config').findOne({ type: 'game_config' });
+    const minWithdrawal = systemConfig?.config?.economy?.withdrawalMinAmount || 100;
+    await configClient.close();
+
+    if (amount < minWithdrawal) {
       const activeToken = await tokenService.getActiveToken();
       return res.status(400).json({ 
-        error: `Минимальная сумма вывода: 0.001 ${activeToken.symbol}` 
+        error: `Минимальная сумма вывода: ${minWithdrawal} ${activeToken.symbol}` 
       });
     }
 
