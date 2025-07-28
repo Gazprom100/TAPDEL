@@ -954,43 +954,27 @@ router.post('/admin/tokens/activate', async (req, res) => {
   try {
     const { symbol } = req.body;
     
+    console.log(`🔄 API: Запрос активации токена ${symbol}`);
+    
     if (!symbol) {
       return res.status(400).json({ success: false, error: 'Символ токена обязателен' });
     }
 
-    const database = await connectToDatabase();
+    // Используем tokenService для активации токена
+    // Он автоматически выполнит миграцию и очистит кеш
+    console.log(`🔄 API: Вызываем tokenService.activateToken(${symbol})`);
+    const success = await tokenService.activateToken(symbol);
+    console.log(`🔄 API: Результат активации: ${success}`);
     
-    // Получаем текущую конфигурацию
-    const tokenConfig = await database.collection('system_config').findOne({ key: 'tokens' });
-    const tokens = tokenConfig?.value || [];
-    
-    // Обновляем активный токен
-    const updatedTokens = tokens.map(token => ({
-      ...token,
-      isActive: token.symbol === symbol
-    }));
-    
-    // Сохраняем в БД
-    await database.collection('system_config').updateOne(
-      { key: 'tokens' },
-      { $set: { value: updatedTokens, updatedAt: new Date() } },
-      { upsert: true }
-    );
-    
-    // Добавляем в историю
-    await database.collection('token_history').insertOne({
-      symbol,
-      address: tokens.find(t => t.symbol === symbol)?.address || '',
-      changedAt: new Date(),
-      changedBy: 'admin',
-      reason: 'Смена активного токена'
-    });
-    
-    console.log(`🔄 Токен ${symbol} активирован`);
-    
-    res.json({ success: true, message: `Токен ${symbol} активирован` });
+    if (success) {
+      console.log(`✅ API: Токен ${symbol} активирован через API`);
+      res.json({ success: true, message: `Токен ${symbol} активирован` });
+    } else {
+      console.log(`❌ API: Ошибка активации токена ${symbol}`);
+      res.status(500).json({ success: false, error: 'Ошибка активации токена' });
+    }
   } catch (error) {
-    console.error('Ошибка активации токена:', error);
+    console.error('❌ API: Ошибка активации токена:', error);
     res.status(500).json({ success: false, error: 'Ошибка сервера' });
   }
 });
@@ -1148,6 +1132,92 @@ router.post('/admin/tokens/clear-cache', async (req, res) => {
     res.json({ success: true, message: 'Кеш токенов очищен' });
   } catch (error) {
     console.error('Ошибка очистки кеша токенов:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
+
+// Алиасы для фронтенда - проксируем запросы к admin роутам
+router.get('/admin/stats', async (req, res) => {
+  try {
+    const { default: fetch } = await import('node-fetch');
+    const response = await fetch(`http://localhost:3001/api/admin/statistics`);
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Ошибка проксирования /admin/stats:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
+
+router.get('/admin/system', async (req, res) => {
+  try {
+    const { default: fetch } = await import('node-fetch');
+    const response = await fetch(`http://localhost:3001/api/admin/system/metrics`);
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Ошибка проксирования /admin/system:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
+
+router.get('/admin/economy', async (req, res) => {
+  try {
+    const { default: fetch } = await import('node-fetch');
+    const response = await fetch(`http://localhost:3001/api/admin/economy/metrics`);
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Ошибка проксирования /admin/economy:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
+
+router.get('/admin/users/:userId', async (req, res) => {
+  try {
+    const { default: fetch } = await import('node-fetch');
+    const response = await fetch(`http://localhost:3001/api/admin/users/${req.params.userId}`);
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Ошибка проксирования /admin/users/:userId:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
+
+// Алиасы для Decimal API
+router.get('/decimal/status', async (req, res) => {
+  try {
+    const { default: fetch } = await import('node-fetch');
+    const response = await fetch(`http://localhost:3001/api/decimal/status`);
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Ошибка проксирования /decimal/status:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
+
+router.get('/decimal/deposits', async (req, res) => {
+  try {
+    const { default: fetch } = await import('node-fetch');
+    const response = await fetch(`http://localhost:3001/api/decimal/deposits`);
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Ошибка проксирования /decimal/deposits:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
+
+router.get('/decimal/withdrawals', async (req, res) => {
+  try {
+    const { default: fetch } = await import('node-fetch');
+    const response = await fetch(`http://localhost:3001/api/decimal/withdrawals`);
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Ошибка проксирования /decimal/withdrawals:', error);
     res.status(500).json({ success: false, error: 'Ошибка сервера' });
   }
 });

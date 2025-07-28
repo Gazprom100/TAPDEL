@@ -3,10 +3,11 @@ import { UserManagement } from './admin/UserManagement';
 import { SystemMonitoring } from './admin/SystemMonitoring';
 import { EconomyManagement } from './admin/EconomyManagement';
 import { TokenManagement } from './admin/TokenManagement';
+import { GameSettings } from './admin/GameSettings';
 import { adminApiService, AdminStats } from '../services/adminApi';
 
 export const FullAdminPanel: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'system' | 'economy' | 'tokens'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'system' | 'economy' | 'tokens' | 'settings'>('overview');
   const [stats, setStats] = useState<AdminStats>({
     totalUsers: 0,
     totalTokens: 0,
@@ -160,6 +161,16 @@ export const FullAdminPanel: React.FC = () => {
             }`}
           >
             Токены
+          </button>
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`py-4 px-2 border-b-2 font-medium text-sm ${
+              activeTab === 'settings'
+                ? 'border-blue-500 text-blue-400'
+                : 'border-transparent text-gray-400 hover:text-gray-300'
+            }`}
+          >
+            Настройки
           </button>
         </nav>
       </div>
@@ -328,6 +339,10 @@ export const FullAdminPanel: React.FC = () => {
 
         {activeTab === 'tokens' && (
           <TokenManagement />
+        )}
+
+        {activeTab === 'settings' && (
+          <GameSettings />
         )}
       </div>
     </div>

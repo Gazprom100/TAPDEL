@@ -3,6 +3,20 @@ const tokenBalanceService = require('./tokenBalanceService');
 
 class TokenService {
   constructor() {
+    if (TokenService.instance) {
+      return TokenService.instance;
+    }
+    
+    this.activeToken = null;
+    this.tokens = [];
+    this.lastUpdate = null;
+    
+    TokenService.instance = this;
+  }
+
+  // Очистить кеш токенов
+  clearCache() {
+    console.log('🧹 Очищаем кеш токенов');
     this.activeToken = null;
     this.tokens = [];
     this.lastUpdate = null;
@@ -154,9 +168,8 @@ class TokenService {
         await tokenBalanceService.migrateToNewToken(oldActiveToken.symbol, symbol);
       }
       
-      // Сбрасываем кеш
-      this.activeToken = null;
-      this.lastUpdate = null;
+      // ВАЖНО: Сбрасываем кеш после изменений
+      this.clearCache();
       
       console.log(`✅ Токен ${symbol} активирован успешно`);
       return true;

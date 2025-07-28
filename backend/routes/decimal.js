@@ -54,6 +54,68 @@ router.get('/test', (req, res) => {
   });
 });
 
+// Получить статус Decimal сервиса
+router.get('/status', (req, res) => {
+  try {
+    res.json({
+      success: true,
+      status: 'active',
+      message: 'Decimal сервис работает',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Ошибка получения статуса:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Получить все депозиты
+router.get('/deposits', async (req, res) => {
+  try {
+    const database = await connectToDatabase();
+    const deposits = await database.collection('deposits').find({}).sort({ createdAt: -1 }).limit(100).toArray();
+    
+    res.json({
+      success: true,
+      deposits: deposits.map(deposit => ({
+        id: deposit._id.toString(),
+        userId: deposit.userId,
+        amount: deposit.amountRequested,
+        status: deposit.matched ? 'completed' : 'pending',
+        createdAt: deposit.createdAt?.toISOString(),
+        txHash: deposit.txHash
+      }))
+    });
+  } catch (error) {
+    console.error('Ошибка получения депозитов:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Получить все выводы
+router.get('/withdrawals', async (req, res) => {
+  try {
+    const database = await connectToDatabase();
+    const withdrawals = await database.collection('withdrawals').find({}).sort({ requestedAt: -1 }).limit(100).toArray();
+    
+    res.json({
+      success: true,
+      withdrawals: withdrawals.map(withdrawal => ({
+        id: withdrawal._id.toString(),
+        userId: withdrawal.userId,
+        amount: withdrawal.amount,
+        status: withdrawal.status,
+        createdAt: withdrawal.requestedAt?.toISOString(),
+        processedAt: withdrawal.processedAt?.toISOString(),
+        txHash: withdrawal.txHash
+      }))
+    });
+  } catch (error) {
+    console.error('Ошибка получения выводов:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // === ДЕПОЗИТЫ ===
 
 // Создать депозит

@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
-import gsap from 'gsap'
+import React, { useRef, useEffect } from 'react'
 import { useGameStore } from '../store/gameStore'
+import gsap from 'gsap'
 
 interface TokenCounterProps {
   tokens: number
@@ -8,21 +8,15 @@ interface TokenCounterProps {
 
 export const TokenCounter = ({ tokens }: TokenCounterProps) => {
   const counterRef = useRef<HTMLDivElement>(null)
-  const [tokenSymbol, setTokenSymbol] = useState('BOOST')
-  const { refreshActiveToken } = useGameStore()
+  const { activeTokenSymbol, refreshActiveToken } = useGameStore()
 
   useEffect(() => {
     // Загружаем активный токен при монтировании компонента
     const loadActiveToken = async () => {
       try {
         await refreshActiveToken()
-        // Получаем токен напрямую из API для отображения
-        const { apiService } = await import('../services/api')
-        const activeToken = await apiService.getActiveToken()
-        setTokenSymbol(activeToken.symbol)
       } catch (error) {
         console.error('Ошибка загрузки активного токена:', error)
-        // Оставляем дефолтное значение 'BOOST'
       }
     }
 
@@ -33,7 +27,7 @@ export const TokenCounter = ({ tokens }: TokenCounterProps) => {
     console.log('TokenCounter update:', {
       tokens,
       formattedValue: tokens.toLocaleString(),
-      tokenSymbol
+      tokenSymbol: activeTokenSymbol
     });
     
     if (counterRef.current) {
@@ -43,7 +37,7 @@ export const TokenCounter = ({ tokens }: TokenCounterProps) => {
         ease: "power2.out"
       })
     }
-  }, [tokens, tokenSymbol])
+  }, [tokens, activeTokenSymbol])
 
   return (
     <div 
@@ -58,7 +52,7 @@ export const TokenCounter = ({ tokens }: TokenCounterProps) => {
         shadow-[0_0_15px_rgba(0,255,136,0.3)]
       "
     >
-      <div className="text-sm text-green-400 mb-1">{tokenSymbol}</div>
+      <div className="text-sm text-green-400 mb-1">{activeTokenSymbol || '...'}</div>
       <div className="text-4xl font-mono text-neon-green">
         {tokens.toLocaleString()}
       </div>

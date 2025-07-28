@@ -75,10 +75,87 @@ router.get('/statistics', async (req, res) => {
   }
 });
 
+// Алиас для фронтенда - прямой роут
+router.get('/stats', async (req, res) => {
+  // Используем тот же код что и в /statistics
+  try {
+    const database = await connectToDatabase();
+    
+    // Количество пользователей
+    const totalUsers = await database.collection('users').countDocuments();
+    
+    // Общий баланс токенов
+    const users = await database.collection('users').find({}, { projection: { 'gameState.tokens': 1 } }).toArray();
+    const totalTokens = users.reduce((sum, u) => sum + (u.gameState?.tokens || 0), 0);
+    
+    // Статистика депозитов
+    const totalDeposits = await database.collection('deposits').countDocuments();
+    const sumDeposits = await database.collection('deposits').aggregate([
+      { $group: { _id: null, total: { $sum: '$amountRequested' } } }
+    ]).toArray();
+    
+    // Статистика выводов
+    const totalWithdrawals = await database.collection('withdrawals').countDocuments();
+    const sumWithdrawals = await database.collection('withdrawals').aggregate([
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]).toArray();
+    
+    // Активные пользователи за 24ч
+    const since = new Date(Date.now() - 24*60*60*1000);
+    const activeUsers = await database.collection('users').countDocuments({ 
+      'profile.lastLogin': { $gte: since } 
+    });
+
+    res.json({
+      totalUsers,
+      totalTokens,
+      totalDeposits,
+      sumDeposits: sumDeposits[0]?.total || 0,
+      totalWithdrawals,
+      sumWithdrawals: sumWithdrawals[0]?.total || 0,
+      activeUsers
+    });
+  } catch (error) {
+    console.error('Ошибка получения статистики:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // === СИСТЕМНЫЕ МЕТРИКИ ===
 
 // Получить метрики системы
 router.get('/system/metrics', async (req, res) => {
+  try {
+    const cpuUsage = os.loadavg()[0] * 100; // 1-минутная нагрузка
+    const totalMem = os.totalmem();
+    const freeMem = os.freemem();
+    const memoryUsage = ((totalMem - freeMem) / totalMem) * 100;
+    
+    // Простая оценка использования диска (в продакшене лучше использовать fs.stat)
+    const diskUsage = Math.random() * 30 + 20; // Моковые данные для демонстрации
+    
+    const uptime = os.uptime();
+    
+    res.json({
+      cpu: Math.min(cpuUsage, 100),
+      memory: Math.min(memoryUsage, 100),
+      disk: Math.min(diskUsage, 100),
+      network: {
+        in: Math.random() * 1000,
+        out: Math.random() * 500
+      },
+      uptime,
+      activeConnections: Math.floor(Math.random() * 100) + 10
+    });
+  } catch (error) {
+    console.error('Ошибка получения метрик системы:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Алиас для фронтенда - прямой роут
+router.get('/system', async (req, res) => {
+  // Используем тот же код что и в /system/metrics
   try {
     const cpuUsage = os.loadavg()[0] * 100; // 1-минутная нагрузка
     const totalMem = os.totalmem();
@@ -326,6 +403,41 @@ router.get('/users', async (req, res) => {
   }
 });
 
+// Получить детальную информацию о пользователе
+router.get('/users/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const database = await connectToDatabase();
+    
+    const user = await database.collection('users').findOne({ userId });
+    
+    if (!user) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+    
+    res.json({
+      _id: user._id.toString(),
+      userId: user.userId,
+      username: user.profile?.username || `Игрок ${user.userId.slice(-4)}`,
+      telegramFirstName: user.profile?.telegramFirstName,
+      telegramLastName: user.profile?.telegramLastName,
+      telegramUsername: user.profile?.telegramUsername,
+      tokens: user.gameState?.tokens || 0,
+      highScore: user.gameState?.highScore || 0,
+      level: Math.floor((user.gameState?.highScore || 0) / 1000) + 1,
+      isBanned: user.isBanned || false,
+      role: user.role || 'user',
+      createdAt: user.createdAt?.toISOString() || new Date().toISOString(),
+      lastActive: user.profile?.lastLogin instanceof Date ? user.profile.lastLogin.toISOString() : new Date().toISOString(),
+      totalDeposits: 0, // TODO: подсчитать из коллекции deposits
+      totalWithdrawals: 0 // TODO: подсчитать из коллекции withdrawals
+    });
+  } catch (error) {
+    console.error('Ошибка получения детальной информации о пользователе:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Обновить пользователя
 router.put('/users/:userId', async (req, res) => {
   try {
@@ -353,12 +465,15 @@ router.put('/users/:userId', async (req, res) => {
 // Массовые операции с пользователями
 router.post('/users/bulk', async (req, res) => {
   try {
-    const { userIds, action } = req.body;
+    const { userIds, action, operation } = req.body;
     const database = await connectToDatabase();
+    
+    // Поддерживаем как action, так и operation для совместимости
+    const operationType = action || operation;
     
     let updateOperation = {};
     
-    switch (action) {
+    switch (operationType) {
       case 'ban':
         updateOperation = { isBanned: true };
         break;
@@ -371,6 +486,14 @@ router.post('/users/bulk', async (req, res) => {
           'gameState.highScore': 0
         };
         break;
+      case 'test':
+        // Тестовая операция для проверки
+        res.json({ 
+          message: 'Тестовая операция выполнена успешно',
+          userIds: userIds,
+          processedCount: userIds.length
+        });
+        return;
       case 'delete':
         // Удаляем пользователей
         await database.collection('users').deleteMany({ userId: { $in: userIds } });
@@ -388,7 +511,7 @@ router.post('/users/bulk', async (req, res) => {
     );
     
     res.json({ 
-      message: `Операция ${action} выполнена для ${result.modifiedCount} пользователей` 
+      message: `Операция ${operationType} выполнена для ${result.modifiedCount} пользователей` 
     });
   } catch (error) {
     console.error('Ошибка массовой операции:', error);
@@ -540,6 +663,252 @@ router.get('/economy/metrics', async (req, res) => {
   } catch (error) {
     console.error('Ошибка получения экономических метрик:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Алиас для фронтенда - прямой роут
+router.get('/economy', async (req, res) => {
+  // Используем тот же код что и в /economy/metrics
+  try {
+    const database = await connectToDatabase();
+    
+    // Статистика депозитов
+    const depositsStats = await database.collection('deposits').aggregate([
+      { $group: { _id: null, total: { $sum: '$amountRequested' }, count: { $sum: 1 } } }
+    ]).toArray();
+    
+    // Статистика выводов
+    const withdrawalsStats = await database.collection('withdrawals').aggregate([
+      { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } }
+    ]).toArray();
+    
+    // Общий баланс токенов
+    const users = await database.collection('users').find({}, { projection: { 'gameState.tokens': 1 } }).toArray();
+    const totalTokens = users.reduce((sum, u) => sum + (u.gameState?.tokens || 0), 0);
+    
+    res.json({
+      totalInflow: depositsStats[0]?.total || 0,
+      totalOutflow: withdrawalsStats[0]?.total || 0,
+      netBalance: (depositsStats[0]?.total || 0) - (withdrawalsStats[0]?.total || 0),
+      averageDeposit: depositsStats[0]?.count ? depositsStats[0].total / depositsStats[0].count : 0,
+      averageWithdrawal: withdrawalsStats[0]?.count ? withdrawalsStats[0].total / withdrawalsStats[0].count : 0,
+      totalTokens,
+      activeUsers: await database.collection('users').countDocuments({ 'profile.lastLogin': { $gte: new Date(Date.now() - 24*60*60*1000) } })
+    });
+  } catch (error) {
+    console.error('Ошибка получения экономических метрик:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// === НАСТРОЙКИ ИГРЫ ===
+
+// Получить конфигурацию игры
+router.get('/game-config', async (req, res) => {
+  try {
+    const database = await connectToDatabase();
+    
+    // Получаем конфигурацию из БД
+    const gameConfig = await database.collection('system_config').findOne({ key: 'game_config' });
+    
+    // Если конфигурации нет, возвращаем значения по умолчанию
+    const defaultConfig = {
+      baseTokensPerTap: 1,
+      energyMax: 1000,
+      energyRegenRate: 1,
+      components: {
+        engine: {
+          maxLevel: 25,
+          costs: [100, 200, 400, 800, 1600, 3200, 6400, 12800, 25600, 51200],
+          bonuses: [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]
+        },
+        gearbox: {
+          maxLevel: 25,
+          costs: [150, 300, 600, 1200, 2400, 4800, 9600, 19200, 38400, 76800],
+          bonuses: [3, 6, 12, 24, 48, 96, 192, 384, 768, 1536]
+        },
+        battery: {
+          maxLevel: 25,
+          costs: [200, 400, 800, 1600, 3200, 6400, 12800, 25600, 51200, 102400],
+          bonuses: [100, 200, 400, 800, 1600, 3200, 6400, 12800, 25600, 51200]
+        },
+        hyperdrive: {
+          maxLevel: 20,
+          costs: [1000, 2000, 4000, 8000, 16000, 32000, 64000, 128000, 256000, 512000],
+          bonuses: [10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120]
+        },
+        powerGrid: {
+          maxLevel: 15,
+          costs: [500, 1000, 2000, 4000, 8000, 16000, 32000, 64000, 128000, 256000],
+          bonuses: [5, 10, 20, 40, 80, 160, 320, 640, 1280, 2560]
+        }
+      },
+      leaderboard: {
+        updateInterval: 60,
+        maxEntries: 100,
+        resetInterval: 'weekly'
+      },
+      economy: {
+        withdrawalMinAmount: 100,
+        withdrawalFee: 0.01,
+        depositMinAmount: 10,
+        dailyWithdrawalLimit: 10000
+      },
+      events: {
+        dailyBonus: {
+          enabled: true,
+          amount: 100,
+          streakBonus: 1.5
+        },
+        referralBonus: {
+          enabled: true,
+          amount: 500,
+          referrerBonus: 100
+        }
+      }
+    };
+    
+    const config = gameConfig ? gameConfig.value : defaultConfig;
+    
+    res.json({
+      success: true,
+      config
+    });
+  } catch (error) {
+    console.error('Ошибка получения конфигурации игры:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Сохранить конфигурацию игры
+router.post('/game-config', async (req, res) => {
+  try {
+    const database = await connectToDatabase();
+    const config = req.body;
+    
+    // Валидация основных полей
+    if (!config.baseTokensPerTap || config.baseTokensPerTap < 1) {
+      return res.status(400).json({ success: false, error: 'Некорректное значение baseTokensPerTap' });
+    }
+    
+    if (!config.energyMax || config.energyMax < 100) {
+      return res.status(400).json({ success: false, error: 'Некорректное значение energyMax' });
+    }
+    
+    if (!config.energyRegenRate || config.energyRegenRate < 0.1) {
+      return res.status(400).json({ success: false, error: 'Некорректное значение energyRegenRate' });
+    }
+    
+    // Сохраняем конфигурацию в БД
+    await database.collection('system_config').updateOne(
+      { key: 'game_config' },
+      { 
+        $set: { 
+          value: config,
+          updatedAt: new Date(),
+          updatedBy: 'admin'
+        } 
+      },
+      { upsert: true }
+    );
+    
+    console.log('🎮 Конфигурация игры обновлена');
+    
+    res.json({
+      success: true,
+      message: 'Конфигурация игры успешно сохранена'
+    });
+  } catch (error) {
+    console.error('Ошибка сохранения конфигурации игры:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Сбросить конфигурацию к значениям по умолчанию
+router.post('/game-config/reset', async (req, res) => {
+  try {
+    const database = await connectToDatabase();
+    
+    const defaultConfig = {
+      baseTokensPerTap: 1,
+      energyMax: 1000,
+      energyRegenRate: 1,
+      components: {
+        engine: {
+          maxLevel: 25,
+          costs: [100, 200, 400, 800, 1600, 3200, 6400, 12800, 25600, 51200],
+          bonuses: [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]
+        },
+        gearbox: {
+          maxLevel: 25,
+          costs: [150, 300, 600, 1200, 2400, 4800, 9600, 19200, 38400, 76800],
+          bonuses: [3, 6, 12, 24, 48, 96, 192, 384, 768, 1536]
+        },
+        battery: {
+          maxLevel: 25,
+          costs: [200, 400, 800, 1600, 3200, 6400, 12800, 25600, 51200, 102400],
+          bonuses: [100, 200, 400, 800, 1600, 3200, 6400, 12800, 25600, 51200]
+        },
+        hyperdrive: {
+          maxLevel: 20,
+          costs: [1000, 2000, 4000, 8000, 16000, 32000, 64000, 128000, 256000, 512000],
+          bonuses: [10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120]
+        },
+        powerGrid: {
+          maxLevel: 15,
+          costs: [500, 1000, 2000, 4000, 8000, 16000, 32000, 64000, 128000, 256000],
+          bonuses: [5, 10, 20, 40, 80, 160, 320, 640, 1280, 2560]
+        }
+      },
+      leaderboard: {
+        updateInterval: 60,
+        maxEntries: 100,
+        resetInterval: 'weekly'
+      },
+      economy: {
+        withdrawalMinAmount: 100,
+        withdrawalFee: 0.01,
+        depositMinAmount: 10,
+        dailyWithdrawalLimit: 10000
+      },
+      events: {
+        dailyBonus: {
+          enabled: true,
+          amount: 100,
+          streakBonus: 1.5
+        },
+        referralBonus: {
+          enabled: true,
+          amount: 500,
+          referrerBonus: 100
+        }
+      }
+    };
+    
+    // Сохраняем дефолтную конфигурацию
+    await database.collection('system_config').updateOne(
+      { key: 'game_config' },
+      { 
+        $set: { 
+          value: defaultConfig,
+          updatedAt: new Date(),
+          updatedBy: 'admin',
+          resetAt: new Date()
+        } 
+      },
+      { upsert: true }
+    );
+    
+    console.log('🎮 Конфигурация игры сброшена к значениям по умолчанию');
+    
+    res.json({
+      success: true,
+      config: defaultConfig,
+      message: 'Конфигурация сброшена к значениям по умолчанию'
+    });
+  } catch (error) {
+    console.error('Ошибка сброса конфигурации игры:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
