@@ -23,8 +23,16 @@ export const TapButton: React.FC = () => {
     gearboxLevel,
     batteryLevel,
     hyperdriveLevel,
-    powerGridLevel
+    powerGridLevel,
+    activeTokenSymbol,
+    refreshActiveToken
   } = useGameStore();
+
+  useEffect(() => {
+    if (!activeTokenSymbol) {
+      refreshActiveToken();
+    }
+  }, [activeTokenSymbol, refreshActiveToken]);
   
   const [gear, setGear] = useState<Gear>('N');
   const [taps, setTaps] = useState<number[]>([]);
@@ -281,7 +289,7 @@ export const TapButton: React.FC = () => {
         <h1 className="game-title">CYBERFLEX</h1>
         <div className="token-display">
           <span className="token-value">{Math.floor(tokens)}</span>
-          <span className="token-label">DEL</span>
+          <span className="token-label">{activeTokenSymbol || '...'}</span>
         </div>
       </div>
 

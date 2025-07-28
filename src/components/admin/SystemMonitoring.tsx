@@ -1,32 +1,5 @@
 import React, { useState, useEffect } from 'react';
-
-interface SystemMetrics {
-  cpu: number;
-  memory: number;
-  disk: number;
-  network: {
-    in: number;
-    out: number;
-  };
-  uptime: number;
-  activeConnections: number;
-}
-
-interface BlockchainStatus {
-  lastBlock: number;
-  blockTime: number;
-  confirmations: number;
-  networkHashrate: number;
-  isConnected: boolean;
-}
-
-interface ServiceStatus {
-  name: string;
-  status: 'online' | 'offline' | 'warning';
-  responseTime: number;
-  lastCheck: string;
-  error?: string;
-}
+import { adminApiService, SystemMetrics, BlockchainStatus, ServiceStatus } from '../../services/adminApi';
 
 interface LogEntry {
   timestamp: string;
@@ -44,7 +17,7 @@ export const SystemMonitoring: React.FC = () => {
     uptime: 0,
     activeConnections: 0
   });
-
+  
   const [blockchain, setBlockchain] = useState<BlockchainStatus>({
     lastBlock: 0,
     blockTime: 0,
@@ -52,101 +25,52 @@ export const SystemMonitoring: React.FC = () => {
     networkHashrate: 0,
     isConnected: false
   });
+  
+  const [services, setServices] = useState<ServiceStatus[]>([]);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const [services, setServices] = useState<ServiceStatus[]>([
-    {
-      name: 'MongoDB',
-      status: 'online',
-      responseTime: 15,
-      lastCheck: new Date().toISOString()
-    },
-    {
-      name: 'Redis',
-      status: 'online',
-      responseTime: 5,
-      lastCheck: new Date().toISOString()
-    },
-    {
-      name: 'DecimalChain API',
-      status: 'online',
-      responseTime: 120,
-      lastCheck: new Date().toISOString()
-    },
-    {
-      name: 'Telegram Bot',
-      status: 'online',
-      responseTime: 25,
-      lastCheck: new Date().toISOString()
+  // Загрузка данных системы
+  const loadSystemData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Загружаем все данные параллельно
+      const [metricsData, blockchainData, servicesData, logsData] = await Promise.all([
+        adminApiService.getSystemMetrics(),
+        adminApiService.getBlockchainStatus(),
+        adminApiService.getServicesStatus(),
+        adminApiService.getSystemLogs(50)
+      ]);
+      
+      setMetrics(metricsData);
+      setBlockchain(blockchainData);
+      setServices(servicesData);
+      setLogs(logsData);
+    } catch (error) {
+      console.error('Ошибка загрузки данных системы:', error);
+      setError('Ошибка загрузки данных системы');
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
 
-  const [logs, setLogs] = useState<LogEntry[]>([
-    {
-      timestamp: new Date().toISOString(),
-      level: 'info',
-      message: 'Система запущена успешно',
-      service: 'System'
-    },
-    {
-      timestamp: new Date(Date.now() - 60000).toISOString(),
-      level: 'warning',
-      message: 'Высокая нагрузка на CPU',
-      service: 'Monitor'
-    },
-    {
-      timestamp: new Date(Date.now() - 120000).toISOString(),
-      level: 'error',
-      message: 'Ошибка подключения к DecimalChain',
-      service: 'Blockchain'
-    }
-  ]);
-
-  const [alerts, setAlerts] = useState<LogEntry[]>([]);
-
-  // Имитация real-time обновлений
+  // Автообновление каждые 30 секунд
   useEffect(() => {
-    const interval = setInterval(() => {
-      // Обновляем метрики
-      setMetrics(prev => ({
-        cpu: Math.random() * 100,
-        memory: Math.random() * 100,
-        disk: Math.random() * 100,
-        network: {
-          in: Math.random() * 1000,
-          out: Math.random() * 500
-        },
-        uptime: prev.uptime + 1,
-        activeConnections: Math.floor(Math.random() * 100)
-      }));
-
-      // Обновляем статус блокчейна
-      setBlockchain(prev => ({
-        ...prev,
-        lastBlock: prev.lastBlock + Math.floor(Math.random() * 3),
-        blockTime: Math.random() * 10 + 5,
-        networkHashrate: Math.random() * 1000 + 500
-      }));
-
-      // Добавляем новые логи
-      const newLog: LogEntry = {
-        timestamp: new Date().toISOString(),
-        level: Math.random() > 0.8 ? 'warning' : 'info',
-        message: `Системная активность: ${Math.floor(Math.random() * 100)}`,
-        service: 'System'
-      };
-
-      setLogs(prev => [newLog, ...prev.slice(0, 49)]); // Оставляем только последние 50 записей
-    }, 5000);
-
+    loadSystemData();
+    
+    const interval = setInterval(loadSystemData, 30000);
     return () => clearInterval(interval);
   }, []);
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'online': return 'bg-green-600';
-      case 'warning': return 'bg-yellow-600';
-      case 'offline': return 'bg-red-600';
-      default: return 'bg-gray-600';
+      case 'online': return 'bg-green-500';
+      case 'warning': return 'bg-yellow-500';
+      case 'offline': return 'bg-red-500';
+      default: return 'bg-gray-500';
     }
   };
 
@@ -164,23 +88,62 @@ export const SystemMonitoring: React.FC = () => {
     const days = Math.floor(seconds / 86400);
     const hours = Math.floor((seconds % 86400) / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
-    return `${days}д ${hours}ч ${minutes}м`;
+    
+    if (days > 0) return `${days}д ${hours}ч ${minutes}м`;
+    if (hours > 0) return `${hours}ч ${minutes}м`;
+    return `${minutes}м`;
   };
 
   const formatBytes = (bytes: number) => {
     if (bytes === 0) return '0 B';
     const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+          <div className="mt-4 text-gray-400">Загрузка данных системы...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center py-8">
+          <div className="text-red-500 text-lg mb-2">Ошибка</div>
+          <div className="text-gray-400">{error}</div>
+          <button 
+            onClick={loadSystemData}
+            className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded"
+          >
+            Попробовать снова
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Мониторинг системы</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold">Мониторинг системы</h2>
+        <button
+          onClick={loadSystemData}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white"
+        >
+          Обновить
+        </button>
+      </div>
 
       {/* Системные метрики */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
           <div className="flex items-center justify-between">
             <div>
@@ -188,7 +151,7 @@ export const SystemMonitoring: React.FC = () => {
               <p className="text-2xl font-bold text-white">{metrics.cpu.toFixed(1)}%</p>
             </div>
             <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white text-xl">💻</span>
+              <span className="text-white text-xl">⚡</span>
             </div>
           </div>
           <div className="mt-4">
@@ -299,68 +262,38 @@ export const SystemMonitoring: React.FC = () => {
                   <div className="text-sm text-gray-400">
                     {service.responseTime}ms • {new Date(service.lastCheck).toLocaleTimeString()}
                   </div>
+                  {service.error && (
+                    <div className="text-xs text-red-400">{service.error}</div>
+                  )}
                 </div>
               </div>
-              <div className="text-right">
-                <div className={`text-sm font-medium ${getStatusColor(service.status).replace('bg-', 'text-')}`}>
-                  {service.status === 'online' ? 'Онлайн' : 
-                   service.status === 'warning' ? 'Предупреждение' : 'Офлайн'}
-                </div>
-                {service.error && (
-                  <div className="text-xs text-red-400">{service.error}</div>
-                )}
+              <div className="text-sm text-gray-400">
+                {service.status === 'online' ? '🟢' : service.status === 'warning' ? '🟡' : '🔴'}
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Логи в реальном времени */}
+      {/* Логи системы */}
       <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-white">Логи системы</h3>
-          <button className="admin-button px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm">
-            📥 Экспорт
-          </button>
-        </div>
-        <div className="bg-gray-900 rounded p-4 h-64 overflow-y-auto">
+        <h3 className="text-lg font-semibold text-white mb-4">Логи системы</h3>
+        <div className="space-y-2 max-h-64 overflow-y-auto">
           {logs.map((log, index) => (
-            <div key={index} className="flex items-start space-x-3 py-1">
-              <span className={`text-xs font-mono ${getLevelColor(log.level)}`}>
-                [{log.level.toUpperCase()}]
-              </span>
-              <span className="text-xs text-gray-400 font-mono">
-                {new Date(log.timestamp).toLocaleTimeString()}
-              </span>
-              <span className="text-xs text-gray-500">[{log.service}]</span>
-              <span className="text-xs text-gray-300 flex-1">{log.message}</span>
+            <div key={index} className="flex items-start space-x-3 p-2 bg-gray-700 rounded">
+              <div className={`text-xs font-mono ${getLevelColor(log.level)}`}>
+                {log.level.toUpperCase()}
+              </div>
+              <div className="flex-1">
+                <div className="text-sm text-white">{log.message}</div>
+                <div className="text-xs text-gray-400">
+                  {new Date(log.timestamp).toLocaleString()} • {log.service}
+                </div>
+              </div>
             </div>
           ))}
         </div>
       </div>
-
-      {/* Алерты */}
-      {alerts.length > 0 && (
-        <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-          <h3 className="text-lg font-semibold text-white mb-4">Активные алерты</h3>
-          <div className="space-y-2">
-            {alerts.map((alert, index) => (
-              <div key={index} className="flex items-center space-x-3 p-3 bg-red-900/20 border border-red-500/30 rounded">
-                <span className="text-red-400">⚠️</span>
-                <div className="flex-1">
-                  <div className="text-sm text-red-400 font-medium">{alert.message}</div>
-                  <div className="text-xs text-gray-400">
-                    {new Date(alert.timestamp).toLocaleString()} • {alert.service}
-                  </div>
-                </div>
-                <button className="admin-button px-2 py-1 bg-red-600 hover:bg-red-700 rounded text-xs">
-                  ✕
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }; 

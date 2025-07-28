@@ -31,12 +31,11 @@ const formatUserName = (username, telegramFirstName, telegramLastName, telegramU
 
 const generateCleanMongoURI = () => {
   const username = 'TAPDEL';
-  const password = 'fpz%sE62KPzmHfM';
+  const password = 'fpz%25sE62KPzmHfM';
   const cluster = 'cluster0.ejo8obw.mongodb.net';
   const database = 'tapdel';
   
-  const encodedPassword = encodeURIComponent(password);
-  return `mongodb+srv://${username}:${encodedPassword}@${cluster}/${database}?retryWrites=true&w=majority&appName=Cluster0`;
+  return `mongodb+srv://${username}:${password}@${cluster}/${database}?retryWrites=true&w=majority&appName=Cluster0`;
 };
 
 const MONGODB_URI = process.env.MONGODB_URI || generateCleanMongoURI();
@@ -1134,6 +1133,21 @@ router.get('/active-token', async (req, res) => {
     });
   } catch (error) {
     console.error('Ошибка получения активного токена:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
+
+// Очистить кеш токенов (только админ)
+router.post('/admin/tokens/clear-cache', async (req, res) => {
+  try {
+    // Принудительно очищаем кеш
+    tokenService.activeToken = null;
+    tokenService.lastUpdate = null;
+    
+    console.log('🧹 Кеш токенов очищен');
+    res.json({ success: true, message: 'Кеш токенов очищен' });
+  } catch (error) {
+    console.error('Ошибка очистки кеша токенов:', error);
     res.status(500).json({ success: false, error: 'Ошибка сервера' });
   }
 });

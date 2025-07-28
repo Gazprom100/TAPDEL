@@ -18,32 +18,10 @@ interface TokenHistory {
 }
 
 export const TokenManagement: React.FC = () => {
-  const [tokens, setTokens] = useState<TokenConfig[]>([
-    {
-      symbol: 'BOOST',
-      address: '0x15cefa2ffb0759b519c15e23025a718978be9322',
-      decimals: 18,
-      name: 'BOOST Token',
-      isActive: true
-    },
-    {
-      symbol: 'DEL',
-      address: '0x0000000000000000000000000000000000000000',
-      decimals: 18,
-      name: 'Decimal Token',
-      isActive: false
-    },
-    {
-      symbol: 'USDT',
-      address: '0x1234567890123456789012345678901234567890',
-      decimals: 6,
-      name: 'Tether USD',
-      isActive: false
-    }
-  ]);
-
+  const [tokens, setTokens] = useState<TokenConfig[]>([]);
   const [tokenHistory, setTokenHistory] = useState<TokenHistory[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showAddToken, setShowAddToken] = useState(false);
   const [newToken, setNewToken] = useState({
     symbol: '',
@@ -53,35 +31,45 @@ export const TokenManagement: React.FC = () => {
   });
 
   // Загрузка токенов и истории
+  const loadTokens = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await fetch('/api/admin/tokens');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setTokens(data.tokens);
+        } else {
+          setError(data.error || 'Ошибка загрузки токенов');
+        }
+      } else {
+        setError('Ошибка загрузки токенов');
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки токенов:', error);
+      setError('Ошибка загрузки токенов');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadTokenHistory = async () => {
+    try {
+      const response = await fetch('/api/admin/tokens/history');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setTokenHistory(data.history);
+        }
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки истории токенов:', error);
+    }
+  };
+
   useEffect(() => {
-    const loadTokens = async () => {
-      try {
-        const response = await fetch('/api/admin/tokens');
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success) {
-            setTokens(data.tokens);
-          }
-        }
-      } catch (error) {
-        console.error('Ошибка загрузки токенов:', error);
-      }
-    };
-
-    const loadTokenHistory = async () => {
-      try {
-        const response = await fetch('/api/admin/tokens/history');
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success) {
-            setTokenHistory(data.history);
-          }
-        }
-      } catch (error) {
-        console.error('Ошибка загрузки истории токенов:', error);
-      }
-    };
-
     loadTokens();
     loadTokenHistory();
   }, []);
@@ -110,12 +98,13 @@ export const TokenManagement: React.FC = () => {
             isActive: token.symbol === symbol
           })));
 
-          // Перезагружаем страницу для применения изменений
-          setTimeout(() => {
-            window.location.reload();
-          }, 2000);
+          // Очищаем кеш токенов
+          await fetch('/api/admin/tokens/clear-cache', { method: 'POST' });
 
-          alert(`✅ Токен ${symbol} активирован! Страница перезагрузится через 2 секунды.`);
+          alert(`✅ Токен ${symbol} активирован!`);
+          
+          // Перезагружаем токены
+          await loadTokens();
         } else {
           alert(`❌ Ошибка: ${data.error}`);
         }
@@ -155,13 +144,8 @@ export const TokenManagement: React.FC = () => {
         const data = await response.json();
         if (data.success) {
           // Перезагружаем токены
-          const tokensResponse = await fetch('/api/admin/tokens');
-          if (tokensResponse.ok) {
-            const tokensData = await tokensResponse.json();
-            if (tokensData.success) {
-              setTokens(tokensData.tokens);
-            }
-          }
+          await loadTokens();
+          await loadTokenHistory();
 
           setShowAddToken(false);
           setNewToken({ symbol: '', address: '', decimals: 18, name: '' });
@@ -192,16 +176,55 @@ export const TokenManagement: React.FC = () => {
 
   const getActiveToken = () => tokens.find(token => token.isActive);
 
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+          <div className="mt-4 text-gray-400">Загрузка токенов...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center py-8">
+          <div className="text-red-500 text-lg mb-2">Ошибка</div>
+          <div className="text-gray-400">{error}</div>
+          <button 
+            onClick={loadTokens}
+            className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded"
+          >
+            Попробовать снова
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Управление токенами</h2>
-        <button
-          onClick={() => setShowAddToken(true)}
-          className="admin-button px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm"
-        >
-          ➕ Добавить токен
-        </button>
+        <div className="flex space-x-2">
+          <button
+            onClick={() => {
+              loadTokens();
+              loadTokenHistory();
+            }}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white"
+          >
+            Обновить
+          </button>
+          <button
+            onClick={() => setShowAddToken(true)}
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-white"
+          >
+            ➕ Добавить токен
+          </button>
+        </div>
       </div>
 
       {/* Текущий активный токен */}
@@ -257,7 +280,7 @@ export const TokenManagement: React.FC = () => {
                   <button
                     onClick={() => handleActivateToken(token.symbol)}
                     disabled={loading}
-                    className="admin-button px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 rounded text-sm"
+                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 rounded text-sm"
                   >
                     {loading ? '🔄' : '✅'} Активировать
                   </button>
@@ -265,7 +288,7 @@ export const TokenManagement: React.FC = () => {
                 {!token.isActive && (
                   <button
                     onClick={() => handleRemoveToken(token.symbol)}
-                    className="admin-button px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm"
+                    className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm"
                   >
                     🗑️ Удалить
                   </button>
@@ -309,7 +332,7 @@ export const TokenManagement: React.FC = () => {
                   type="text"
                   value={newToken.symbol}
                   onChange={(e) => setNewToken(prev => ({ ...prev, symbol: e.target.value.toUpperCase() }))}
-                  className="admin-input w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="BOOST"
                 />
               </div>
@@ -320,7 +343,7 @@ export const TokenManagement: React.FC = () => {
                   type="text"
                   value={newToken.name}
                   onChange={(e) => setNewToken(prev => ({ ...prev, name: e.target.value }))}
-                  className="admin-input w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="BOOST Token"
                 />
               </div>
@@ -331,7 +354,7 @@ export const TokenManagement: React.FC = () => {
                   type="text"
                   value={newToken.address}
                   onChange={(e) => setNewToken(prev => ({ ...prev, address: e.target.value }))}
-                  className="admin-input w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="0x..."
                 />
               </div>
@@ -342,7 +365,7 @@ export const TokenManagement: React.FC = () => {
                   type="number"
                   value={newToken.decimals}
                   onChange={(e) => setNewToken(prev => ({ ...prev, decimals: parseInt(e.target.value) }))}
-                  className="admin-input w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   min="0"
                   max="18"
                 />
@@ -352,13 +375,13 @@ export const TokenManagement: React.FC = () => {
                 <button
                   onClick={handleAddToken}
                   disabled={loading}
-                  className="admin-button flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 rounded"
+                  className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 rounded"
                 >
                   {loading ? 'Добавление...' : '✅ Добавить'}
                 </button>
                 <button
                   onClick={() => setShowAddToken(false)}
-                  className="admin-button px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded"
+                  className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded"
                 >
                   ✕ Отмена
                 </button>

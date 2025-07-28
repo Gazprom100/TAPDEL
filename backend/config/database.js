@@ -3,8 +3,15 @@ require('dotenv').config();
 
 class DatabaseConfig {
   constructor() {
+    const username = 'TAPDEL';
+    const password = 'fpz%25sE62KPzmHfM'; // Уже закодированный пароль
+    const cluster = 'cluster0.ejo8obw.mongodb.net';
+    const database = 'tapdel';
+    
     this.MONGODB_URI = process.env.MONGODB_URI || 
-      'mongodb+srv://TAPDEL:fpz%25sE62KPzmHfM@cluster0.ejo8obw.mongodb.net/tapdel?retryWrites=true&w=majority&appName=Cluster0';
+      `mongodb+srv://${username}:${password}@${cluster}/${database}?retryWrites=true&w=majority&appName=Cluster0`;
+    
+    console.log('🔍 DatabaseConfig URI:', this.MONGODB_URI);
     
     this.client = null;
     this.db = null;
@@ -304,4 +311,8 @@ class DatabaseConfig {
 // Singleton instance
 const databaseConfig = new DatabaseConfig();
 
-module.exports = databaseConfig; 
+// Экспортируем функцию connectToDatabase для обратной совместимости
+const connectToDatabase = () => databaseConfig.connect();
+
+module.exports = databaseConfig;
+module.exports.connectToDatabase = connectToDatabase; 

@@ -28,8 +28,16 @@ const App: React.FC = () => {
     gearboxLevel,
     batteryLevel,
     powerGridLevel,
-    initializeUser
+    initializeUser,
+    activeTokenSymbol,
+    refreshActiveToken
   } = useGameStore();
+
+  useEffect(() => {
+    if (!activeTokenSymbol) {
+      refreshActiveToken();
+    }
+  }, [activeTokenSymbol, refreshActiveToken]);
   
   const {
     fuelLevel,
@@ -362,7 +370,7 @@ const App: React.FC = () => {
             <div className="cyber-text text-lg sm:text-xl md:text-2xl font-bold" style={{
               textShadow: '0 0 5px rgba(0, 255, 136, 0.8)'
             }}>
-              {Math.floor(tokens)} DEL
+              {Math.floor(tokens)} {activeTokenSymbol || '...'}
             </div>
           </div>
         </div>

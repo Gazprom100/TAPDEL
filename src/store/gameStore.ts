@@ -47,6 +47,7 @@ interface ExtendedGameState extends GameStateBase {
   lastLeaderboardUpdate?: number; // Время последнего обновления лидерборда
   boostBalance?: number; // Реальный BOOST баланс из блокчейна (отдельно от игровых tokens)
   // tokens = игровые очки из тапанья, boostBalance = реальные BOOST токены
+  activeTokenSymbol: string; // <--- добавлено
 }
 
 interface GameActions {
@@ -102,6 +103,7 @@ interface GameActions {
   
   // Обновление активного токена
   refreshActiveToken: () => Promise<void>;
+  setActiveTokenSymbol: (symbol: string) => void; // <--- добавлено
 }
 
 type GameStore = ExtendedGameState & GameActions;
@@ -133,6 +135,7 @@ export const useGameStore = create<GameStore>()(
       isLoading: false,
       error: null,
       lastSyncTime: 0, // Инициализируем lastSyncTime
+      activeTokenSymbol: '', // Инициализируем activeTokenSymbol
       // Убираем delBalance - используем только tokens как DEL
 
       // Системные действия
@@ -950,12 +953,15 @@ export const useGameStore = create<GameStore>()(
       refreshActiveToken: async () => {
         try {
           const activeToken = await apiService.getActiveToken();
+          set({ activeTokenSymbol: activeToken.symbol });
           console.log(`🪙 Обновлен активный токен: ${activeToken.symbol}`);
           // Эта функция будет вызываться из компонентов для обновления названия токена
         } catch (error) {
           console.error('❌ Ошибка обновления активного токена:', error);
         }
-      }
+      },
+
+      setActiveTokenSymbol: (symbol) => set({ activeTokenSymbol: symbol })
     }),
     {
       name: 'tapdel-storage',
@@ -981,6 +987,7 @@ export const useGameStore = create<GameStore>()(
         coolingTimer: state.coolingTimer,
         lastTapTimestamp: state.lastTapTimestamp,
         hyperdriveActive: state.hyperdriveActive,
+        activeTokenSymbol: state.activeTokenSymbol, // Добавляем activeTokenSymbol в partialize
 
         // Метка времени для отслеживания синхронизации
         lastSyncTime: state.lastSyncTime

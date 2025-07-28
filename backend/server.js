@@ -6,6 +6,7 @@ require('dotenv').config({ path: './.env' });
 const telegramRoutes = require('./routes/telegram');
 const apiRoutes = require('./routes/api');
 const decimalRoutes = require('./routes/decimal');
+const adminRoutes = require('./routes/admin');
 const botService = require('./services/botService');
 const decimalService = require('./services/decimalService');
 
@@ -59,6 +60,11 @@ app.use('/api/decimal', (req, res, next) => {
   console.log('➡️ /api/decimal', req.method, req.path); 
   next(); 
 }, decimalRoutes);
+
+app.use('/api/admin', (req, res, next) => { 
+  console.log('➡️ /api/admin', req.method, req.path); 
+  next(); 
+}, adminRoutes);
 
 // 2. Общий API роут (должен быть последним среди API)
 app.use('/api', (req, res, next) => { 
@@ -164,12 +170,11 @@ const startServer = () => {
             const { MongoClient } = require('mongodb');
             const generateCleanMongoURI = () => {
               const username = 'TAPDEL';
-              const password = 'fpz%sE62KPzmHfM';
+              const password = 'fpz%25sE62KPzmHfM'; // Уже закодированный пароль
               const cluster = 'cluster0.ejo8obw.mongodb.net';
               const database = 'tapdel';
               
-              const encodedPassword = encodeURIComponent(password);
-              return `mongodb+srv://${username}:${encodedPassword}@${cluster}/${database}?retryWrites=true&w=majority&appName=Cluster0`;
+              return `mongodb+srv://${username}:${password}@${cluster}/${database}?retryWrites=true&w=majority&appName=Cluster0`;
             };
 
             const MONGODB_URI = process.env.MONGODB_URI || generateCleanMongoURI();
@@ -200,12 +205,11 @@ const startServer = () => {
             const { MongoClient } = require('mongodb');
             const generateCleanMongoURI = () => {
               const username = 'TAPDEL';
-              const password = 'fpz%sE62KPzmHfM';
+              const password = 'fpz%25sE62KPzmHfM'; // Уже закодированный пароль
               const cluster = 'cluster0.ejo8obw.mongodb.net';
               const database = 'tapdel';
               
-              const encodedPassword = encodeURIComponent(password);
-              return `mongodb+srv://${username}:${encodedPassword}@${cluster}/${database}?retryWrites=true&w=majority&appName=Cluster0`;
+              return `mongodb+srv://${username}:${password}@${cluster}/${database}?retryWrites=true&w=majority&appName=Cluster0`;
             };
 
             const MONGODB_URI = process.env.MONGODB_URI || generateCleanMongoURI();

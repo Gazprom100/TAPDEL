@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GAME_MECHANICS } from '../../types/game';
+import { adminApiService } from '../../services/adminApi';
 
 interface EconomyMetrics {
   totalInflow: number;
@@ -7,144 +7,143 @@ interface EconomyMetrics {
   netBalance: number;
   averageDeposit: number;
   averageWithdrawal: number;
-  dailyVolume: number;
-  weeklyGrowth: number;
-  monthlyGrowth: number;
-}
-
-interface GameMechanics {
-  baseReward: number;
-  energyRecoveryRate: number;
-  energyConsumptionRate: number;
-  gearMultipliers: Record<string, number>;
-  componentCosts: {
-    engines: number[];
-    gearboxes: number[];
-    batteries: number[];
-    hyperdrives: number[];
-    powerGrids: number[];
-  };
-  withdrawalLimits: {
-    min: number;
-    max: number;
-    daily: number;
-  };
-  depositBonuses: {
-    enabled: boolean;
-    percentage: number;
-    minAmount: number;
-  };
-}
-
-interface EconomicTrend {
-  date: string;
-  deposits: number;
-  withdrawals: number;
-  netFlow: number;
+  totalTokens: number;
   activeUsers: number;
+}
+
+interface AnalyticsReport {
+  newUsers?: number;
+  activeUsers?: number;
+  retentionRate?: number;
+  deposits?: number;
+  withdrawals?: number;
+  successRate?: number;
+  totalInflow?: number;
+  totalOutflow?: number;
+  netRevenue?: number;
 }
 
 export const EconomyManagement: React.FC = () => {
   const [metrics, setMetrics] = useState<EconomyMetrics>({
-    totalInflow: 150000,
-    totalOutflow: 120000,
-    netBalance: 30000,
-    averageDeposit: 2500,
-    averageWithdrawal: 1800,
-    dailyVolume: 8500,
-    weeklyGrowth: 12.5,
-    monthlyGrowth: 8.3
+    totalInflow: 0,
+    totalOutflow: 0,
+    netBalance: 0,
+    averageDeposit: 0,
+    averageWithdrawal: 0,
+    totalTokens: 0,
+    activeUsers: 0
   });
+  
+  const [userReport, setUserReport] = useState<AnalyticsReport>({});
+  const [transactionReport, setTransactionReport] = useState<AnalyticsReport>({});
+  const [revenueReport, setRevenueReport] = useState<AnalyticsReport>({});
+  
+  const [selectedPeriod, setSelectedPeriod] = useState<'1d' | '7d' | '30d'>('7d');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const [mechanics, setMechanics] = useState<GameMechanics>({
-    baseReward: 1,
-    energyRecoveryRate: 0.033,
-    energyConsumptionRate: 0.1,
-    gearMultipliers: GAME_MECHANICS.GEAR.MULTIPLIERS,
-    componentCosts: {
-      engines: [100, 250, 500, 1000, 2000],
-      gearboxes: [150, 300, 600, 1200, 2400],
-      batteries: [200, 400, 800, 1600, 3200],
-      hyperdrives: [500, 1000, 2000, 4000, 8000],
-      powerGrids: [300, 600, 1200, 2400, 4800]
-    },
-    withdrawalLimits: {
-      min: 100,
-      max: 10000,
-      daily: 50000
-    },
-    depositBonuses: {
-      enabled: true,
-      percentage: 5,
-      minAmount: 1000
-    }
-  });
-
-  const [trends, setTrends] = useState<EconomicTrend[]>([]);
-  const [autoAdjustments, setAutoAdjustments] = useState<boolean>(false);
-  const [saving, setSaving] = useState<boolean>(false);
-
-  // Генерация данных трендов
-  useEffect(() => {
-    const generateTrends = () => {
-      const data: EconomicTrend[] = [];
-      for (let i = 30; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        data.push({
-          date: date.toISOString().split('T')[0],
-          deposits: Math.floor(Math.random() * 5000) + 2000,
-          withdrawals: Math.floor(Math.random() * 4000) + 1500,
-          netFlow: Math.floor(Math.random() * 2000) - 1000,
-          activeUsers: Math.floor(Math.random() * 500) + 200
-        });
-      }
-      setTrends(data);
-    };
-    generateTrends();
-  }, []);
-
-  const handleSaveMechanics = async () => {
-    setSaving(true);
+  // Загрузка экономических данных
+  const loadEconomyData = async () => {
     try {
-      // Здесь будет API вызов для сохранения настроек
-      console.log('Сохранение игровых механик:', mechanics);
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Имитация API
-      alert('Настройки экономики сохранены успешно!');
+      setLoading(true);
+      setError(null);
+      
+      // Загружаем все данные параллельно
+      const [metricsData, userReportData, transactionReportData, revenueReportData] = await Promise.all([
+        adminApiService.getEconomyMetrics(),
+        adminApiService.getAnalyticsReports('users', selectedPeriod),
+        adminApiService.getAnalyticsReports('transactions', selectedPeriod),
+        adminApiService.getAnalyticsReports('revenue', selectedPeriod)
+      ]);
+      
+      setMetrics(metricsData);
+      setUserReport(userReportData);
+      setTransactionReport(transactionReportData);
+      setRevenueReport(revenueReportData);
     } catch (error) {
-      console.error('Ошибка сохранения:', error);
-      alert('Ошибка сохранения настроек');
+      console.error('Ошибка загрузки экономических данных:', error);
+      setError('Ошибка загрузки экономических данных');
     } finally {
-      setSaving(false);
+      setLoading(false);
     }
   };
 
-  const handleAutoAdjustment = async () => {
-    if (!confirm('Включить автоматические корректировки экономики?')) return;
-    
-    setAutoAdjustments(true);
-    // Здесь будет логика автоматических корректировок
-    console.log('Автоматические корректировки включены');
-  };
+  // Загружаем данные при изменении периода
+  useEffect(() => {
+    loadEconomyData();
+  }, [selectedPeriod]);
 
   const formatCurrency = (amount: number) => {
-    return `${amount.toLocaleString()} DEL`;
+    return new Intl.NumberFormat('ru-RU', {
+      style: 'currency',
+      currency: 'DEL',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount);
   };
 
-  const getGrowthColor = (growth: number) => {
-    return growth >= 0 ? 'text-green-400' : 'text-red-400';
+  const formatNumber = (num: number) => {
+    return new Intl.NumberFormat('ru-RU').format(num);
   };
 
-  const getGrowthIcon = (growth: number) => {
-    return growth >= 0 ? '📈' : '📉';
+  const getPercentageColor = (value: number) => {
+    if (value >= 0) return 'text-green-400';
+    return 'text-red-400';
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+          <div className="mt-4 text-gray-400">Загрузка экономических данных...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center py-8">
+          <div className="text-red-500 text-lg mb-2">Ошибка</div>
+          <div className="text-gray-400">{error}</div>
+          <button 
+            onClick={loadEconomyData}
+            className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded"
+          >
+            Попробовать снова
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Управление экономикой</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold">Управление экономикой</h2>
+        <div className="flex items-center space-x-4">
+          <select
+            value={selectedPeriod}
+            onChange={(e) => setSelectedPeriod(e.target.value as any)}
+            className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="1d">За 24 часа</option>
+            <option value="7d">За 7 дней</option>
+            <option value="30d">За 30 дней</option>
+          </select>
+          <button
+            onClick={loadEconomyData}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white"
+          >
+            Обновить
+          </button>
+        </div>
+      </div>
 
-      {/* Ключевые метрики */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Основные метрики */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
           <div className="flex items-center justify-between">
             <div>
@@ -152,8 +151,11 @@ export const EconomyManagement: React.FC = () => {
               <p className="text-2xl font-bold text-green-400">{formatCurrency(metrics.totalInflow)}</p>
             </div>
             <div className="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center">
-              <span className="text-white text-xl">💰</span>
+              <span className="text-white text-xl">📈</span>
             </div>
+          </div>
+          <div className="mt-2">
+            <p className="text-sm text-gray-400">Средний депозит: {formatCurrency(metrics.averageDeposit)}</p>
           </div>
         </div>
 
@@ -164,8 +166,11 @@ export const EconomyManagement: React.FC = () => {
               <p className="text-2xl font-bold text-red-400">{formatCurrency(metrics.totalOutflow)}</p>
             </div>
             <div className="w-12 h-12 bg-red-600 rounded-lg flex items-center justify-center">
-              <span className="text-white text-xl">💸</span>
+              <span className="text-white text-xl">📉</span>
             </div>
+          </div>
+          <div className="mt-2">
+            <p className="text-sm text-gray-400">Средний вывод: {formatCurrency(metrics.averageWithdrawal)}</p>
           </div>
         </div>
 
@@ -173,273 +178,214 @@ export const EconomyManagement: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-400">Чистый баланс</p>
-              <p className={`text-2xl font-bold ${metrics.netBalance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              <p className={`text-2xl font-bold ${getPercentageColor(metrics.netBalance)}`}>
                 {formatCurrency(metrics.netBalance)}
               </p>
             </div>
             <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white text-xl">⚖️</span>
+              <span className="text-white text-xl">💰</span>
             </div>
+          </div>
+          <div className="mt-2">
+            <p className="text-sm text-gray-400">Активных пользователей: {formatNumber(metrics.activeUsers)}</p>
           </div>
         </div>
 
         <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-400">Дневной объем</p>
-              <p className="text-2xl font-bold text-white">{formatCurrency(metrics.dailyVolume)}</p>
+              <p className="text-sm font-medium text-gray-400">Токены в игре</p>
+              <p className="text-2xl font-bold text-yellow-400">{formatNumber(metrics.totalTokens)} BOOST</p>
             </div>
-            <div className="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center">
-              <span className="text-white text-xl">📊</span>
+            <div className="w-12 h-12 bg-yellow-600 rounded-lg flex items-center justify-center">
+              <span className="text-white text-xl">🎮</span>
+            </div>
+          </div>
+          <div className="mt-2">
+            <p className="text-sm text-gray-400">В обращении</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Аналитические отчеты */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Отчет по пользователям */}
+        <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+          <h3 className="text-lg font-semibold text-white mb-4">Пользователи</h3>
+          <div className="space-y-4">
+            <div className="flex justify-between">
+              <span className="text-gray-400">Новых пользователей:</span>
+              <span className="text-white font-medium">{userReport.newUsers || 0}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Активных пользователей:</span>
+              <span className="text-white font-medium">{userReport.activeUsers || 0}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Удержание:</span>
+              <span className="text-white font-medium">
+                {userReport.retentionRate ? userReport.retentionRate.toFixed(1) : 0}%
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Отчет по транзакциям */}
+        <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+          <h3 className="text-lg font-semibold text-white mb-4">Транзакции</h3>
+          <div className="space-y-4">
+            <div className="flex justify-between">
+              <span className="text-gray-400">Депозитов:</span>
+              <span className="text-green-400 font-medium">{transactionReport.deposits || 0}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Выводов:</span>
+              <span className="text-red-400 font-medium">{transactionReport.withdrawals || 0}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Успешность:</span>
+              <span className="text-white font-medium">
+                {transactionReport.successRate ? transactionReport.successRate.toFixed(1) : 0}%
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Отчет по доходам */}
+        <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+          <h3 className="text-lg font-semibold text-white mb-4">Доходы</h3>
+          <div className="space-y-4">
+            <div className="flex justify-between">
+              <span className="text-gray-400">Приток:</span>
+              <span className="text-green-400 font-medium">
+                {revenueReport.totalInflow ? formatCurrency(revenueReport.totalInflow) : formatCurrency(0)}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Отток:</span>
+              <span className="text-red-400 font-medium">
+                {revenueReport.totalOutflow ? formatCurrency(revenueReport.totalOutflow) : formatCurrency(0)}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Чистая прибыль:</span>
+              <span className={`font-medium ${getPercentageColor(revenueReport.netRevenue || 0)}`}>
+                {revenueReport.netRevenue ? formatCurrency(revenueReport.netRevenue) : formatCurrency(0)}
+              </span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Рост и тренды */}
+      {/* Графики и диаграммы */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* График движения средств */}
         <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-          <h3 className="text-lg font-semibold text-white mb-4">Рост экономики</h3>
+          <h3 className="text-lg font-semibold text-white mb-4">Движение средств</h3>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-gray-400">Недельный рост</span>
+              <span className="text-gray-400">Приток</span>
               <div className="flex items-center space-x-2">
-                <span className={getGrowthColor(metrics.weeklyGrowth)}>
-                  {getGrowthIcon(metrics.weeklyGrowth)} {metrics.weeklyGrowth}%
-                </span>
+                <div className="w-32 bg-gray-700 rounded-full h-2">
+                  <div 
+                    className="bg-green-500 h-2 rounded-full"
+                    style={{ 
+                      width: `${metrics.totalInflow > 0 ? Math.min((metrics.totalInflow / (metrics.totalInflow + metrics.totalOutflow)) * 100, 100) : 0}%` 
+                    }}
+                  ></div>
+                </div>
+                <span className="text-white text-sm">{formatCurrency(metrics.totalInflow)}</span>
               </div>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-gray-400">Месячный рост</span>
+              <span className="text-gray-400">Отток</span>
               <div className="flex items-center space-x-2">
-                <span className={getGrowthColor(metrics.monthlyGrowth)}>
-                  {getGrowthIcon(metrics.monthlyGrowth)} {metrics.monthlyGrowth}%
-                </span>
+                <div className="w-32 bg-gray-700 rounded-full h-2">
+                  <div 
+                    className="bg-red-500 h-2 rounded-full"
+                    style={{ 
+                      width: `${metrics.totalOutflow > 0 ? Math.min((metrics.totalOutflow / (metrics.totalInflow + metrics.totalOutflow)) * 100, 100) : 0}%` 
+                    }}
+                  ></div>
+                </div>
+                <span className="text-white text-sm">{formatCurrency(metrics.totalOutflow)}</span>
               </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-400">Средний депозит</span>
-              <span className="text-white font-medium">{formatCurrency(metrics.averageDeposit)}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-400">Средний вывод</span>
-              <span className="text-white font-medium">{formatCurrency(metrics.averageWithdrawal)}</span>
             </div>
           </div>
         </div>
 
+        {/* Статистика токенов */}
         <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-          <h3 className="text-lg font-semibold text-white mb-4">Автоматические корректировки</h3>
+          <h3 className="text-lg font-semibold text-white mb-4">Распределение токенов</h3>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-gray-400">Статус</span>
-              <div className="flex items-center space-x-2">
-                <div className={`w-3 h-3 rounded-full ${autoAdjustments ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                <span className="text-sm">{autoAdjustments ? 'Активны' : 'Неактивны'}</span>
-              </div>
+              <span className="text-gray-400">В игре:</span>
+              <span className="text-yellow-400 font-medium">{formatNumber(metrics.totalTokens)} BOOST</span>
             </div>
-            <button
-              onClick={handleAutoAdjustment}
-              className="admin-button w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg"
-            >
-              {autoAdjustments ? 'Отключить' : 'Включить'} автокорректировки
-            </button>
-            <p className="text-xs text-gray-400">
-              Автоматические корректировки балансируют экономику на основе метрик
-            </p>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400">Активных игроков:</span>
+              <span className="text-white font-medium">{formatNumber(metrics.activeUsers)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400">Средний баланс:</span>
+              <span className="text-white font-medium">
+                {metrics.activeUsers > 0 ? formatNumber(metrics.totalTokens / metrics.activeUsers) : 0} BOOST
+              </span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Настройки игровых механик */}
+      {/* Действия */}
       <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-        <h3 className="text-lg font-semibold text-white mb-6">Настройки игровых механик</h3>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <h4 className="text-md font-semibold text-white mb-4">Основные параметры</h4>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Базовое вознаграждение</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={mechanics.baseReward}
-                  onChange={(e) => setMechanics(prev => ({ ...prev, baseReward: Number(e.target.value) }))}
-                  className="admin-input w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Скорость восстановления энергии</label>
-                <input
-                  type="number"
-                  step="0.001"
-                  value={mechanics.energyRecoveryRate}
-                  onChange={(e) => setMechanics(prev => ({ ...prev, energyRecoveryRate: Number(e.target.value) }))}
-                  className="admin-input w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Расход энергии</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={mechanics.energyConsumptionRate}
-                  onChange={(e) => setMechanics(prev => ({ ...prev, energyConsumptionRate: Number(e.target.value) }))}
-                  className="admin-input w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <h4 className="text-md font-semibold text-white mb-4">Лимиты выводов</h4>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Минимальный вывод</label>
-                <input
-                  type="number"
-                  value={mechanics.withdrawalLimits.min}
-                  onChange={(e) => setMechanics(prev => ({ 
-                    ...prev, 
-                    withdrawalLimits: { ...prev.withdrawalLimits, min: Number(e.target.value) }
-                  }))}
-                  className="admin-input w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Максимальный вывод</label>
-                <input
-                  type="number"
-                  value={mechanics.withdrawalLimits.max}
-                  onChange={(e) => setMechanics(prev => ({ 
-                    ...prev, 
-                    withdrawalLimits: { ...prev.withdrawalLimits, max: Number(e.target.value) }
-                  }))}
-                  className="admin-input w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Дневной лимит</label>
-                <input
-                  type="number"
-                  value={mechanics.withdrawalLimits.daily}
-                  onChange={(e) => setMechanics(prev => ({ 
-                    ...prev, 
-                    withdrawalLimits: { ...prev.withdrawalLimits, daily: Number(e.target.value) }
-                  }))}
-                  className="admin-input w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Множители передач */}
-        <div className="mt-8">
-          <h4 className="text-md font-semibold text-white mb-4">Множители передач</h4>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {Object.entries(mechanics.gearMultipliers).map(([gear, multiplier]) => (
-              <div key={gear} className="bg-gray-700 rounded-lg p-4">
-                <label className="block text-sm font-medium text-gray-300 mb-2">Передача {gear}</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={multiplier}
-                  onChange={(e) => setMechanics(prev => ({
-                    ...prev,
-                    gearMultipliers: { ...prev.gearMultipliers, [gear]: Number(e.target.value) }
-                  }))}
-                  className="admin-input w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Бонусы за депозиты */}
-        <div className="mt-8">
-          <h4 className="text-md font-semibold text-white mb-4">Бонусы за депозиты</h4>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="flex items-center space-x-3">
-              <input
-                type="checkbox"
-                checked={mechanics.depositBonuses.enabled}
-                onChange={(e) => setMechanics(prev => ({
-                  ...prev,
-                  depositBonuses: { ...prev.depositBonuses, enabled: e.target.checked }
-                }))}
-                className="admin-input rounded border-gray-600 bg-gray-700"
-              />
-              <label className="text-sm font-medium text-gray-300">Включить бонусы</label>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Процент бонуса</label>
-              <input
-                type="number"
-                value={mechanics.depositBonuses.percentage}
-                onChange={(e) => setMechanics(prev => ({
-                  ...prev,
-                  depositBonuses: { ...prev.depositBonuses, percentage: Number(e.target.value) }
-                }))}
-                className="admin-input w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Минимальная сумма</label>
-              <input
-                type="number"
-                value={mechanics.depositBonuses.minAmount}
-                onChange={(e) => setMechanics(prev => ({
-                  ...prev,
-                  depositBonuses: { ...prev.depositBonuses, minAmount: Number(e.target.value) }
-                }))}
-                className="admin-input w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-8">
+        <h3 className="text-lg font-semibold text-white mb-4">Действия</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <button
-            onClick={handleSaveMechanics}
-            disabled={saving}
-            className="admin-button px-8 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 rounded-lg font-medium transition-colors"
+            onClick={() => {
+              if (confirm('Сбросить лидерборд? Это действие нельзя отменить.')) {
+                adminApiService.resetLeaderboard()
+                  .then(() => alert('Лидерборд сброшен'))
+                  .catch(error => {
+                    console.error('Ошибка сброса лидерборда:', error);
+                    alert('Ошибка сброса лидерборда');
+                  });
+              }
+            }}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-white"
           >
-            {saving ? 'Сохранение...' : '💾 Сохранить настройки экономики'}
+            Сбросить лидерборд
           </button>
-        </div>
-      </div>
-
-      {/* График трендов */}
-      <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-        <h3 className="text-lg font-semibold text-white mb-4">Тренды экономики (30 дней)</h3>
-        <div className="h-64 flex items-end space-x-1">
-          {trends.slice(-7).map((trend, index) => (
-            <div key={index} className="flex-1 flex flex-col items-center">
-              <div className="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-t mb-1" 
-                   style={{ height: `${(trend.deposits / 5000) * 100}%` }}></div>
-              <div className="w-full bg-gradient-to-t from-red-600 to-red-400 rounded-t mb-1" 
-                   style={{ height: `${(trend.withdrawals / 5000) * 100}%` }}></div>
-              <div className="text-xs text-gray-400">{new Date(trend.date).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}</div>
-            </div>
-          ))}
-        </div>
-        <div className="flex justify-center space-x-6 mt-4">
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 bg-blue-600 rounded"></div>
-            <span className="text-sm text-gray-400">Депозиты</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 bg-red-600 rounded"></div>
-            <span className="text-sm text-gray-400">Выводы</span>
-          </div>
+          
+          <button
+            onClick={() => {
+              // Экспорт данных
+              const data = {
+                metrics,
+                userReport,
+                transactionReport,
+                revenueReport,
+                exportDate: new Date().toISOString()
+              };
+              
+              const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `economy-report-${new Date().toISOString().split('T')[0]}.json`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white"
+          >
+            Экспорт отчета
+          </button>
+          
+          <button
+            onClick={loadEconomyData}
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-white"
+          >
+            Обновить данные
+          </button>
         </div>
       </div>
     </div>
