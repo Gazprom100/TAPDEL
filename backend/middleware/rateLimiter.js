@@ -132,7 +132,7 @@ class RateLimiterMiddleware {
     if (!this.limiters.api) {
       this.limiters.api = this.createLimiter('api', {
         windowMs: 60 * 1000,      // 1 минута
-        max: 100,                 // 100 запросов в минуту
+        max: 300,                 // 300 запросов в минуту (увеличено в 3 раза)
         message: 'Слишком много API запросов, попробуйте через минуту',
         keyGenerator: (req) => {
           return req.headers['x-telegram-user-id'] || req.ip;
@@ -147,7 +147,7 @@ class RateLimiterMiddleware {
     if (!this.limiters.leaderboard) {
       this.limiters.leaderboard = this.createLimiter('leaderboard', {
         windowMs: 60 * 1000,      // 1 минута
-        max: 30,                  // 30 запросов лидерборда в минуту
+        max: 120,                 // 120 запросов лидерборда в минуту (увеличено в 4 раза)
         message: 'Слишком много запросов лидерборда, попробуйте через минуту',
         keyGenerator: (req) => {
           return req.headers['x-telegram-user-id'] || req.ip;

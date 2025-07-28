@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Profile } from './components/Profile'
 import { EnergyIndicator } from './components/EnergyIndicator'
+import { FullAdminPanel } from './components/FullAdminPanel'
 import { useGameStore } from './store/gameStore'
 import { useGameMechanics } from './hooks/useGameMechanics'
 import { useFullscreen } from './hooks/useFullscreen'
@@ -13,6 +14,14 @@ const App: React.FC = () => {
   // Инициализация полноэкранного режима Telegram WebApp
   useFullscreen();
   
+  // Простая система роутинга для админпанели
+  const isAdminRoute = window.location.pathname === '/admin';
+  
+  // Если это админский роут, показываем админпанель
+  if (isAdminRoute) {
+    return <FullAdminPanel />;
+  }
+  
   const { 
     tokens, 
     engineLevel,
@@ -21,7 +30,7 @@ const App: React.FC = () => {
     powerGridLevel,
     initializeUser
   } = useGameStore();
-
+  
   const {
     fuelLevel,
     hyperdriveCharge,
@@ -575,8 +584,8 @@ const App: React.FC = () => {
               position: 'relative'
             }}>
               {Math.floor(fuelLevel)}%
-            </div>
-            
+        </div>
+
             <div className="cyber-text text-sm opacity-80" style={{
               color: '#00ff88',
               textShadow: '0 0 10px rgba(0, 255, 136, 0.8)',
@@ -585,8 +594,8 @@ const App: React.FC = () => {
               marginTop: '5px'
             }}>
               ТОПЛИВО
-            </div>
-            
+        </div>
+
             {/* Передача */}
             <div className="cyber-text text-sm opacity-80" style={{
               color: '#00ff88',

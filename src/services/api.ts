@@ -176,6 +176,22 @@ export class ApiService {
       body: JSON.stringify({ oldUserId })
     });
   }
+
+  async getActiveToken(): Promise<{ symbol: string; name: string; address: string; decimals: number }> {
+    try {
+      const response = await this.request<{ success: boolean; token: { symbol: string; name: string; address: string; decimals: number } }>('/active-token');
+      return response.token;
+    } catch (error) {
+      console.error('❌ Ошибка получения активного токена:', error);
+      // Возвращаем дефолтный токен в случае ошибки
+      return {
+        symbol: 'BOOST',
+        name: 'BOOST Token',
+        address: '0x15cefa2ffb0759b519c15e23025a718978be9322',
+        decimals: 18
+      };
+    }
+  }
 }
 
 export const apiService = new ApiService(); 

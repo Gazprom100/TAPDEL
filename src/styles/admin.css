@@ -1,0 +1,253 @@
+/* Специальные стили для админки - переопределяют игровые ограничения */
+
+/* Основной контейнер админки */
+.admin-container {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  height: 100vh !important;
+  width: 100vw !important;
+  position: relative !important;
+  touch-action: pan-y !important;
+}
+
+/* Header админки */
+.admin-header {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 1000 !important;
+  background: #1f2937 !important;
+  border-bottom: 1px solid #374151 !important;
+  padding: 1.5rem !important;
+}
+
+/* Навигация админки */
+.admin-navigation {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 999 !important;
+  background: #1f2937 !important;
+  border-bottom: 1px solid #374151 !important;
+  padding: 0 1.5rem !important;
+}
+
+/* Основной контент админки */
+.admin-content {
+  padding: 1.5rem !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  min-height: calc(100vh - 140px) !important;
+  touch-action: pan-y !important;
+}
+
+/* Скроллируемые области */
+.admin-scrollable {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  touch-action: pan-y !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+/* Переопределяем игровые стили для админки */
+.admin-container .cyber-container,
+.admin-container .cyber-panel,
+.admin-container .cyber-modal {
+  overflow: visible !important;
+  position: static !important;
+  height: auto !important;
+  width: auto !important;
+}
+
+/* Стили для скроллбара в админке */
+.admin-scrollable::-webkit-scrollbar {
+  width: 8px !important;
+}
+
+.admin-scrollable::-webkit-scrollbar-track {
+  background: #374151 !important;
+  border-radius: 4px !important;
+}
+
+.admin-scrollable::-webkit-scrollbar-thumb {
+  background: #6b7280 !important;
+  border-radius: 4px !important;
+}
+
+.admin-scrollable::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af !important;
+}
+
+/* Переопределяем touch-action для админки */
+.admin-container * {
+  touch-action: auto !important;
+}
+
+/* Специальные стили для модальных окон в админке */
+.admin-modal {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  z-index: 9999 !important;
+  background: rgba(0, 0, 0, 0.8) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  touch-action: pan-y !important;
+}
+
+.admin-modal-content {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  max-height: 90vh !important;
+  max-width: 90vw !important;
+  touch-action: pan-y !important;
+}
+
+/* Переопределяем стили для карточек в админке */
+.admin-card {
+  overflow: visible !important;
+  position: relative !important;
+  height: auto !important;
+  width: auto !important;
+}
+
+/* Стили для таблиц в админке */
+.admin-table-container {
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+  touch-action: pan-x pan-y !important;
+}
+
+/* Переопределяем стили для форм в админке */
+.admin-form {
+  overflow: visible !important;
+  position: relative !important;
+  height: auto !important;
+  width: auto !important;
+}
+
+/* Стили для графиков и диаграмм в админке */
+.admin-chart {
+  overflow: visible !important;
+  position: relative !important;
+  height: auto !important;
+  width: auto !important;
+}
+
+/* Переопределяем стили для кнопок в админке */
+.admin-button {
+  touch-action: manipulation !important;
+  user-select: none !important;
+}
+
+/* Стили для навигационных элементов в админке */
+.admin-nav-item {
+  touch-action: manipulation !important;
+  user-select: none !important;
+}
+
+/* Переопределяем стили для инпутов в админке */
+.admin-input {
+  touch-action: manipulation !important;
+  user-select: text !important;
+}
+
+/* Стили для выпадающих списков в админке */
+.admin-dropdown {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  max-height: 200px !important;
+  touch-action: pan-y !important;
+}
+
+/* Переопределяем стили для прогресс-баров в админке */
+.admin-progress {
+  overflow: visible !important;
+  position: relative !important;
+  height: auto !important;
+  width: auto !important;
+}
+
+/* Стили для круговых прогресс-баров в админке */
+.admin-circular-progress {
+  overflow: visible !important;
+  position: relative !important;
+  height: auto !important;
+  width: auto !important;
+}
+
+/* Переопределяем стили для сеток в админке */
+.admin-grid {
+  overflow: visible !important;
+  position: relative !important;
+  height: auto !important;
+  width: auto !important;
+}
+
+/* Стили для адаптивности админки */
+@media (max-width: 768px) {
+  .admin-content {
+    padding: 1rem !important;
+  }
+  
+  .admin-header {
+    padding: 1rem !important;
+  }
+  
+  .admin-navigation {
+    padding: 0 1rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-content {
+    padding: 0.5rem !important;
+  }
+  
+  .admin-header {
+    padding: 0.5rem !important;
+  }
+  
+  .admin-navigation {
+    padding: 0 0.5rem !important;
+  }
+}
+
+/* Переопределяем стили для мобильных устройств */
+@media (hover: none) and (pointer: coarse) {
+  .admin-container {
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  .admin-scrollable {
+    -webkit-overflow-scrolling: touch !important;
+  }
+}
+
+/* Стили для предотвращения конфликтов с игровыми стилями */
+.admin-container {
+  isolation: isolate !important;
+}
+
+.admin-container * {
+  box-sizing: border-box !important;
+}
+
+/* Переопределяем стили для анимаций в админке */
+.admin-container * {
+  animation-play-state: running !important;
+}
+
+/* Стили для фокуса в админке */
+.admin-container *:focus {
+  outline: 2px solid #3b82f6 !important;
+  outline-offset: 2px !important;
+}
+
+/* Переопределяем стили для hover эффектов в админке */
+.admin-container *:hover {
+  transition: all 0.2s ease-in-out !important;
+} 
