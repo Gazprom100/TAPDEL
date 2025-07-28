@@ -101,12 +101,18 @@ class TokenBalanceService {
             );
           }
 
-          // Сбрасываем баланс и рейтинг для нового токена
-          // НО сохраняем все апгрейды
+          // Проверяем, есть ли уже баланс для нового токена
+          const existingBalance = await this.getUserTokenBalance(user.userId, newTokenSymbol);
+          
+          // Если есть существующий баланс, используем его, иначе 0
+          const newBalance = existingBalance ? existingBalance.balance : 0;
+          const newHighScore = existingBalance ? existingBalance.highScore : 0;
+          
+          // Обновляем игровое состояние с актуальным балансом
           const updatedGameState = {
             ...user.gameState,
-            tokens: 0,
-            highScore: 0
+            tokens: newBalance,
+            highScore: newHighScore
           };
 
           // Обновляем пользователя
@@ -115,12 +121,12 @@ class TokenBalanceService {
             { $set: { gameState: updatedGameState } }
           );
 
-          // Создаем запись для нового токена
+          // Создаем или обновляем запись для нового токена
           await this.saveUserTokenBalance(
             user.userId,
             newTokenSymbol,
-            0,
-            0
+            newBalance,
+            newHighScore
           );
 
           // Помечаем новый токен как активный

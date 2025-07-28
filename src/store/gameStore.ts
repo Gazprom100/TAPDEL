@@ -12,6 +12,7 @@ import {
   GAME_MECHANICS
 } from '../types/game';
 import { apiService } from '../services/api';
+import { gameSettingsService } from '../services/gameSettingsService';
 
 // Вспомогательная функция для безопасного формирования имени пользователя
 const formatUserName = (
@@ -978,10 +979,19 @@ export const useGameStore = create<GameStore>()(
       // Применение настроек игры
       applyGameConfig: async () => {
         try {
-          console.log('🎮 Применяем настройки игры');
+          const settings = await gameSettingsService.getSettings();
+          console.log('🎮 Применяем настройки игры:', settings);
           
-          // Пока просто логируем, что настройки загружены
-          console.log('✅ Настройки игры применены');
+          // Применяем базовые настройки
+          const baseTokensPerTap = settings.baseTokensPerTap;
+          const energyMax = settings.energyMax;
+          const energyRegenRate = settings.energyRegenRate;
+          
+          console.log(`✅ Применены настройки: baseTokensPerTap=${baseTokensPerTap}, energyMax=${energyMax}, energyRegenRate=${energyRegenRate}`);
+          
+          // Здесь можно добавить применение настроек к игровой механике
+          // Например, обновить константы в GAME_MECHANICS
+          
         } catch (error) {
           console.error('❌ Ошибка применения настроек игры:', error);
         }

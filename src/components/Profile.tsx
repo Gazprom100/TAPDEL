@@ -701,17 +701,14 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                           <div className={`text-xs sm:text-sm ${
                             entry.userId === profile?.userId ? 'text-[#00ff88]/80' : 'opacity-70'
                           }`}>
-                            Уровень: {entry.level} • Рейтинг: {Math.floor(entry.score)}
-                            {entry.userId === profile?.userId && (
-                              <span className="ml-2">• Баланс: {Math.floor(entry.tokens)} BOOST</span>
-                            )}
+                            {entry.telegramUsername || entry.username}
                           </div>
                         </div>
                       </div>
                       <div className={`cyber-text text-sm sm:text-base font-bold whitespace-nowrap ml-2 ${
                         entry.userId === profile?.userId ? 'text-[#00ff88]' : ''
                       }`}>
-                        {Math.floor(entry.score)} ⭐
+                        {Math.floor(entry.score)}
                       </div>
                     </div>
                   ))

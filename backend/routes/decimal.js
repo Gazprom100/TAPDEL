@@ -412,8 +412,14 @@ router.get('/users/:userId/balance', async (req, res) => {
       return res.status(404).json({ error: 'Пользователь не найден' });
     }
 
-    const gameBalance = user.gameState?.tokens || 0;
     const activeToken = await tokenService.getActiveToken();
+    
+    // Получаем баланс для активного токена
+    const { tokenBalanceService } = require('../services/tokenBalanceService');
+    const tokenBalance = await tokenBalanceService.getUserTokenBalance(userId, activeToken.symbol);
+    
+    // Используем сохраненный баланс или текущий из gameState
+    const gameBalance = tokenBalance ? tokenBalance.balance : (user.gameState?.tokens || 0);
 
     res.json({
       userId: userId,
