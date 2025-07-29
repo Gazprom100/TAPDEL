@@ -241,22 +241,24 @@ class AdminApiService {
     }
   }
 
-  // Массовые операции с пользователями
-  async bulkUpdateUsers(userIds: string[], action: 'ban' | 'unban' | 'resetBalance' | 'delete'): Promise<void> {
+  // Массовое обновление пользователей
+  async bulkUpdateUsers(userIds: string[], action: 'ban' | 'unban' | 'resetBalance' | 'delete'): Promise<any> {
     try {
-      const response = await fetch(`${this.baseUrl}/users/bulk`, {
+      const response = await fetch('/api/admin/users/bulk-update', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({ userIds, action })
       });
-      
+
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`HTTP ${response.status}`);
       }
+
+      return await response.json();
     } catch (error) {
-      console.error('Ошибка массовой операции:', error);
+      console.error('Ошибка массового обновления пользователей:', error);
       throw error;
     }
   }

@@ -40,10 +40,18 @@ export const Shop: React.FC = () => {
     };
   }, [refreshActiveToken]);
 
-  // Генерируем компоненты из настроек
+  // Генерируем компоненты из настроек с проверкой на config
   const generateComponents = useCallback((componentType: string) => {
+    if (!config || !config.components) {
+      console.warn('⚠️ Config не загружен, используем дефолтные компоненты');
+      return [];
+    }
+    
     const configComponent = config.components[componentType as keyof typeof config.components];
-    if (!configComponent) return [];
+    if (!configComponent) {
+      console.warn(`⚠️ Компонент ${componentType} не найден в конфиге`);
+      return [];
+    }
     
     const components = [];
     for (let i = 0; i < configComponent.maxLevel; i++) {
@@ -66,6 +74,8 @@ export const Shop: React.FC = () => {
 
   // Функция для получения следующего доступного апгрейда
   const getNextUpgrade = useCallback((type: string, currentLevel: string) => {
+    if (!config) return null;
+    
     const getCurrentIndex = (array: any[], currentLevel: string) => {
       return array.findIndex(item => item.level === currentLevel);
     };
@@ -99,10 +109,12 @@ export const Shop: React.FC = () => {
     }
     
     return null; // Максимальный уровень достигнут
-  }, [generateComponents]);
+  }, [generateComponents, config]);
 
   // Функция для получения текущего компонента
   const getCurrentComponent = useCallback((type: string, currentLevel: string) => {
+    if (!config) return null;
+    
     let components: any[];
     switch (type) {
       case 'engine':
@@ -125,7 +137,7 @@ export const Shop: React.FC = () => {
     }
 
     return components.find(item => item.level === currentLevel) || null;
-  }, [generateComponents]);
+  }, [generateComponents, config]);
 
   const handleUpgrade = async (
     type: 'engine' | 'gearbox' | 'battery' | 'hyperdrive' | 'powerGrid'
@@ -154,8 +166,8 @@ export const Shop: React.FC = () => {
     });
     
     if (totalBalance < cost) {
-      console.warn(`❌ Недостаточно средств: нужно ${cost}, доступно ${totalBalance} DEL`);
-      alert(`Недостаточно средств! Нужно ${cost} DEL, у вас ${totalBalance} DEL`);
+      console.warn(`❌ Недостаточно средств: нужно ${cost}, доступно ${totalBalance} ${activeTokenSymbol || 'DEL'}`);
+      alert(`Недостаточно средств! Нужно ${cost} ${activeTokenSymbol || 'DEL'}, у вас ${totalBalance} ${activeTokenSymbol || 'DEL'}`);
       return;
     }
     
@@ -165,7 +177,7 @@ export const Shop: React.FC = () => {
     }
 
     try {
-      console.log(`🛒 Начинаем апгрейд ${type} до ${nextUpgrade.level} за ${cost} DEL`);
+      console.log(`🛒 Начинаем апгрейд ${type} до ${nextUpgrade.level} за ${cost} ${activeTokenSymbol || 'DEL'}`);
       setPurchaseInProgress(true);
       
       // Сначала тратим токены и проверяем успех
@@ -215,6 +227,18 @@ export const Shop: React.FC = () => {
       setPurchaseInProgress(false);
     }
   };
+
+  // Показываем загрузку если config не загружен
+  if (!config) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="text-center">
+          <div className="cyber-spinner mb-4"></div>
+          <div className="text-sm opacity-70">Загрузка магазина...</div>
+        </div>
+      </div>
+    );
+  }
 
   const renderCategory = (
     type: 'engine' | 'gearbox' | 'battery' | 'hyperdrive' | 'powerGrid',
@@ -286,11 +310,11 @@ export const Shop: React.FC = () => {
             {nextUpgrade && (
               <div className="mt-3 p-3 bg-gray-800/50 rounded border border-gray-600">
                 <div className="text-sm font-medium mb-2">Следующий уровень: {nextUpgrade.level}</div>
-                <div className="text-xs opacity-70 space-y-1">
+                <div className="space-y-1 text-xs opacity-70">
                   {type === 'engine' && (
                     <>
-                      <div>Мощность: {nextUpgrade.power} (+{nextUpgrade.power - currentComponent.power})</div>
-                      <div>КПД: {nextUpgrade.fuelEfficiency}% | Макс. температура: {nextUpgrade.maxTemp}°C</div>
+                      <div>Мощность: {nextUpgrade.power} | КПД: {nextUpgrade.fuelEfficiency}%</div>
+                      <div>Макс. температура: {nextUpgrade.maxTemp}°C</div>
                     </>
                   )}
                   {type === 'gearbox' && (
@@ -301,8 +325,8 @@ export const Shop: React.FC = () => {
                   )}
                   {type === 'battery' && (
                     <>
-                      <div>Емкость: {nextUpgrade.capacity}% (+{nextUpgrade.capacity - currentComponent.capacity})</div>
-                      <div>Заряд: {nextUpgrade.chargeRate}%/сек | Макс. температура: {nextUpgrade.maxTemp}°C</div>
+                      <div>Емкость: {nextUpgrade.capacity}% | Заряд: {nextUpgrade.chargeRate}%/сек</div>
+                      <div>Макс. температура: {nextUpgrade.maxTemp}°C</div>
                     </>
                   )}
                   {type === 'hyperdrive' && (
@@ -312,7 +336,7 @@ export const Shop: React.FC = () => {
                     </>
                   )}
                   {type === 'powerGrid' && (
-                    <div>Макс. нагрузка: {nextUpgrade.maxLoad}% (+{nextUpgrade.maxLoad - currentComponent.maxLoad}) | КПД: {nextUpgrade.efficiency}%</div>
+                    <div>Макс. нагрузка: {nextUpgrade.maxLoad}% | КПД: {nextUpgrade.efficiency}%</div>
                   )}
                 </div>
               </div>

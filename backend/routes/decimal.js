@@ -310,6 +310,35 @@ router.post('/withdrawals', async (req, res) => {
       });
     }
 
+    // Инициализируем decimalService если нужно
+    if (!decimalService.isInitialized) {
+      try {
+        await decimalService.initialize();
+        console.log('✅ DecimalService инициализирован для вывода');
+      } catch (initError) {
+        console.error('❌ Ошибка инициализации DecimalService:', initError);
+        return res.status(500).json({ 
+          error: 'Ошибка инициализации блокчейн сервиса' 
+        });
+      }
+    }
+
+    // Проверяем баланс рабочего кошелька
+    try {
+      const workingBalance = await decimalService.getWorkingBalance();
+      if (workingBalance < amount) {
+        const activeToken = await tokenService.getActiveToken();
+        return res.status(400).json({ 
+          error: `Недостаточно средств в рабочем кошельке. Доступно: ${workingBalance} ${activeToken.symbol}` 
+        });
+      }
+    } catch (balanceError) {
+      console.error('❌ Ошибка проверки баланса рабочего кошелька:', balanceError);
+      return res.status(500).json({ 
+        error: 'Ошибка проверки баланса рабочего кошелька' 
+      });
+    }
+
     // Списываем средства с баланса пользователя
     await database.collection('users').updateOne(
       { userId: userId },
@@ -341,7 +370,7 @@ router.post('/withdrawals', async (req, res) => {
 
   } catch (error) {
     console.error('❌ Ошибка создания вывода:', error);
-    res.status(500).json({ error: 'Ошибка сервера' });
+    res.status(500).json({ error: 'Ошибка сервера', details: error.message });
   }
 });
 

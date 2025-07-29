@@ -443,21 +443,143 @@ router.put('/users/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     const updates = req.body;
+    
     const database = await connectToDatabase();
     
-    // Обновляем пользователя
+    // Подготавливаем обновления
+    const updateData = {};
+    
+    if (updates.isBanned !== undefined) {
+      updateData.isBanned = updates.isBanned;
+    }
+    
+    if (updates.role) {
+      updateData.role = updates.role;
+    }
+    
+    if (updates.tokens !== undefined) {
+      updateData['gameState.tokens'] = updates.tokens;
+      updateData['gameState.lastSaved'] = new Date();
+    }
+    
+    if (updates.highScore !== undefined) {
+      updateData['gameState.highScore'] = updates.highScore;
+      updateData['gameState.lastSaved'] = new Date();
+    }
+    
+    updateData.updatedAt = new Date();
+    
     const result = await database.collection('users').updateOne(
-      { userId },
-      { $set: { ...updates, updatedAt: new Date() } }
+      { userId: userId },
+      { $set: updateData }
     );
     
     if (result.matchedCount === 0) {
       return res.status(404).json({ error: 'Пользователь не найден' });
     }
     
-    res.json({ message: 'Пользователь обновлен' });
+    // Если обновляли баланс, обновляем лидерборд
+    if (updates.tokens !== undefined || updates.highScore !== undefined) {
+      const user = await database.collection('users').findOne({ userId: userId });
+      if (user) {
+        const newTokens = updates.tokens !== undefined ? updates.tokens : user.gameState?.tokens || 0;
+        const newHighScore = updates.highScore !== undefined ? updates.highScore : user.gameState?.highScore || 0;
+        
+        await database.collection('leaderboard').updateOne(
+          { userId: userId },
+          { 
+            $set: {
+              tokens: newHighScore, // Используем highScore для рейтинга
+              updatedAt: new Date()
+            }
+          },
+          { upsert: true }
+        );
+      }
+    }
+    
+    res.json({ success: true, message: 'Пользователь обновлен' });
   } catch (error) {
     console.error('Ошибка обновления пользователя:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Массовое обновление пользователей
+router.post('/users/bulk-update', async (req, res) => {
+  try {
+    const { userIds, action } = req.body;
+    
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ error: 'userIds обязателен и должен быть массивом' });
+    }
+    
+    const database = await connectToDatabase();
+    
+    let updateData = {};
+    let leaderboardUpdates = [];
+    
+    switch (action) {
+      case 'ban':
+        updateData = { isBanned: true };
+        break;
+      case 'unban':
+        updateData = { isBanned: false };
+        break;
+      case 'resetBalance':
+        updateData = { 
+          'gameState.tokens': 0,
+          'gameState.highScore': 0,
+          'gameState.lastSaved': new Date()
+        };
+        // Подготавливаем обновления лидерборда
+        leaderboardUpdates = userIds.map(userId => ({
+          updateOne: {
+            filter: { userId: userId },
+            update: { 
+              $set: { 
+                tokens: 0,
+                updatedAt: new Date()
+              }
+            },
+            upsert: true
+          }
+        }));
+        break;
+      case 'delete':
+        // Удаляем пользователей и связанные данные
+        await database.collection('users').deleteMany({ userId: { $in: userIds } });
+        await database.collection('leaderboard').deleteMany({ userId: { $in: userIds } });
+        await database.collection('deposits').deleteMany({ userId: { $in: userIds } });
+        await database.collection('withdrawals').deleteMany({ userId: { $in: userIds } });
+        await database.collection('user_token_balances').deleteMany({ userId: { $in: userIds } });
+        
+        res.json({ success: true, message: `${userIds.length} пользователей удалено` });
+        return;
+      default:
+        return res.status(400).json({ error: 'Неизвестное действие' });
+    }
+    
+    updateData.updatedAt = new Date();
+    
+    // Обновляем пользователей
+    const result = await database.collection('users').updateMany(
+      { userId: { $in: userIds } },
+      { $set: updateData }
+    );
+    
+    // Обновляем лидерборд если нужно
+    if (leaderboardUpdates.length > 0) {
+      await database.collection('leaderboard').bulkWrite(leaderboardUpdates);
+    }
+    
+    res.json({ 
+      success: true, 
+      message: `Обновлено ${result.modifiedCount} пользователей`,
+      modifiedCount: result.modifiedCount
+    });
+  } catch (error) {
+    console.error('Ошибка массового обновления пользователей:', error);
     res.status(500).json({ error: error.message });
   }
 });
