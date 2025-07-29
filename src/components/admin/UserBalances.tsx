@@ -5,6 +5,7 @@ interface UserBalance {
   balance: number;
   highScore: number;
   lastUpdated: string;
+  isActive?: boolean;
 }
 
 interface UserBalanceData {
@@ -268,29 +269,59 @@ export const UserBalances: React.FC = () => {
               </div>
             </div>
 
-            {/* Балансы по токенам */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {user.balances.map((balance) => (
-                <div
-                  key={balance.symbol}
-                  className="bg-gray-700 rounded-lg p-4 border border-gray-600"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-lg font-bold text-white">{balance.symbol}</div>
-                    <div className="text-sm text-gray-400">
-                      {formatDate(balance.lastUpdated)}
-                    </div>
-                  </div>
-                  <div className="space-y-1 text-sm">
-                    <div className="text-gray-400">
-                      Баланс: <span className="text-white">{formatBalance(balance.balance)}</span>
-                    </div>
-                    <div className="text-gray-400">
-                      Рейтинг: <span className="text-white">{formatBalance(balance.highScore)}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
+            {/* Таблица балансов по токенам */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-700">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-gray-300 font-medium">Токен</th>
+                    <th className="px-4 py-2 text-left text-gray-300 font-medium">Баланс</th>
+                    <th className="px-4 py-2 text-left text-gray-300 font-medium">Рейтинг</th>
+                    <th className="px-4 py-2 text-left text-gray-300 font-medium">Статус</th>
+                    <th className="px-4 py-2 text-left text-gray-300 font-medium">Обновлено</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-700">
+                  {user.balances.map((balance) => (
+                    <tr key={balance.symbol} className="hover:bg-gray-700/50">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-lg font-bold text-white">{balance.symbol}</span>
+                          {balance.isActive && (
+                            <span className="px-2 py-1 bg-green-600 text-white text-xs rounded">
+                              АКТИВЕН
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-white font-medium">
+                          {formatBalance(balance.balance)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-gray-300">
+                          {formatBalance(balance.highScore)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          balance.isActive 
+                            ? 'bg-green-600 text-white' 
+                            : 'bg-gray-600 text-gray-300'
+                        }`}>
+                          {balance.isActive ? 'Активен' : 'Неактивен'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-gray-400 text-xs">
+                          {formatDate(balance.lastUpdated)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
 
             {user.balances.length === 0 && (

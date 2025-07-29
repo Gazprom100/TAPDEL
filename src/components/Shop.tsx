@@ -180,9 +180,18 @@ export const Shop: React.FC = () => {
       console.log(`🛒 Начинаем апгрейд ${type} до ${nextUpgrade.level} за ${cost} ${activeTokenSymbol || 'DEL'}`);
       setPurchaseInProgress(true);
       
-      // Сначала тратим токены и проверяем успех
+      // Сначала тратим токены и проверяем успех с таймаутом
       console.log(`💸 Вызываем spendTokens(${cost}, { type: "${type}", level: "${nextUpgrade.level}" })`);
-      const success = await spendTokens(cost, { type, level: nextUpgrade.level });
+      
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Таймаут покупки')), 10000)
+      );
+      
+      const success = await Promise.race([
+        spendTokens(cost, { type, level: nextUpgrade.level }),
+        timeoutPromise
+      ]);
+      
       console.log(`💸 spendTokens результат:`, success);
       
       if (success) {

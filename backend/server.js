@@ -7,6 +7,7 @@ const telegramRoutes = require('./routes/telegram');
 const apiRoutes = require('./routes/api');
 const decimalRoutes = require('./routes/decimal');
 const adminRoutes = require('./routes/admin');
+const resetBalancesRoutes = require('./routes/resetBalances');
 const botService = require('./services/botService');
 const decimalService = require('./services/decimalService');
 

@@ -86,7 +86,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     if (activeTab === 'leaderboard') {
       updateLeaderboard();
       // Увеличиваем интервал до 60 секунд для снижения нагрузки
-      interval = setInterval(updateLeaderboard, config.leaderboard.updateInterval * 1000); // Используем настройки из админки
+      interval = setInterval(updateLeaderboard, (config.leaderboard?.updateInterval || 60) * 1000); // Используем настройки из админки
     }
 
     return () => {

@@ -877,27 +877,21 @@ router.get('/wallet-balance', async (req, res) => {
         if (!decimalService.isInitialized) {
           await decimalService.initialize();
         }
-        let balance;
         
-        // Для нативного токена DEL используем web3.eth.getBalance
-        if (token.symbol === "DEL") {
-          const balanceWei = await decimalService.web3.eth.getBalance(workingAddress);
-          balance = parseFloat(decimalService.web3.utils.fromWei(balanceWei, "ether"));
-        } else {
-          // Для ERC-20 токенов используем контракт
-          const tokenContract = new decimalService.web3.eth.Contract([
-            {
-              "constant": true,
-              "inputs": [{"name": "_owner", "type": "address"}],
-              "name": "balanceOf",
-              "outputs": [{"name": "balance", "type": "uint256"}],
-              "type": "function"
-            }
-          ], token.address);
-          
-          const balanceWei = await tokenContract.methods.balanceOf(workingAddress).call();
-          balance = parseFloat(decimalService.web3.utils.fromWei(balanceWei, "ether"));
-          status: 'active'
+        // Получаем баланс токена через ERC-20 контракт
+        const tokenContract = new decimalService.web3.eth.Contract([
+          {
+            "constant": true,
+            "inputs": [{"name": "_owner", "type": "address"}],
+            "name": "balanceOf",
+            "outputs": [{"name": "balance", "type": "uint256"}],
+            "type": "function"
+          }
+        ], token.address);
+        
+        const balanceWei = await tokenContract.methods.balanceOf(workingAddress).call();
+        const balance = parseFloat(decimalService.web3.utils.fromWei(balanceWei, 'ether'));
+        
         const balanceData = {
           symbol: token.symbol,
           name: token.name,
@@ -905,8 +899,7 @@ router.get('/wallet-balance', async (req, res) => {
           balance: balance,
           decimals: token.decimals,
           lastUpdated: new Date().toISOString(),
-          status: "active"
-        };
+          status: 'active'
         };
         
         walletBalances.push(balanceData);
@@ -955,27 +948,23 @@ router.post('/wallet-balance/refresh', async (req, res) => {
         const tokenContract = new decimalService.web3.eth.Contract([
           {
             "constant": true,
-        let balance;
+            "inputs": [{"name": "_owner", "type": "address"}],
+            "name": "balanceOf",
+            "outputs": [{"name": "balance", "type": "uint256"}],
+            "type": "function"
+          }
+        ], token.address);
         
-        // Для нативного токена DEL используем web3.eth.getBalance
-        if (token.symbol === "DEL") {
-          const balanceWei = await decimalService.web3.eth.getBalance(workingAddress);
-          balance = parseFloat(decimalService.web3.utils.fromWei(balanceWei, "ether"));
-        } else {
-          // Для ERC-20 токенов используем контракт
-          const tokenContract = new decimalService.web3.eth.Contract([
-            {
-              "constant": true,
-              "inputs": [{"name": "_owner", "type": "address"}],
-              "name": "balanceOf",
-              "outputs": [{"name": "balance", "type": "uint256"}],
-              "type": "function"
-            }
-          ], token.address);
-          
-          const balanceWei = await tokenContract.methods.balanceOf(workingAddress).call();
-          balance = parseFloat(decimalService.web3.utils.fromWei(balanceWei, "ether"));
-        }              lastUpdated: new Date(),
+        const balanceWei = await tokenContract.methods.balanceOf(workingAddress).call();
+        const balance = parseFloat(decimalService.web3.utils.fromWei(balanceWei, 'ether'));
+        
+        // Сохраняем обновленный баланс в БД
+        await database.collection('wallet_balances').updateOne(
+          { symbol: token.symbol },
+          { 
+            $set: { 
+              balance,
+              lastUpdated: new Date(),
               status: 'active'
             } 
           },

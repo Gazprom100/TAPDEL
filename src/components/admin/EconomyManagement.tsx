@@ -122,7 +122,7 @@ export const EconomyManagement: React.FC = () => {
   return (
     <div className="admin-scrollable space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Управление экономикой</h2>
+      <h2 className="text-2xl font-bold">Управление экономикой</h2>
         <div className="flex items-center space-x-4">
           <select
             value={selectedPeriod}
@@ -216,7 +216,7 @@ export const EconomyManagement: React.FC = () => {
             <div className="flex justify-between">
               <span className="text-gray-400">Новых пользователей:</span>
               <span className="text-white font-medium">{userReport.newUsers || 0}</span>
-            </div>
+              </div>
             <div className="flex justify-between">
               <span className="text-gray-400">Активных пользователей:</span>
               <span className="text-white font-medium">{userReport.activeUsers || 0}</span>
@@ -225,8 +225,8 @@ export const EconomyManagement: React.FC = () => {
               <span className="text-gray-400">Удержание:</span>
               <span className="text-white font-medium">
                 {userReport.retentionRate ? userReport.retentionRate.toFixed(1) : 0}%
-              </span>
-            </div>
+                </span>
+              </div>
           </div>
         </div>
 
@@ -266,7 +266,7 @@ export const EconomyManagement: React.FC = () => {
               <span className="text-red-400 font-medium">
                 {revenueReport.totalOutflow ? formatCurrency(revenueReport.totalOutflow) : formatCurrency(0)}
               </span>
-            </div>
+              </div>
             <div className="flex justify-between">
               <span className="text-gray-400">Чистая прибыль:</span>
               <span className={`font-medium ${getPercentageColor(revenueReport.netRevenue || 0)}`}>
@@ -280,9 +280,9 @@ export const EconomyManagement: React.FC = () => {
       {/* Графики и диаграммы */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* График движения средств */}
-        <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+      <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
           <h3 className="text-lg font-semibold text-white mb-4">Движение средств</h3>
-          <div className="space-y-4">
+            <div className="space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-gray-400">Приток</span>
               <div className="flex items-center space-x-2">
@@ -293,7 +293,7 @@ export const EconomyManagement: React.FC = () => {
                       width: `${metrics.totalInflow > 0 ? Math.min((metrics.totalInflow / (metrics.totalInflow + metrics.totalOutflow)) * 100, 100) : 0}%` 
                     }}
                   ></div>
-                </div>
+              </div>
                 <span className="text-white text-sm">{formatCurrency(metrics.totalInflow)}</span>
               </div>
             </div>
@@ -307,7 +307,7 @@ export const EconomyManagement: React.FC = () => {
                       width: `${metrics.totalOutflow > 0 ? Math.min((metrics.totalOutflow / (metrics.totalInflow + metrics.totalOutflow)) * 100, 100) : 0}%` 
                     }}
                   ></div>
-                </div>
+          </div>
                 <span className="text-white text-sm">{formatCurrency(metrics.totalOutflow)}</span>
               </div>
             </div>

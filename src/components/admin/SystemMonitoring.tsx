@@ -17,7 +17,7 @@ export const SystemMonitoring: React.FC = () => {
     uptime: 0,
     activeConnections: 0
   });
-  
+
   const [blockchain, setBlockchain] = useState<BlockchainStatus>({
     lastBlock: 0,
     blockTime: 0,
@@ -25,7 +25,7 @@ export const SystemMonitoring: React.FC = () => {
     networkHashrate: 0,
     isConnected: false
   });
-  
+
   const [services, setServices] = useState<ServiceStatus[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -133,7 +133,7 @@ export const SystemMonitoring: React.FC = () => {
   return (
     <div className="admin-scrollable space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Мониторинг системы</h2>
+      <h2 className="text-2xl font-bold">Мониторинг системы</h2>
         <button
           onClick={loadSystemData}
           className="admin-button px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white"

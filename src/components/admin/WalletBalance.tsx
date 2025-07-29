@@ -7,7 +7,7 @@ interface WalletBalance {
   balance: number;
   decimals: number;
   lastUpdated: string;
-  status: 'active' | 'error';
+  status: 'live' | 'error' | 'active';
   error?: string;
 }
 
@@ -88,6 +88,7 @@ export const WalletBalance: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case 'live': return 'text-green-400';
       case 'active': return 'text-green-400';
       case 'error': return 'text-red-400';
       default: return 'text-gray-400';
@@ -96,6 +97,7 @@ export const WalletBalance: React.FC = () => {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
+      case 'live': return '🔗';
       case 'active': return '✅';
       case 'error': return '❌';
       default: return '⚠️';
@@ -116,7 +118,7 @@ export const WalletBalance: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-white">Баланс рабочего кошелька</h2>
-          <p className="text-gray-400">Актуальные балансы по всем токенам</p>
+          <p className="text-gray-400">Актуальные балансы по всем токенам (НАПРЯМУЮ ИЗ БЛОКЧЕЙНА)</p>
         </div>
         <div className="flex space-x-4">
           <button
