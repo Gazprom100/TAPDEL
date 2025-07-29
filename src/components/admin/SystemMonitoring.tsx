@@ -148,7 +148,7 @@ export const SystemMonitoring: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-400">CPU</p>
-              <p className="text-2xl font-bold text-white">{metrics.cpu.toFixed(1)}%</p>
+              <p className="text-2xl font-bold text-white">{(metrics.cpu || 0).toFixed(1)}%</p>
             </div>
             <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
               <span className="text-white text-xl">⚡</span>
@@ -168,7 +168,7 @@ export const SystemMonitoring: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-400">Память</p>
-              <p className="text-2xl font-bold text-white">{metrics.memory.toFixed(1)}%</p>
+              <p className="text-2xl font-bold text-white">{(metrics.memory || 0).toFixed(1)}%</p>
             </div>
             <div className="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center">
               <span className="text-white text-xl">🧠</span>
@@ -188,7 +188,7 @@ export const SystemMonitoring: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-400">Диск</p>
-              <p className="text-2xl font-bold text-white">{metrics.disk.toFixed(1)}%</p>
+              <p className="text-2xl font-bold text-white">{(metrics.disk || 0).toFixed(1)}%</p>
             </div>
             <div className="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center">
               <span className="text-white text-xl">💾</span>
@@ -229,7 +229,7 @@ export const SystemMonitoring: React.FC = () => {
             <div className="text-sm text-gray-400">Последний блок</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-white">{blockchain.blockTime.toFixed(1)}с</div>
+            <div className="text-2xl font-bold text-white">{(blockchain.blockTime || 0).toFixed(1)}с</div>
             <div className="text-sm text-gray-400">Время блока</div>
           </div>
           <div className="text-center">

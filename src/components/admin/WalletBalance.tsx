@@ -79,6 +79,9 @@ export const WalletBalance: React.FC = () => {
   }, []);
 
   const formatBalance = (balance: number, decimals: number) => {
+    if (balance === undefined || balance === null || isNaN(balance)) {
+      return '0.00';
+    }
     return (balance / Math.pow(10, decimals)).toFixed(2);
   };
 
@@ -150,7 +153,7 @@ export const WalletBalance: React.FC = () => {
             <div>
               <p className="text-sm font-medium text-gray-400">Общий баланс</p>
               <p className="text-2xl font-bold text-white">
-                ${walletData.totalBalanceUSD.toFixed(2)}
+                ${(walletData.totalBalanceUSD || 0).toFixed(2)}
               </p>
             </div>
             <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">

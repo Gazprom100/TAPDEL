@@ -164,6 +164,9 @@ export const AnalyticsReports: React.FC = () => {
   };
 
   const formatPercentage = (value: number) => {
+    if (value === undefined || value === null || isNaN(value)) {
+      return '0.0%';
+    }
     return `${value.toFixed(1)}%`;
   };
 
@@ -397,7 +400,7 @@ export const AnalyticsReports: React.FC = () => {
                       <td className="px-4 py-3 text-sm text-white font-medium">{formatNumber(data.activeUsers)}</td>
                       <td className="px-4 py-3 text-sm text-white">{formatNumber(data.newUsers)}</td>
                       <td className="px-4 py-3 text-sm text-white">{formatNumber(data.sessions)}</td>
-                      <td className="px-4 py-3 text-sm text-white">{data.averageSessionTime.toFixed(1)} мин</td>
+                      <td className="px-4 py-3 text-sm text-white">{(data.averageSessionTime || 0).toFixed(1)} мин</td>
                     </tr>
                   ))}
                 </tbody>
