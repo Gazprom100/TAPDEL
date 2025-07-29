@@ -406,6 +406,40 @@ router.get('/users/:userId/withdrawals', async (req, res) => {
   }
 });
 
+// === ТРАНЗАКЦИИ ===
+
+// Получить все транзакции пользователя (депозиты + выводы)
+router.get('/users/:userId/transactions', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const database = await connectToDatabase();
+    
+    // Загружаем депозиты
+    const deposits = await database.collection('deposits')
+      .find({ userId: userId })
+      .sort({ requestedAt: -1 })
+      .limit(50)
+      .toArray();
+    
+    // Загружаем выводы
+    const withdrawals = await database.collection('withdrawals')
+      .find({ userId: userId })
+      .sort({ requestedAt: -1 })
+      .limit(50)
+      .toArray();
+    
+    res.json({
+      deposits: deposits || [],
+      withdrawals: withdrawals || [],
+      total: deposits.length + withdrawals.length
+    });
+
+  } catch (error) {
+    console.error('❌ Ошибка получения транзакций:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
 // === БАЛАНС ===
 
 // Получить баланс пользователя (активный токен)
@@ -423,23 +457,40 @@ router.get('/users/:userId/balance', async (req, res) => {
     const activeToken = await tokenService.getActiveToken();
     
     // Получаем баланс для активного токена
-    const { tokenBalanceService } = require('../services/tokenBalanceService');
-    const tokenBalance = await tokenBalanceService.getUserTokenBalance(userId, activeToken.symbol);
+    const tokenBalanceService = require('../services/tokenBalanceService');
+    let tokenBalance = null;
+    
+    try {
+      tokenBalance = await tokenBalanceService.getUserTokenBalance(userId, activeToken.symbol);
+    } catch (error) {
+      console.warn('⚠️ Ошибка получения баланса токена:', error);
+    }
     
     // Используем сохраненный баланс или текущий из gameState
     const gameBalance = tokenBalance ? tokenBalance.balance : (user.gameState?.tokens || 0);
+
+    let workingWalletBalance = 0;
+    try {
+      // Инициализируем decimalService если нужно
+      if (!decimalService.isInitialized) {
+        await decimalService.initialize();
+      }
+      workingWalletBalance = await decimalService.getWorkingBalance();
+    } catch (error) {
+      console.warn('⚠️ Ошибка получения баланса рабочего кошелька:', error);
+    }
 
     res.json({
       userId: userId,
       gameBalance: gameBalance,
       tokenSymbol: activeToken.symbol,
       tokenName: activeToken.name,
-      workingWalletBalance: await decimalService.getWorkingBalance()
+      workingWalletBalance: workingWalletBalance
     });
 
   } catch (error) {
     console.error('❌ Ошибка получения баланса:', error);
-    res.status(500).json({ error: 'Ошибка сервера' });
+    res.status(500).json({ error: 'Ошибка сервера', details: error.message });
   }
 });
 

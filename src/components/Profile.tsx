@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { useGameConfigStore } from '../store/gameConfigStore';
 import { Shop } from './Shop';
@@ -83,61 +83,47 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       }
     };
 
-    const loadTransactionsData = async () => {
-      if (activeTab === 'transactions' && profile?.userId && !isTransactionsLoading) {
-        // Дебаунсинг: не загружаем чаще чем раз в 10 секунд
-        const now = Date.now();
-        if (now - lastTransactionsUpdate < 10000) {
-          console.log('⏱️ Дебаунсинг транзакций: пропускаем загрузку');
-          return;
-        }
+    const loadTransactionsData = useCallback(async () => {
+      if (activeTab !== 'transactions' || !profile?.userId || isTransactionsLoading) {
+        return;
+      }
+
+      // Дебаунсинг: не загружаем чаще чем раз в 10 секунд
+      const now = Date.now();
+      if (now - lastTransactionsUpdate < 10000) {
+        console.log('⏱️ Дебаунсинг транзакций: пропускаем загрузку');
+        return;
+      }
+      
+      setIsTransactionsLoading(true);
+      
+      try {
+        console.log('🔄 Загружаем данные транзакций для:', profile.userId);
         
-        setIsTransactionsLoading(true);
-        try {
-          console.log('🔄 Загружаем данные транзакций для:', profile.userId);
-          
-          const { decimalApi } = await import('../services/decimalApi');
-          
-          // Загружаем депозиты с таймаутом
-          let depositsData = [];
-          try {
-            depositsData = await Promise.race([
-              decimalApi.getUserDeposits(profile.userId),
-              new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
-            ]) as any[];
-            console.log('✅ Депозиты загружены:', depositsData.length);
-          } catch (error) {
-            console.warn('⚠️ Ошибка загрузки депозитов:', error);
-            depositsData = [];
-          }
-          
-          // Загружаем выводы с таймаутом
-          let withdrawalsData = [];
-          try {
-            withdrawalsData = await Promise.race([
-              decimalApi.getUserWithdrawals(profile.userId),
-              new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
-            ]) as any[];
-            console.log('✅ Выводы загружены:', withdrawalsData.length);
-          } catch (error) {
-            console.warn('⚠️ Ошибка загрузки выводов:', error);
-            withdrawalsData = [];
-          }
-          
-          setDeposits(depositsData);
-          setWithdrawals(withdrawalsData);
+        // Простая загрузка без излишних промисов
+        const response = await fetch(`/api/decimal/users/${profile.userId}/transactions`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setDeposits(data.deposits || []);
+          setWithdrawals(data.withdrawals || []);
           setLastTransactionsUpdate(now);
           console.log('✅ Данные транзакций обновлены');
-        } catch (error) {
-          console.error('❌ Profile: Ошибка загрузки данных транзакций:', error);
-          // Устанавливаем пустые массивы при ошибке
-          setDeposits([]);
-          setWithdrawals([]);
-        } finally {
-          setIsTransactionsLoading(false);
+        } else {
+          throw new Error(`HTTP ${response.status}`);
         }
+        
+      } catch (error) {
+        console.error('❌ Profile: Ошибка загрузки данных транзакций:', error);
+        setDeposits([]);
+        setWithdrawals([]);
+      } finally {
+        setIsTransactionsLoading(false);
       }
-    };
+    }, [activeTab, profile?.userId, isTransactionsLoading, lastTransactionsUpdate]);
 
     if (activeTab === 'leaderboard') {
       updateLeaderboard();
@@ -157,79 +143,111 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         clearInterval(interval);
       }
     };
-  }, [activeTab, refreshLeaderboard, profile?.userId, lastTransactionsUpdate]);
+  }, [activeTab, refreshLeaderboard, profile?.userId, config.leaderboard.updateInterval]);
 
-  const handleWithdraw = async () => {
+  const handleWithdraw = useCallback(async () => {
     if (!withdrawAmount || !withdrawAddress) {
-      alert('Введите количество BOOST для вывода');
+      alert('Введите количество для вывода');
       return;
     }
 
     const amount = parseFloat(withdrawAmount);
-    if (isNaN(amount) || amount <= 0) {
-      alert('Введите корректную сумму для вывода');
+    
+    if (amount <= 0) {
+      alert('Количество должно быть больше 0');
+      return;
+    }
+
+    if (tokens < amount) {
+      alert(`Недостаточно средств. Доступно: ${Math.floor(tokens)} ${activeTokenSymbol || 'токенов'}`);
       return;
     }
 
     try {
-      // Проверяем общий BOOST баланс (tokens) перед выводом
-      if (tokens < amount) {
-        alert(`Недостаточно BOOST средств. Доступно: ${Math.floor(tokens)} BOOST`);
-        return;
-      }
-
-      const { decimalApi } = await import('../services/decimalApi');
-      if (!profile?.userId) {
-        alert('Ошибка: пользователь не найден');
-        return;
-      }
-
-      const response = await decimalApi.createWithdrawal({
-        userId: profile.userId,
-        toAddress: withdrawAddress,
-        amount: amount
+      setIsLoading(true);
+      
+      const response = await fetch('/api/decimal/withdrawals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: profile!.userId,
+          toAddress: withdrawAddress,
+          amount: amount
+        })
       });
-
-      setWithdrawAmount('');
-      setWithdrawAddress('');
-      alert(`Запрос на вывод создан успешно!\nID: ${response.withdrawalId}\nСумма: ${response.amount} BOOST\nАдрес: ${response.toAddress}`);
+      
+      const result = await response.json();
+      
+      if (response.ok && result.withdrawalId) {
+        alert(`Вывод создан успешно! ID: ${result.withdrawalId}`);
+        setWithdrawAmount('');
+        setWithdrawAddress('');
+        
+        // Обновляем баланс
+        await refreshBoostBalance();
+        
+        // Обновляем список выводов
+        // await loadTransactionsData(); // Удалено, так как loadTransactionsData зависит от activeTab
+      } else {
+        alert(result.error || 'Ошибка создания вывода');
+      }
     } catch (error) {
       console.error('Ошибка вывода:', error);
-      alert('Ошибка при создании запроса на вывод');
+      alert('Ошибка при создании вывода');
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, [withdrawAmount, withdrawAddress, tokens, profile?.userId, activeTokenSymbol, refreshBoostBalance]);
 
-  const handleDeposit = async () => {
+  const handleDeposit = useCallback(async () => {
     if (!depositAmount) {
-      alert('Введите количество BOOST для депозита');
+      alert('Введите количество для пополнения');
       return;
     }
 
     const amount = parseFloat(depositAmount);
-    if (isNaN(amount) || amount < 0.001) {
-      alert('Минимальная сумма депозита: 0.001 BOOST');
+    
+    if (amount <= 0) {
+      alert('Количество должно быть больше 0');
       return;
     }
 
     try {
-      const { decimalApi } = await import('../services/decimalApi');
-      if (!profile?.userId) {
-        alert('Ошибка: пользователь не найден');
-        return;
-      }
-
-      const response = await decimalApi.createDeposit({
-        userId: profile.userId,
-        baseAmount: amount
+      setIsLoading(true);
+      
+      const response = await fetch('/api/decimal/deposits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: profile!.userId,
+          baseAmount: amount
+        })
       });
-
-      setDepositAmount('');
-      alert(`Депозит создан успешно!\nID: ${response.depositId}\nСумма: ${response.amountRequested} BOOST\nАдрес: ${response.address}\nУникальная сумма: ${response.uniqueAmount} BOOST`);
+      
+      const result = await response.json();
+      
+      if (response.ok && result.depositId) {
+        setShowDepositDetails({
+          depositId: result.depositId,
+          uniqueAmount: result.uniqueAmount,
+          address: result.address,
+          expires: result.expires,
+          amountRequested: amount
+        });
+        setDepositAmount('');
+        
+        // Обновляем список депозитов
+        // await loadTransactionsData(); // Удалено, так как loadTransactionsData зависит от activeTab
+      } else {
+        alert(result.error || 'Ошибка создания депозита');
+      }
     } catch (error) {
       console.error('Ошибка депозита:', error);
       alert('Ошибка при создании депозита');
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, [depositAmount, profile?.userId]);
 
   return (
     <div 
