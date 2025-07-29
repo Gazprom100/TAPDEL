@@ -126,13 +126,85 @@ router.get('/stats', async (req, res) => {
 // Получить метрики системы
 router.get('/system/metrics', async (req, res) => {
   try {
-    const cpuUsage = os.loadavg()[0] * 100; // 1-минутная нагрузка
+    const { exec } = require('child_process');
+    const util = require('util');
+    const execAsync = util.promisify(exec);
+    
+    // Правильный расчет CPU - получаем реальную нагрузку на ядро
+    let cpuUsage = 0;
+    try {
+      if (process.platform === 'darwin') {
+        // macOS
+        const { stdout } = await execAsync('top -l 1 | grep "CPU usage" | awk \'{print $3}\' | sed \'s/%//\'');
+        cpuUsage = parseFloat(stdout.trim());
+      } else if (process.platform === 'linux') {
+        // Linux
+        const { stdout } = await execAsync('top -bn1 | grep "Cpu(s)" | awk \'{print $2}\' | sed \'s/%us,//\'');
+        cpuUsage = parseFloat(stdout.trim());
+      } else {
+        // Fallback для других платформ
+        const loadAvg = os.loadavg()[0];
+        const cpuCount = os.cpus().length;
+        cpuUsage = (loadAvg / cpuCount) * 100;
+      }
+    } catch (error) {
+      console.warn('Не удалось получить данные о CPU:', error.message);
+      // Fallback
+      const loadAvg = os.loadavg()[0];
+      const cpuCount = os.cpus().length;
+      cpuUsage = (loadAvg / cpuCount) * 100;
+    }
+    
+    // Память
     const totalMem = os.totalmem();
     const freeMem = os.freemem();
     const memoryUsage = ((totalMem - freeMem) / totalMem) * 100;
     
-    // Простая оценка использования диска (в продакшене лучше использовать fs.stat)
-    const diskUsage = Math.random() * 30 + 20; // Моковые данные для демонстрации
+    // Получаем реальные данные о диске
+    let diskUsage = 0;
+    try {
+      if (process.platform === 'darwin') {
+        const { stdout } = await execAsync('df -h / | tail -1 | awk \'{print $5}\' | sed \'s/%//\'');
+        diskUsage = parseFloat(stdout.trim());
+      } else if (process.platform === 'linux') {
+        const { stdout } = await execAsync('df -h / | tail -1 | awk \'{print $5}\' | sed \'s/%//\'');
+        diskUsage = parseFloat(stdout.trim());
+      }
+    } catch (error) {
+      console.warn('Не удалось получить данные о диске:', error.message);
+      diskUsage = 50; // Fallback значение
+    }
+    
+    // Получаем реальные данные о сети
+    let networkIn = 0;
+    let networkOut = 0;
+    try {
+      if (process.platform === 'linux') {
+        const { stdout } = await execAsync('cat /proc/net/dev | grep eth0 | awk \'{print $2 " " $10}\'');
+        const [rx, tx] = stdout.trim().split(' ').map(Number);
+        networkIn = Math.round(rx / 1024 / 1024); // MB
+        networkOut = Math.round(tx / 1024 / 1024); // MB
+      }
+    } catch (error) {
+      console.warn('Не удалось получить данные о сети:', error.message);
+      networkIn = 0;
+      networkOut = 0;
+    }
+    
+    // Получаем реальные активные соединения
+    let activeConnections = 0;
+    try {
+      if (process.platform === 'linux') {
+        const { stdout } = await execAsync('netstat -an | grep ESTABLISHED | wc -l');
+        activeConnections = parseInt(stdout.trim());
+      } else if (process.platform === 'darwin') {
+        const { stdout } = await execAsync('netstat -an | grep ESTABLISHED | wc -l');
+        activeConnections = parseInt(stdout.trim());
+      }
+    } catch (error) {
+      console.warn('Не удалось получить данные о соединениях:', error.message);
+      activeConnections = 0;
+    }
     
     const uptime = os.uptime();
     
@@ -141,11 +213,13 @@ router.get('/system/metrics', async (req, res) => {
       memory: Math.min(memoryUsage, 100),
       disk: Math.min(diskUsage, 100),
       network: {
-        in: Math.random() * 1000,
-        out: Math.random() * 500
+        in: networkIn,
+        out: networkOut
       },
       uptime,
-      activeConnections: Math.floor(Math.random() * 100) + 10
+      activeConnections,
+      platform: process.platform,
+      cpuCount: os.cpus().length
     });
   } catch (error) {
     console.error('Ошибка получения метрик системы:', error);
@@ -157,13 +231,85 @@ router.get('/system/metrics', async (req, res) => {
 router.get('/system', async (req, res) => {
   // Используем тот же код что и в /system/metrics
   try {
-    const cpuUsage = os.loadavg()[0] * 100; // 1-минутная нагрузка
+    const { exec } = require('child_process');
+    const util = require('util');
+    const execAsync = util.promisify(exec);
+    
+    // Правильный расчет CPU - получаем реальную нагрузку на ядро
+    let cpuUsage = 0;
+    try {
+      if (process.platform === 'darwin') {
+        // macOS
+        const { stdout } = await execAsync('top -l 1 | grep "CPU usage" | awk \'{print $3}\' | sed \'s/%//\'');
+        cpuUsage = parseFloat(stdout.trim());
+      } else if (process.platform === 'linux') {
+        // Linux
+        const { stdout } = await execAsync('top -bn1 | grep "Cpu(s)" | awk \'{print $2}\' | sed \'s/%us,//\'');
+        cpuUsage = parseFloat(stdout.trim());
+      } else {
+        // Fallback для других платформ
+        const loadAvg = os.loadavg()[0];
+        const cpuCount = os.cpus().length;
+        cpuUsage = (loadAvg / cpuCount) * 100;
+      }
+    } catch (error) {
+      console.warn('Не удалось получить данные о CPU:', error.message);
+      // Fallback
+      const loadAvg = os.loadavg()[0];
+      const cpuCount = os.cpus().length;
+      cpuUsage = (loadAvg / cpuCount) * 100;
+    }
+    
+    // Память
     const totalMem = os.totalmem();
     const freeMem = os.freemem();
     const memoryUsage = ((totalMem - freeMem) / totalMem) * 100;
     
-    // Простая оценка использования диска (в продакшене лучше использовать fs.stat)
-    const diskUsage = Math.random() * 30 + 20; // Моковые данные для демонстрации
+    // Получаем реальные данные о диске
+    let diskUsage = 0;
+    try {
+      if (process.platform === 'darwin') {
+        const { stdout } = await execAsync('df -h / | tail -1 | awk \'{print $5}\' | sed \'s/%//\'');
+        diskUsage = parseFloat(stdout.trim());
+      } else if (process.platform === 'linux') {
+        const { stdout } = await execAsync('df -h / | tail -1 | awk \'{print $5}\' | sed \'s/%//\'');
+        diskUsage = parseFloat(stdout.trim());
+      }
+    } catch (error) {
+      console.warn('Не удалось получить данные о диске:', error.message);
+      diskUsage = 50; // Fallback значение
+    }
+    
+    // Получаем реальные данные о сети
+    let networkIn = 0;
+    let networkOut = 0;
+    try {
+      if (process.platform === 'linux') {
+        const { stdout } = await execAsync('cat /proc/net/dev | grep eth0 | awk \'{print $2 " " $10}\'');
+        const [rx, tx] = stdout.trim().split(' ').map(Number);
+        networkIn = Math.round(rx / 1024 / 1024); // MB
+        networkOut = Math.round(tx / 1024 / 1024); // MB
+      }
+    } catch (error) {
+      console.warn('Не удалось получить данные о сети:', error.message);
+      networkIn = 0;
+      networkOut = 0;
+    }
+    
+    // Получаем реальные активные соединения
+    let activeConnections = 0;
+    try {
+      if (process.platform === 'linux') {
+        const { stdout } = await execAsync('netstat -an | grep ESTABLISHED | wc -l');
+        activeConnections = parseInt(stdout.trim());
+      } else if (process.platform === 'darwin') {
+        const { stdout } = await execAsync('netstat -an | grep ESTABLISHED | wc -l');
+        activeConnections = parseInt(stdout.trim());
+      }
+    } catch (error) {
+      console.warn('Не удалось получить данные о соединениях:', error.message);
+      activeConnections = 0;
+    }
     
     const uptime = os.uptime();
     
@@ -172,11 +318,13 @@ router.get('/system', async (req, res) => {
       memory: Math.min(memoryUsage, 100),
       disk: Math.min(diskUsage, 100),
       network: {
-        in: Math.random() * 1000,
-        out: Math.random() * 500
+        in: networkIn,
+        out: networkOut
       },
       uptime,
-      activeConnections: Math.floor(Math.random() * 100) + 10
+      activeConnections,
+      platform: process.platform,
+      cpuCount: os.cpus().length
     });
   } catch (error) {
     console.error('Ошибка получения метрик системы:', error);
