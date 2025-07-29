@@ -877,12 +877,13 @@ router.get('/wallet-balance', async (req, res) => {
         if (!decimalService.isInitialized) {
           await decimalService.initialize();
         }
+        
         let balance;
         
         // Для нативного токена DEL используем web3.eth.getBalance
-        if (token.symbol === "DEL") {
+        if (token.symbol === 'DEL') {
           const balanceWei = await decimalService.web3.eth.getBalance(workingAddress);
-          balance = parseFloat(decimalService.web3.utils.fromWei(balanceWei, "ether"));
+          balance = parseFloat(decimalService.web3.utils.fromWei(balanceWei, 'ether'));
         } else {
           // Для ERC-20 токенов используем контракт
           const tokenContract = new decimalService.web3.eth.Contract([
@@ -896,8 +897,9 @@ router.get('/wallet-balance', async (req, res) => {
           ], token.address);
           
           const balanceWei = await tokenContract.methods.balanceOf(workingAddress).call();
-          balance = parseFloat(decimalService.web3.utils.fromWei(balanceWei, "ether"));
-          status: 'active'
+          balance = parseFloat(decimalService.web3.utils.fromWei(balanceWei, 'ether'));
+        }
+        
         const balanceData = {
           symbol: token.symbol,
           name: token.name,
@@ -905,8 +907,7 @@ router.get('/wallet-balance', async (req, res) => {
           balance: balance,
           decimals: token.decimals,
           lastUpdated: new Date().toISOString(),
-          status: "active"
-        };
+          status: 'active'
         };
         
         walletBalances.push(balanceData);
@@ -915,6 +916,14 @@ router.get('/wallet-balance', async (req, res) => {
       } catch (error) {
         console.error(`Ошибка получения баланса для ${token.symbol}:`, error);
         
+        walletBalances.push({
+          symbol: token.symbol,
+          name: token.name,
+          address: token.address,
+          balance: 0,
+          decimals: token.decimals,
+          lastUpdated: new Date().toISOString(),
+          status: 'error',
           error: error.message
         });
       }
@@ -951,16 +960,12 @@ router.post('/wallet-balance/refresh', async (req, res) => {
     
     for (const token of tokens) {
       try {
-        // Получаем реальный баланс токена
-        const tokenContract = new decimalService.web3.eth.Contract([
-          {
-            "constant": true,
         let balance;
         
         // Для нативного токена DEL используем web3.eth.getBalance
-        if (token.symbol === "DEL") {
+        if (token.symbol === 'DEL') {
           const balanceWei = await decimalService.web3.eth.getBalance(workingAddress);
-          balance = parseFloat(decimalService.web3.utils.fromWei(balanceWei, "ether"));
+          balance = parseFloat(decimalService.web3.utils.fromWei(balanceWei, 'ether'));
         } else {
           // Для ERC-20 токенов используем контракт
           const tokenContract = new decimalService.web3.eth.Contract([
@@ -974,8 +979,16 @@ router.post('/wallet-balance/refresh', async (req, res) => {
           ], token.address);
           
           const balanceWei = await tokenContract.methods.balanceOf(workingAddress).call();
-          balance = parseFloat(decimalService.web3.utils.fromWei(balanceWei, "ether"));
-        }              lastUpdated: new Date(),
+          balance = parseFloat(decimalService.web3.utils.fromWei(balanceWei, 'ether'));
+        }
+        
+        // Сохраняем обновленный баланс в БД
+        await database.collection('wallet_balances').updateOne(
+          { symbol: token.symbol },
+          { 
+            $set: { 
+              balance,
+              lastUpdated: new Date(),
               status: 'active'
             } 
           },
