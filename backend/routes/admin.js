@@ -348,7 +348,7 @@ router.get('/blockchain/status', async (req, res) => {
     
     try {
       // Пытаемся получить реальные данные
-      const lastBlock = await decimalService.getLastBlockNumber();
+      const lastBlock = await decimalService.web3.eth.getBlockNumber();
       blockchainStatus = {
         lastBlock: lastBlock || 0,
         blockTime: 2.5, // Среднее время блока DecimalChain
