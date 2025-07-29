@@ -83,7 +83,22 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       }
     };
 
-    const loadTransactionsData = useCallback(async () => {
+    if (activeTab === 'leaderboard') {
+      updateLeaderboard();
+      // Увеличиваем интервал до 60 секунд для снижения нагрузки
+      interval = setInterval(updateLeaderboard, config.leaderboard.updateInterval * 1000); // Используем настройки из админки
+    }
+
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [activeTab, refreshLeaderboard, config.leaderboard.updateInterval]);
+
+  // Отдельный useEffect для загрузки транзакций
+  useEffect(() => {
+    const loadTransactionsData = async () => {
       if (activeTab !== 'transactions' || !profile?.userId || isTransactionsLoading) {
         return;
       }
@@ -123,27 +138,13 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       } finally {
         setIsTransactionsLoading(false);
       }
-    }, [activeTab, profile?.userId, isTransactionsLoading, lastTransactionsUpdate]);
-
-    if (activeTab === 'leaderboard') {
-      updateLeaderboard();
-      // Увеличиваем интервал до 60 секунд для снижения нагрузки
-              interval = setInterval(updateLeaderboard, config.leaderboard.updateInterval * 1000); // Используем настройки из админки
-    } else if (activeTab === 'transactions' && profile?.userId) {
-      loadTransactionsData();
-    }
+    };
 
     // Загружаем данные при первом открытии вкладки транзакций
     if (activeTab === 'transactions' && profile?.userId && deposits.length === 0 && withdrawals.length === 0) {
       loadTransactionsData();
     }
-
-    return () => {
-      if (interval) {
-        clearInterval(interval);
-      }
-    };
-  }, [activeTab, refreshLeaderboard, profile?.userId, config.leaderboard.updateInterval]);
+  }, [activeTab, profile?.userId, deposits.length, withdrawals.length, isTransactionsLoading, lastTransactionsUpdate]);
 
   const handleWithdraw = useCallback(async () => {
     if (!withdrawAmount || !withdrawAddress) {

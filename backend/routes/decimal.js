@@ -466,8 +466,13 @@ router.get('/users/:userId/balance', async (req, res) => {
       console.warn('⚠️ Ошибка получения баланса токена:', error);
     }
     
-    // Используем сохраненный баланс или текущий из gameState
-    const gameBalance = tokenBalance ? tokenBalance.balance : (user.gameState?.tokens || 0);
+    // Для активного токена используем gameState.tokens если нет сохраненного баланса
+    // или если сохраненный баланс равен 0
+    let gameBalance = user.gameState?.tokens || 0;
+    
+    if (tokenBalance && tokenBalance.balance > 0) {
+      gameBalance = tokenBalance.balance;
+    }
 
     let workingWalletBalance = 0;
     try {
