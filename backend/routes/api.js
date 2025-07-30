@@ -7,6 +7,7 @@ const router = express.Router();
 
 // ОПТИМИЗАЦИЯ: Импортируем cache service
 const cacheService = require('../services/cacheService');
+const advancedCacheService = require('../services/advancedCacheService');
 const tokenService = require('../services/tokenService');
 const tokenBalanceService = require('../services/tokenBalanceService');
 
@@ -424,18 +425,17 @@ router.get('/leaderboard', async (req, res) => {
     const limit = parseInt(req.query.limit) || 100;
     const page = parseInt(req.query.page) || 1;
     
-    // ОПТИМИЗАЦИЯ: Пытаемся получить из кеша
+    // ОПТИМИЗАЦИЯ: Пытаемся получить из расширенного кеша
     let leaderboard;
     try {
-      if (cacheService.isConnected) {
-        leaderboard = await cacheService.getLeaderboard(page, limit);
-        if (leaderboard && leaderboard.length > 0) {
-          console.log(`✅ Лидерборд получен из кеша (${leaderboard.length} записей)`);
-          return res.json(leaderboard);
-        }
+      const cacheKey = `leaderboard:page:${page}:limit:${limit}`;
+      leaderboard = await advancedCacheService.get(cacheKey);
+      if (leaderboard && leaderboard.length > 0) {
+        console.log(`✅ Лидерборд получен из расширенного кеша (${leaderboard.length} записей)`);
+        return res.json(leaderboard);
       }
     } catch (cacheError) {
-      console.warn('⚠️ Ошибка кеша, загружаем из БД:', cacheError.message);
+      console.warn('⚠️ Ошибка расширенного кеша, загружаем из БД:', cacheError.message);
     }
     
     // Загружаем из базы данных (оригинальная логика)
@@ -463,13 +463,15 @@ router.get('/leaderboard', async (req, res) => {
       console.log('🏆 Топ-3:', leaderboard.slice(0, 3).map(u => `${u.telegramFirstName || u.username}: ${u.tokens}`));
     }
     
-    // ОПТИМИЗАЦИЯ: Сохраняем в кеш на 10 минут
+    // ОПТИМИЗАЦИЯ: Сохраняем в расширенный кеш на 10 минут
     try {
-      if (cacheService.isConnected && leaderboard.length > 0) {
-        await cacheService.set(`leaderboard:page:${page}:limit:${limit}`, leaderboard, 600); // 10 минут
+      if (leaderboard.length > 0) {
+        const cacheKey = `leaderboard:page:${page}:limit:${limit}`;
+        await advancedCacheService.cache(cacheKey, leaderboard, 600); // 10 минут
+        console.log(`💾 Лидерборд сохранен в расширенный кеш: ${cacheKey}`);
       }
     } catch (cacheError) {
-      console.warn('⚠️ Не удалось сохранить в кеш:', cacheError.message);
+      console.warn('⚠️ Не удалось сохранить в расширенный кеш:', cacheError.message);
     }
     
     res.json(leaderboard);

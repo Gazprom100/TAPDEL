@@ -21,9 +21,9 @@ class DatabaseConfig {
   // Оптимизированная конфигурация для 2000 пользователей
   getConnectionConfig() {
     return {
-      // Connection Pool настройки
-      maxPoolSize: 50,         // Максимум 50 соединений
-      minPoolSize: 5,          // Минимум 5 активных соединений
+      // Connection Pool настройки для 2000 пользователей
+      maxPoolSize: 100,        // Максимум 100 соединений
+      minPoolSize: 10,         // Минимум 10 активных соединений
       maxIdleTimeMS: 30000,    // 30 сек timeout для idle соединений
       
       // Timeouts

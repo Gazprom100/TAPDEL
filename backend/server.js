@@ -8,12 +8,16 @@ const apiRoutes = require('./routes/api');
 const decimalRoutes = require('./routes/decimal');
 const adminRoutes = require('./routes/admin');
 const resetBalancesRoutes = require('./routes/resetBalances');
+const monitoringRoutes = require('./routes/monitoring');
 const botService = require('./services/botService');
 const decimalService = require('./services/decimalService');
 
 // ОПТИМИЗАЦИЯ: Импортируем оптимизированные сервисы
 const databaseConfig = require('./config/database');
 const cacheService = require('./services/cacheService');
+const advancedCacheService = require('./services/advancedCacheService');
+const withdrawalBatchService = require('./services/withdrawalBatchService');
+const monitoringService = require('./services/monitoringService');
 
 // ВРЕМЕННО: Условная загрузка rate limiter (для deployment)
 let rateLimiterMiddleware = null;
@@ -66,6 +70,11 @@ app.use('/api/admin', (req, res, next) => {
   console.log('➡️ /api/admin', req.method, req.path); 
   next(); 
 }, adminRoutes);
+
+app.use('/api/monitoring', (req, res, next) => { 
+  console.log('➡️ /api/monitoring', req.method, req.path); 
+  next(); 
+}, monitoringRoutes);
 
 // 2. Общий API роут (должен быть последним среди API)
 app.use('/api', (req, res, next) => { 
@@ -220,9 +229,19 @@ const startServer = () => {
             await client.connect();
             const database = client.db(MONGODB_DB);
             
-            // Запускаем мониторинг блокчейна
-            await decimalService.startWatching(database);
-            console.log('🔍 DecimalChain мониторинг запущен');
+                    // Запускаем мониторинг блокчейна
+        await decimalService.startWatching(database);
+        console.log('🔍 DecimalChain мониторинг запущен');
+        
+        // Инициализируем расширенные сервисы для масштабирования
+        try {
+          await advancedCacheService.initialize();
+          await withdrawalBatchService.initialize();
+          await monitoringService.initialize();
+          console.log('✅ Расширенные сервисы инициализированы для масштабирования');
+        } catch (error) {
+          console.warn('⚠️ Ошибка инициализации расширенных сервисов:', error.message);
+        }
           } catch (error) {
             console.error('❌ Ошибка запуска DecimalChain мониторинга:', error);
           }
@@ -251,6 +270,9 @@ const gracefulShutdown = async (server) => {
   
   await botService.shutdown();
   await decimalService.disconnect();
+  await advancedCacheService.shutdown();
+  await withdrawalBatchService.shutdown();
+  await monitoringService.shutdown();
   
   if (server) {
     server.close(() => {
