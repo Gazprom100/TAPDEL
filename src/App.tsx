@@ -1,13 +1,14 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { Profile } from './components/Profile'
-import { EnergyIndicator } from './components/EnergyIndicator'
-import { FullAdminPanel } from './components/FullAdminPanel'
+import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react'
 import { useGameStore } from './store/gameStore'
 import { useGameConfigStore } from './store/gameConfigStore'
 import { useGameMechanics } from './hooks/useGameMechanics'
 import { useFullscreen } from './hooks/useFullscreen'
 import { COMPONENTS } from './types/game'
 import './styles/effects.css'
+
+// Lazy loading для тяжелых компонентов
+const Profile = lazy(() => import('./components/Profile').then(module => ({ default: module.Profile })));
+const FullAdminPanel = lazy(() => import('./components/FullAdminPanel').then(module => ({ default: module.FullAdminPanel })));
 
 const App: React.FC = () => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -22,7 +23,22 @@ const App: React.FC = () => {
   
   // Если это админский роут, показываем админпанель
   if (isAdminRoute) {
-    return <FullAdminPanel />;
+    return (
+      <Suspense fallback={
+        <div className="cyber-container" style={{
+          height: '100vh',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: '#0a0a0a',
+          color: '#ffcc00'
+        }}>
+          <div className="cyber-text text-2xl font-bold">Загрузка админки...</div>
+        </div>
+      }>
+        <FullAdminPanel />
+      </Suspense>
+    );
   }
   
   const { 
@@ -645,7 +661,20 @@ const App: React.FC = () => {
 
       {/* Модальное окно профиля */}
       {isProfileOpen && (
-        <Profile onClose={() => setIsProfileOpen(false)} />
+        <Suspense fallback={
+          <div className="cyber-container" style={{
+            height: '100vh',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: '#0a0a0a',
+            color: '#ffcc00'
+          }}>
+            <div className="cyber-text text-2xl font-bold">Загрузка профиля...</div>
+          </div>
+        }>
+          <Profile onClose={() => setIsProfileOpen(false)} />
+        </Suspense>
       )}
     </div>
   )
