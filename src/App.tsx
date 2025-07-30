@@ -11,6 +11,8 @@ import './styles/effects.css'
 
 const App: React.FC = () => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   // Инициализация полноэкранного режима Telegram WebApp
   useFullscreen();
@@ -37,11 +39,28 @@ const App: React.FC = () => {
   const { loadConfig: loadGameConfig } = useGameConfigStore();
 
   useEffect(() => {
-    // Всегда обновляем активный токен при загрузке приложения
-    refreshActiveToken();
+    const initializeApp = async () => {
+      try {
+        console.log('🚀 Начало инициализации приложения...');
+        setIsLoading(true);
+        setError(null);
+        
+        // Всегда обновляем активный токен при загрузке приложения
+        await refreshActiveToken();
+        
+        // Загружаем настройки игры
+        await loadGameConfig();
+        
+        console.log('✅ Инициализация приложения завершена');
+        setIsLoading(false);
+      } catch (err) {
+        console.error('❌ Ошибка инициализации приложения:', err);
+        setError(err instanceof Error ? err.message : 'Неизвестная ошибка');
+        setIsLoading(false);
+      }
+    };
     
-    // Загружаем настройки игры
-    loadGameConfig();
+    initializeApp();
   }, [refreshActiveToken, loadGameConfig]);
   
   const {
@@ -344,6 +363,52 @@ const App: React.FC = () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
+
+  // Показываем состояние загрузки
+  if (isLoading) {
+    return (
+      <div className="cyber-container" style={{
+        height: '100vh',
+        minHeight: '-webkit-fill-available',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#0a0a0a',
+        color: '#ffcc00'
+      }}>
+        <div className="cyber-text text-2xl font-bold mb-4">CYBERFLEX</div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500"></div>
+        <div className="mt-4 text-gray-400">Загрузка...</div>
+      </div>
+    );
+  }
+
+  // Показываем ошибку
+  if (error) {
+    return (
+      <div className="cyber-container" style={{
+        height: '100vh',
+        minHeight: '-webkit-fill-available',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#0a0a0a',
+        color: '#ff4444'
+      }}>
+        <div className="cyber-text text-2xl font-bold mb-4">CYBERFLEX</div>
+        <div className="text-red-400 mb-4">Ошибка загрузки</div>
+        <div className="text-gray-400 text-center px-4">{error}</div>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white"
+        >
+          Перезагрузить
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div 
