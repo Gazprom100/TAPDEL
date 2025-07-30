@@ -7,6 +7,7 @@ import { COMPONENTS } from './types/game'
 import { DebugPanel } from './components/DebugPanel'
 import { InitializationTest } from './components/InitializationTest'
 import { LoadingTest } from './components/LoadingTest'
+import { ServiceWorkerManager } from './components/ServiceWorkerManager'
 import './styles/effects.css'
 
 // Lazy loading для тяжелых компонентов
@@ -688,6 +689,9 @@ const App: React.FC = () => {
       
       {/* Loading Test для проверки загрузки */}
       <LoadingTest />
+      
+      {/* Service Worker Manager */}
+      <ServiceWorkerManager />
     </div>
   )
 }

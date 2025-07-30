@@ -94,6 +94,24 @@ export const LoadingTest: React.FC = () => {
           results.push('⚠️ Telegram WebApp недоступен (но это нормально для веб-версии)');
         }
         
+        // Тест 9: Проверка Service Worker
+        results.push('🔍 Тест 9: Service Worker...');
+        if ('serviceWorker' in navigator) {
+          try {
+            const registration = await navigator.serviceWorker.getRegistration();
+            if (registration) {
+              results.push('✅ Service Worker зарегистрирован');
+              results.push(`✅ SW статус: ${registration.active ? 'active' : 'installing'}`);
+            } else {
+              results.push('⚠️ Service Worker не зарегистрирован');
+            }
+          } catch (err) {
+            results.push(`❌ Ошибка проверки Service Worker: ${err}`);
+          }
+        } else {
+          results.push('⚠️ Service Worker не поддерживается');
+        }
+        
         results.push('✅ Все тесты завершены успешно!');
         
       } catch (err) {
