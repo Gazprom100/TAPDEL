@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { Profile } from './components/Profile'
 import { EnergyIndicator } from './components/EnergyIndicator'
 import { FullAdminPanel } from './components/FullAdminPanel'
@@ -45,108 +45,74 @@ const App: React.FC = () => {
         setIsLoading(true);
         setError(null);
         
-        // Таймаут для инициализации (15 секунд)
+        // Таймаут для инициализации (10 секунд вместо 15)
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Таймаут инициализации')), 15000);
+          setTimeout(() => reject(new Error('Таймаут инициализации')), 10000);
         });
         
         const initPromise = (async () => {
-          // Всегда обновляем активный токен при загрузке приложения
-          console.log('🔄 Обновляем активный токен...');
-          await refreshActiveToken();
-          console.log('✅ Активный токен обновлен');
+          // Этап 1: Быстрые операции (параллельно)
+          console.log('⚡ Этап 1: Быстрые операции...');
           
-          // Загружаем настройки игры
-          console.log('⚙️ Загружаем настройки игры...');
-          await loadGameConfig();
-          console.log('✅ Настройки игры загружены');
-          
-          // Инициализация пользователя
-          console.log('👤 Начало инициализации пользователя...');
-          
-          // ПРИНУДИТЕЛЬНАЯ ОЧИСТКА для остановки бесконечной миграции
+          // Очистка localStorage (синхронно)
           const problematicOldUserId = localStorage.getItem('oldUserId');
           if (problematicOldUserId === 'demo-user-atatvzu2f') {
-            console.log('🧹 Принудительно очищаем проблемный oldUserId:', problematicOldUserId);
             localStorage.removeItem('oldUserId');
           }
           
-          // Также очищаем если userId все еще demo-user-atatvzu2f
           const currentUserId = localStorage.getItem('userId');
           if (currentUserId === 'demo-user-atatvzu2f') {
-            console.log('🧹 Очищаем проблемный userId:', currentUserId);
             localStorage.removeItem('userId');
           }
-
-          console.log('🚀 App.tsx useEffect - начало инициализации');
           
+          // Получение userId (синхронно)
           let userId = localStorage.getItem('userId');
-          console.log('💾 localStorage userId:', userId);
-          
-          // ПРИНУДИТЕЛЬНАЯ ПРОВЕРКА TELEGRAM ДАННЫХ НА КАЖДОМ ЗАПУСКЕ
           const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
-          console.log('📱 Текущие Telegram данные:', telegramUser);
           
-          // Проверяем существование telegramUser
-          if (!telegramUser) {
-            console.warn('⚠️ Telegram данные недоступны!');
-          }
-          
-                  // РАСШИРЕННАЯ ДИАГНОСТИКА
-        console.log('🔍 Диагностика Telegram WebApp:');
-        console.log('  - window.Telegram:', !!window.Telegram);
-        console.log('  - window.Telegram.WebApp:', !!window.Telegram?.WebApp);
-        console.log('  - initDataUnsafe:', !!window.Telegram?.WebApp?.initDataUnsafe);
-        console.log('  - user object:', !!window.Telegram?.WebApp?.initDataUnsafe?.user);
-        console.log('  - user.id:', window.Telegram?.WebApp?.initDataUnsafe?.user?.id);
-        console.log('  - platform:', (window.Telegram?.WebApp as any)?.platform || 'unknown');
-        console.log('  - version:', (window.Telegram?.WebApp as any)?.version || 'unknown');
-        console.log('  - user agent:', navigator.userAgent);
-        console.log('  - is mobile:', /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
-        console.log('  - screen size:', screen.width, 'x', screen.height);
-        console.log('  - viewport:', window.innerWidth, 'x', window.innerHeight);
-          
-          // @ts-ignore
-          if (telegramUser && telegramUser.id !== undefined && telegramUser.id !== null && telegramUser.id !== 0) {
-            const correctUserId = `telegram-${telegramUser?.id || 0}`;
-            console.log('🎯 Корректный userId из Telegram:', correctUserId);
-            
-            // Если userId отличается от правильного, обновляем
+          // Обработка userId (синхронно)
+          if (telegramUser?.id) {
+            const correctUserId = `telegram-${telegramUser.id}`;
             if (userId !== correctUserId) {
-              console.log('🔄 Обновляем userId для синхронизации между устройствами');
-              console.log(`  Старый userId: ${userId}`);
-              console.log(`  Новый userId: ${correctUserId}`);
-              
-              // Сохраняем старый userId для миграции, если он существует и не пустой
-              if (userId && userId !== correctUserId) {
-                const existingOldUserId = localStorage.getItem('oldUserId');
-                if (!existingOldUserId || existingOldUserId !== userId) {
-                  localStorage.setItem('oldUserId', userId || '');
-                  console.log('💾 Сохранен oldUserId для миграции:', userId);
-                }
+              if (userId) {
+                localStorage.setItem('oldUserId', userId);
               }
-              
-              // Обновляем userId
               userId = correctUserId;
               localStorage.setItem('userId', correctUserId);
-              console.log('✅ userId обновлен в localStorage');
             }
-            
-            // Инициализируем пользователя с правильным userId
-            console.log('🎮 Инициализируем пользователя с userId:', userId);
+          } else if (!userId) {
+            userId = `web-user-${Math.floor(Math.random() * 1000000000)}`;
+            localStorage.setItem('userId', userId);
+          }
+          
+          console.log('✅ Этап 1 завершен, userId:', userId);
+          
+          // Этап 2: Параллельные API вызовы
+          console.log('🔄 Этап 2: Параллельные API вызовы...');
+          
+          const [tokenResult, configResult] = await Promise.allSettled([
+            refreshActiveToken(),
+            loadGameConfig()
+          ]);
+          
+          // Проверяем результаты
+          if (tokenResult.status === 'rejected') {
+            console.warn('⚠️ Ошибка обновления токена:', tokenResult.reason);
+          }
+          
+          if (configResult.status === 'rejected') {
+            console.warn('⚠️ Ошибка загрузки конфигурации:', configResult.reason);
+          }
+          
+          console.log('✅ Этап 2 завершен');
+          
+          // Этап 3: Инициализация пользователя
+          console.log('👤 Этап 3: Инициализация пользователя...');
+          
+          if (userId) {
             await initializeUser(userId);
+            console.log('✅ Пользователь инициализирован');
           } else {
-            console.warn('⚠️ Telegram данные недоступны или некорректны, используем fallback');
-            
-            // Fallback для случаев когда Telegram данные недоступны
-            if (!userId) {
-              userId = `web-user-${Math.floor(Math.random() * 1000000000)}`;
-              localStorage.setItem('userId', userId);
-              console.log('🔄 Создан fallback userId:', userId);
-            }
-            
-            console.log('🎮 Инициализируем пользователя с fallback userId:', userId);
-            await initializeUser(userId);
+            throw new Error('Не удалось определить userId');
           }
           
           console.log('✅ Инициализация приложения завершена');
@@ -183,8 +149,8 @@ const App: React.FC = () => {
   const currentBattery = COMPONENTS.BATTERIES.find(b => b.level === batteryLevel)!;
   const currentPowerGrid = COMPONENTS.POWER_GRIDS.find(p => p.level === powerGridLevel)!;
 
-  // Функция для определения цвета тахометра
-  const getTachometerColor = (currentGear: string, level: number) => {
+  // Функция для определения цвета тахометра (мемоизированная)
+  const getTachometerColor = useCallback((currentGear: string, level: number) => {
     const zones = {
       'N': { color: 'rgba(100, 100, 100, 0.8)', threshold: 0 },
       '1': { color: 'rgba(0, 255, 136, 0.8)', threshold: 20 },
@@ -208,10 +174,10 @@ const App: React.FC = () => {
     }
     
     return 'rgba(100, 100, 100, 0.2)';
-  };
+  }, []);
 
-  // Функция для определения цвета аккумулятора (инвертированная логика)
-  const getBatteryColor = (chargeLevel: number, activationThreshold: number) => {
+  // Функция для определения цвета аккумулятора (мемоизированная)
+  const getBatteryColor = useCallback((chargeLevel: number, activationThreshold: number) => {
     // Зеленый когда заряд достаточен для активации
     if (chargeLevel >= activationThreshold) return 'rgba(0, 255, 136, 0.8)';
     // Градиент от красного к желтому в зависимости от уровня заряда
@@ -220,14 +186,16 @@ const App: React.FC = () => {
     if (chargeLevel >= 40) return 'rgba(255, 165, 0, 0.8)'; // Оранжевый
     if (chargeLevel >= 20) return 'rgba(255, 100, 0, 0.8)'; // Красно-оранжевый
     return 'rgba(255, 0, 0, 0.8)'; // Красный
-  };
+  }, []);
 
-  // Рассчитываем активность тапов для отображения на шкале
-  const tapActivity = gear === 'N' ? 0 : 
-                     gear === '1' ? 20 :
-                     gear === '2' ? 40 :
-                     gear === '3' ? 60 :
-                     gear === '4' ? 80 : 100;
+  // Рассчитываем активность тапов для отображения на шкале (мемоизированная)
+  const tapActivity = useMemo(() => {
+    return gear === 'N' ? 0 : 
+           gear === '1' ? 20 :
+           gear === '2' ? 40 :
+           gear === '3' ? 60 :
+           gear === '4' ? 80 : 100;
+  }, [gear]);
 
   // Периодическое обновление активного токена каждые 30 секунд
   useEffect(() => {
@@ -241,31 +209,41 @@ const App: React.FC = () => {
     };
   }, [refreshActiveToken]);
 
-  // Принудительная синхронизация при фокусе на окне (смена устройств)
+  // Принудительная синхронизация при фокусе на окне (смена устройств) - оптимизированная
   useEffect(() => {
+    let isSyncing = false;
+    
     const handleWindowFocus = async () => {
+      if (isSyncing) return; // Предотвращаем множественные вызовы
+      
       console.log('👁️ Окно получило фокус - принудительная синхронизация');
-      const { syncGameState, refreshLeaderboard } = useGameStore.getState();
+      isSyncing = true;
+      
       try {
-        await syncGameState();
-        await refreshLeaderboard();
+        const { syncGameState, refreshLeaderboard } = useGameStore.getState();
+        await Promise.allSettled([syncGameState(), refreshLeaderboard()]);
         console.log('✅ Принудительная синхронизация при фокусе завершена');
       } catch (error) {
         console.error('❌ Ошибка принудительной синхронизации при фокусе:', error);
+      } finally {
+        isSyncing = false;
       }
     };
 
     const handleVisibilityChange = async () => {
-      if (!document.hidden) {
-        console.log('👁️ Страница стала видимой - принудительная синхронизация');
+      if (document.hidden || isSyncing) return; // Предотвращаем множественные вызовы
+      
+      console.log('👁️ Страница стала видимой - принудительная синхронизация');
+      isSyncing = true;
+      
+      try {
         const { syncGameState, refreshLeaderboard } = useGameStore.getState();
-        try {
-          await syncGameState();
-          await refreshLeaderboard();
-          console.log('✅ Принудительная синхронизация при показе страницы завершена');
-        } catch (error) {
-          console.error('❌ Ошибка принудительной синхронизации при показе страницы:', error);
-        }
+        await Promise.allSettled([syncGameState(), refreshLeaderboard()]);
+        console.log('✅ Принудительная синхронизация при показе страницы завершена');
+      } catch (error) {
+        console.error('❌ Ошибка принудительной синхронизации при показе страницы:', error);
+      } finally {
+        isSyncing = false;
       }
     };
 
