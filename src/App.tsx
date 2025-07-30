@@ -6,6 +6,7 @@ import { useFullscreen } from './hooks/useFullscreen'
 import { COMPONENTS } from './types/game'
 import { DebugPanel } from './components/DebugPanel'
 import { InitializationTest } from './components/InitializationTest'
+import { LoadingTest } from './components/LoadingTest'
 import './styles/effects.css'
 
 // Lazy loading для тяжелых компонентов
@@ -684,6 +685,9 @@ const App: React.FC = () => {
       
       {/* Initialization Test для диагностики */}
       <InitializationTest />
+      
+      {/* Loading Test для проверки загрузки */}
+      <LoadingTest />
     </div>
   )
 }
