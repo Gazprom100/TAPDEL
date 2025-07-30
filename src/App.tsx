@@ -4,6 +4,8 @@ import { useGameConfigStore } from './store/gameConfigStore'
 import { useGameMechanics } from './hooks/useGameMechanics'
 import { useFullscreen } from './hooks/useFullscreen'
 import { COMPONENTS } from './types/game'
+import { DebugPanel } from './components/DebugPanel'
+import { InitializationTest } from './components/InitializationTest'
 import './styles/effects.css'
 
 // Lazy loading для тяжелых компонентов
@@ -676,6 +678,12 @@ const App: React.FC = () => {
           <Profile onClose={() => setIsProfileOpen(false)} />
         </Suspense>
       )}
+
+      {/* Debug Panel для диагностики */}
+      <DebugPanel />
+      
+      {/* Initialization Test для диагностики */}
+      <InitializationTest />
     </div>
   )
 }
