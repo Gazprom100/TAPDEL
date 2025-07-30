@@ -51,6 +51,91 @@ const App: React.FC = () => {
         // Загружаем настройки игры
         await loadGameConfig();
         
+        // Инициализация пользователя
+        console.log('👤 Начало инициализации пользователя...');
+        
+        // ПРИНУДИТЕЛЬНАЯ ОЧИСТКА для остановки бесконечной миграции
+        const problematicOldUserId = localStorage.getItem('oldUserId');
+        if (problematicOldUserId === 'demo-user-atatvzu2f') {
+          console.log('🧹 Принудительно очищаем проблемный oldUserId:', problematicOldUserId);
+          localStorage.removeItem('oldUserId');
+        }
+        
+        // Также очищаем если userId все еще demo-user-atatvzu2f
+        const currentUserId = localStorage.getItem('userId');
+        if (currentUserId === 'demo-user-atatvzu2f') {
+          console.log('🧹 Очищаем проблемный userId:', currentUserId);
+          localStorage.removeItem('userId');
+        }
+
+        console.log('🚀 App.tsx useEffect - начало инициализации');
+        
+        let userId = localStorage.getItem('userId');
+        console.log('💾 localStorage userId:', userId);
+        
+        // ПРИНУДИТЕЛЬНАЯ ПРОВЕРКА TELEGRAM ДАННЫХ НА КАЖДОМ ЗАПУСКЕ
+        const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+        console.log('📱 Текущие Telegram данные:', telegramUser);
+        
+        // Проверяем существование telegramUser
+        if (!telegramUser) {
+          console.warn('⚠️ Telegram данные недоступны!');
+        }
+        
+        // РАСШИРЕННАЯ ДИАГНОСТИКА
+        console.log('🔍 Диагностика Telegram WebApp:');
+        console.log('  - window.Telegram:', !!window.Telegram);
+        console.log('  - window.Telegram.WebApp:', !!window.Telegram?.WebApp);
+        console.log('  - initDataUnsafe:', !!window.Telegram?.WebApp?.initDataUnsafe);
+        console.log('  - user object:', !!window.Telegram?.WebApp?.initDataUnsafe?.user);
+        console.log('  - user.id:', window.Telegram?.WebApp?.initDataUnsafe?.user?.id);
+        console.log('  - platform:', (window.Telegram?.WebApp as any)?.platform || 'unknown');
+        console.log('  - version:', (window.Telegram?.WebApp as any)?.version || 'unknown');
+        console.log('  - user agent:', navigator.userAgent);
+        
+        // @ts-ignore
+        if (telegramUser && telegramUser.id !== undefined && telegramUser.id !== null && telegramUser.id !== 0) {
+          const correctUserId = `telegram-${telegramUser?.id || 0}`;
+          console.log('🎯 Корректный userId из Telegram:', correctUserId);
+          
+          // Если userId отличается от правильного, обновляем
+          if (userId !== correctUserId) {
+            console.log('🔄 Обновляем userId для синхронизации между устройствами');
+            console.log(`  Старый userId: ${userId}`);
+            console.log(`  Новый userId: ${correctUserId}`);
+            
+            // Сохраняем старый userId для миграции, если он существует и не пустой
+            if (userId && userId !== correctUserId) {
+              const existingOldUserId = localStorage.getItem('oldUserId');
+              if (!existingOldUserId || existingOldUserId !== userId) {
+                localStorage.setItem('oldUserId', userId || '');
+                console.log('💾 Сохранен oldUserId для миграции:', userId);
+              }
+            }
+            
+            // Обновляем userId
+            userId = correctUserId;
+            localStorage.setItem('userId', correctUserId);
+            console.log('✅ userId обновлен в localStorage');
+          }
+          
+          // Инициализируем пользователя с правильным userId
+          console.log('🎮 Инициализируем пользователя с userId:', userId);
+          await initializeUser(userId);
+        } else {
+          console.warn('⚠️ Telegram данные недоступны или некорректны, используем fallback');
+          
+          // Fallback для случаев когда Telegram данные недоступны
+          if (!userId) {
+            userId = `web-user-${Math.floor(Math.random() * 1000000000)}`;
+            localStorage.setItem('userId', userId);
+            console.log('🔄 Создан fallback userId:', userId);
+          }
+          
+          console.log('🎮 Инициализируем пользователя с fallback userId:', userId);
+          await initializeUser(userId);
+        }
+        
         console.log('✅ Инициализация приложения завершена');
         setIsLoading(false);
       } catch (err) {
@@ -61,7 +146,7 @@ const App: React.FC = () => {
     };
     
     initializeApp();
-  }, [refreshActiveToken, loadGameConfig]);
+  }, [refreshActiveToken, loadGameConfig, initializeUser]);
   
   const {
     fuelLevel,
@@ -126,37 +211,8 @@ const App: React.FC = () => {
                      gear === '3' ? 60 :
                      gear === '4' ? 80 : 100;
 
-  // Инициализация пользователя при загрузке приложения
+  // Периодическое обновление активного токена каждые 30 секунд
   useEffect(() => {
-    // ПРИНУДИТЕЛЬНАЯ ОЧИСТКА для остановки бесконечной миграции
-    const problematicOldUserId = localStorage.getItem('oldUserId');
-    if (problematicOldUserId === 'demo-user-atatvzu2f') {
-      console.log('🧹 Принудительно очищаем проблемный oldUserId:', problematicOldUserId);
-      localStorage.removeItem('oldUserId');
-    }
-    
-    // Также очищаем если userId все еще demo-user-atatvzu2f
-    const currentUserId = localStorage.getItem('userId');
-    if (currentUserId === 'demo-user-atatvzu2f') {
-      console.log('🧹 Очищаем проблемный userId:', currentUserId);
-      localStorage.removeItem('userId');
-    }
-
-    console.log('🚀 App.tsx useEffect - начало инициализации');
-    
-    let userId = localStorage.getItem('userId');
-    console.log('💾 localStorage userId:', userId);
-    
-    // ПРИНУДИТЕЛЬНАЯ ПРОВЕРКА TELEGRAM ДАННЫХ НА КАЖДОМ ЗАПУСКЕ
-    const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
-    console.log('📱 Текущие Telegram данные:', telegramUser);
-    
-    // Проверяем существование telegramUser
-    if (!telegramUser) {
-      console.warn('⚠️ Telegram данные недоступны!');
-    }
-    
-    // Периодическое обновление активного токена каждые 30 секунд
     const tokenUpdateInterval = setInterval(() => {
       refreshActiveToken();
     }, 30000);
@@ -165,167 +221,7 @@ const App: React.FC = () => {
     return () => {
       clearInterval(tokenUpdateInterval);
     };
-    
-    // РАСШИРЕННАЯ ДИАГНОСТИКА
-    console.log('🔍 Диагностика Telegram WebApp:');
-    console.log('  - window.Telegram:', !!window.Telegram);
-    console.log('  - window.Telegram.WebApp:', !!window.Telegram?.WebApp);
-    console.log('  - initDataUnsafe:', !!window.Telegram?.WebApp?.initDataUnsafe);
-    console.log('  - user object:', !!window.Telegram?.WebApp?.initDataUnsafe?.user);
-    console.log('  - user.id:', window.Telegram?.WebApp?.initDataUnsafe?.user?.id);
-    console.log('  - platform:', (window.Telegram?.WebApp as any)?.platform || 'unknown');
-    console.log('  - version:', (window.Telegram?.WebApp as any)?.version || 'unknown');
-    console.log('  - user agent:', navigator.userAgent);
-    
-                // @ts-ignore
-        if (telegramUser && telegramUser.id !== undefined && telegramUser.id !== null && telegramUser.id !== 0) {
-          const correctUserId = `telegram-${telegramUser?.id || 0}`;
-      console.log('🎯 Корректный userId из Telegram:', correctUserId);
-      
-      // Если userId отличается от правильного, обновляем
-      if (userId !== correctUserId) {
-        console.log('🔄 Обновляем userId для синхронизации между устройствами');
-        console.log(`  Старый userId: ${userId}`);
-        console.log(`  Новый userId: ${correctUserId}`);
-        
-        // Сохраняем старый userId для миграции, если он существует и не пустой
-        if (userId && userId !== correctUserId) {
-          const existingOldUserId = localStorage.getItem('oldUserId');
-          if (!existingOldUserId || existingOldUserId !== userId) {
-            localStorage.setItem('oldUserId', userId || '');
-            console.log('💾 Сохранен oldUserId для миграции:', userId);
-          }
-        }
-        
-        userId = correctUserId;
-        localStorage.setItem('userId', userId || '');
-        
-        // Сохраняем актуальные Telegram данные
-        const userData = {
-          userId: userId,
-          username: telegramUser?.username || `${telegramUser?.first_name || ''} ${telegramUser?.last_name || ''}`.trim(),
-          telegramFirstName: telegramUser?.first_name || '',
-          telegramLastName: telegramUser?.last_name || '',
-          telegramUsername: telegramUser?.username || '',
-          telegramId: telegramUser?.id || 0
-        };
-        localStorage.setItem('telegramUserData', JSON.stringify(userData));
-        console.log('✅ Обновлены Telegram данные для синхронизации:', userData);
-      } else {
-        console.log('✅ userId уже корректный, синхронизация не требуется');
-      }
-    } else {
-      console.warn('⚠️ Telegram данные недоступны! Возможные причины:');
-      console.warn('  1. Приложение запущено не через Telegram');
-      console.warn('  2. Telegram WebApp API недоступен на этом устройстве');
-      console.warn('  3. Проблемы с инициализацией WebApp');
-    }
-    
-    if (!userId) {
-      console.log('🔍 userId не найден, получаем данные из Telegram...');
-      
-      // Логируем доступность Telegram WebApp
-      console.log('📱 window.Telegram:', !!window.Telegram);
-      console.log('📱 window.Telegram.WebApp:', !!window.Telegram?.WebApp);
-      console.log('📱 window.Telegram.WebApp.initDataUnsafe:', !!window.Telegram?.WebApp?.initDataUnsafe);
-      console.log('📱 window.Telegram.WebApp.initDataUnsafe.user:', window.Telegram?.WebApp?.initDataUnsafe?.user);
-      
-      // @ts-ignore
-      if (telegramUser && telegramUser.id !== undefined && telegramUser.id !== null && telegramUser.id !== 0) {
-        // Используем реальный Telegram ID
-        userId = `telegram-${telegramUser?.id || 0}`;
-        
-        // Сохраняем дополнительные данные пользователя
-        const userData = {
-          userId: userId,
-          username: telegramUser?.username || `${telegramUser?.first_name || ''} ${telegramUser?.last_name || ''}`.trim(),
-          telegramFirstName: telegramUser?.first_name || '',
-          telegramLastName: telegramUser?.last_name || '',
-          telegramUsername: telegramUser?.username || '',
-          telegramId: telegramUser?.id || 0
-        };
-        
-        // Сохраняем в localStorage
-        localStorage.setItem('userId', userId || '');
-        localStorage.setItem('telegramUserData', JSON.stringify(userData));
-        
-        console.log('📱 Получены реальные Telegram данные:', userData);
-        console.log('✅ Сохранено в localStorage как telegramUserData');
-      } else {
-        // Проверяем есть ли сохраненные Telegram данные
-        const storedTelegramData = localStorage.getItem('telegramUserData');
-        if (storedTelegramData) {
-          try {
-            const parsedData = JSON.parse(storedTelegramData || '{}');
-            if (parsedData.telegramId && typeof parsedData.telegramId === 'number') {
-              userId = `telegram-${parsedData.telegramId}`;
-              console.log('📱 Используем сохраненный Telegram ID:', userId);
-            }
-          } catch (error) {
-            console.warn('⚠️ Ошибка парсинга сохраненных Telegram данных:', error);
-          }
-        }
-        
-        // КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ: Если все еще нет Telegram данных, показываем ошибку
-        if (!userId) {
-          console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: Приложение должно запускаться только через Telegram!');
-          // Создаем временный userId для тестирования, но предупреждаем
-          const browserFingerprint = [
-            navigator.userAgent,
-            navigator.language,
-            screen.width,
-            screen.height,
-            new Date().toDateString()
-          ].join('|');
-          
-          let hash = 0;
-          for (let i = 0; i < browserFingerprint.length; i++) {
-            const char = browserFingerprint.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash & hash;
-          }
-          
-          userId = `web-user-${Math.abs(hash)}`;
-          console.warn('⚠️ Создан временный веб ID для тестирования:', userId);
-          console.warn('⚠️ ВНИМАНИЕ: Данные не будут синхронизироваться между устройствами!');
-        }
-      }
-      
-      localStorage.setItem('userId', userId || '');
-      console.log('💾 Установлен userId:', userId);
-    } else {
-      console.log('✅ userId найден в localStorage:', userId);
-      
-      // Проверим есть ли telegramUserData
-      const storedTelegramData = localStorage.getItem('telegramUserData');
-      console.log('📱 telegramUserData в localStorage:', storedTelegramData);
-    }
-    
-    console.log('🔄 Вызываем initializeUser с userId:', userId);
-    
-    // Инициализируем пользователя
-    initializeUser(userId || '').then(() => {
-      console.log('✅ initializeUser завершён успешно');
-      
-      // Запускаем автосинхронизацию лидерборда каждые 30 секунд
-      const startAutoSync = useGameStore.getState().startAutoSync;
-      if (startAutoSync) {
-        console.log('🚀 Запуск автосинхронизации лидерборда каждые 30 сек');
-        startAutoSync();
-      }
-    }).catch(error => {
-      console.error('❌ Ошибка initializeUser:', error);
-    });
-
-    // Останавливаем автосинхронизацию при закрытии компонента
-    return () => {
-      const stopAutoSync = useGameStore.getState().stopAutoSync;
-      if (stopAutoSync) {
-        console.log('🛑 Остановка автосинхронизации лидерборда');
-        stopAutoSync();
-      }
-    };
-  }, [initializeUser]);
+  }, [refreshActiveToken]);
 
   // Принудительная синхронизация при фокусе на окне (смена устройств)
   useEffect(() => {
