@@ -45,44 +45,54 @@ const App: React.FC = () => {
         setIsLoading(true);
         setError(null);
         
-        // Всегда обновляем активный токен при загрузке приложения
-        await refreshActiveToken();
+        // Таймаут для инициализации (15 секунд)
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Таймаут инициализации')), 15000);
+        });
         
-        // Загружаем настройки игры
-        await loadGameConfig();
-        
-        // Инициализация пользователя
-        console.log('👤 Начало инициализации пользователя...');
-        
-        // ПРИНУДИТЕЛЬНАЯ ОЧИСТКА для остановки бесконечной миграции
-        const problematicOldUserId = localStorage.getItem('oldUserId');
-        if (problematicOldUserId === 'demo-user-atatvzu2f') {
-          console.log('🧹 Принудительно очищаем проблемный oldUserId:', problematicOldUserId);
-          localStorage.removeItem('oldUserId');
-        }
-        
-        // Также очищаем если userId все еще demo-user-atatvzu2f
-        const currentUserId = localStorage.getItem('userId');
-        if (currentUserId === 'demo-user-atatvzu2f') {
-          console.log('🧹 Очищаем проблемный userId:', currentUserId);
-          localStorage.removeItem('userId');
-        }
+        const initPromise = (async () => {
+          // Всегда обновляем активный токен при загрузке приложения
+          console.log('🔄 Обновляем активный токен...');
+          await refreshActiveToken();
+          console.log('✅ Активный токен обновлен');
+          
+          // Загружаем настройки игры
+          console.log('⚙️ Загружаем настройки игры...');
+          await loadGameConfig();
+          console.log('✅ Настройки игры загружены');
+          
+          // Инициализация пользователя
+          console.log('👤 Начало инициализации пользователя...');
+          
+          // ПРИНУДИТЕЛЬНАЯ ОЧИСТКА для остановки бесконечной миграции
+          const problematicOldUserId = localStorage.getItem('oldUserId');
+          if (problematicOldUserId === 'demo-user-atatvzu2f') {
+            console.log('🧹 Принудительно очищаем проблемный oldUserId:', problematicOldUserId);
+            localStorage.removeItem('oldUserId');
+          }
+          
+          // Также очищаем если userId все еще demo-user-atatvzu2f
+          const currentUserId = localStorage.getItem('userId');
+          if (currentUserId === 'demo-user-atatvzu2f') {
+            console.log('🧹 Очищаем проблемный userId:', currentUserId);
+            localStorage.removeItem('userId');
+          }
 
-        console.log('🚀 App.tsx useEffect - начало инициализации');
-        
-        let userId = localStorage.getItem('userId');
-        console.log('💾 localStorage userId:', userId);
-        
-        // ПРИНУДИТЕЛЬНАЯ ПРОВЕРКА TELEGRAM ДАННЫХ НА КАЖДОМ ЗАПУСКЕ
-        const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
-        console.log('📱 Текущие Telegram данные:', telegramUser);
-        
-        // Проверяем существование telegramUser
-        if (!telegramUser) {
-          console.warn('⚠️ Telegram данные недоступны!');
-        }
-        
-        // РАСШИРЕННАЯ ДИАГНОСТИКА
+          console.log('🚀 App.tsx useEffect - начало инициализации');
+          
+          let userId = localStorage.getItem('userId');
+          console.log('💾 localStorage userId:', userId);
+          
+          // ПРИНУДИТЕЛЬНАЯ ПРОВЕРКА TELEGRAM ДАННЫХ НА КАЖДОМ ЗАПУСКЕ
+          const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+          console.log('📱 Текущие Telegram данные:', telegramUser);
+          
+          // Проверяем существование telegramUser
+          if (!telegramUser) {
+            console.warn('⚠️ Telegram данные недоступны!');
+          }
+          
+                  // РАСШИРЕННАЯ ДИАГНОСТИКА
         console.log('🔍 Диагностика Telegram WebApp:');
         console.log('  - window.Telegram:', !!window.Telegram);
         console.log('  - window.Telegram.WebApp:', !!window.Telegram?.WebApp);
@@ -92,51 +102,59 @@ const App: React.FC = () => {
         console.log('  - platform:', (window.Telegram?.WebApp as any)?.platform || 'unknown');
         console.log('  - version:', (window.Telegram?.WebApp as any)?.version || 'unknown');
         console.log('  - user agent:', navigator.userAgent);
-        
-        // @ts-ignore
-        if (telegramUser && telegramUser.id !== undefined && telegramUser.id !== null && telegramUser.id !== 0) {
-          const correctUserId = `telegram-${telegramUser?.id || 0}`;
-          console.log('🎯 Корректный userId из Telegram:', correctUserId);
+        console.log('  - is mobile:', /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+        console.log('  - screen size:', screen.width, 'x', screen.height);
+        console.log('  - viewport:', window.innerWidth, 'x', window.innerHeight);
           
-          // Если userId отличается от правильного, обновляем
-          if (userId !== correctUserId) {
-            console.log('🔄 Обновляем userId для синхронизации между устройствами');
-            console.log(`  Старый userId: ${userId}`);
-            console.log(`  Новый userId: ${correctUserId}`);
+          // @ts-ignore
+          if (telegramUser && telegramUser.id !== undefined && telegramUser.id !== null && telegramUser.id !== 0) {
+            const correctUserId = `telegram-${telegramUser?.id || 0}`;
+            console.log('🎯 Корректный userId из Telegram:', correctUserId);
             
-            // Сохраняем старый userId для миграции, если он существует и не пустой
-            if (userId && userId !== correctUserId) {
-              const existingOldUserId = localStorage.getItem('oldUserId');
-              if (!existingOldUserId || existingOldUserId !== userId) {
-                localStorage.setItem('oldUserId', userId || '');
-                console.log('💾 Сохранен oldUserId для миграции:', userId);
+            // Если userId отличается от правильного, обновляем
+            if (userId !== correctUserId) {
+              console.log('🔄 Обновляем userId для синхронизации между устройствами');
+              console.log(`  Старый userId: ${userId}`);
+              console.log(`  Новый userId: ${correctUserId}`);
+              
+              // Сохраняем старый userId для миграции, если он существует и не пустой
+              if (userId && userId !== correctUserId) {
+                const existingOldUserId = localStorage.getItem('oldUserId');
+                if (!existingOldUserId || existingOldUserId !== userId) {
+                  localStorage.setItem('oldUserId', userId || '');
+                  console.log('💾 Сохранен oldUserId для миграции:', userId);
+                }
               }
+              
+              // Обновляем userId
+              userId = correctUserId;
+              localStorage.setItem('userId', correctUserId);
+              console.log('✅ userId обновлен в localStorage');
             }
             
-            // Обновляем userId
-            userId = correctUserId;
-            localStorage.setItem('userId', correctUserId);
-            console.log('✅ userId обновлен в localStorage');
+            // Инициализируем пользователя с правильным userId
+            console.log('🎮 Инициализируем пользователя с userId:', userId);
+            await initializeUser(userId);
+          } else {
+            console.warn('⚠️ Telegram данные недоступны или некорректны, используем fallback');
+            
+            // Fallback для случаев когда Telegram данные недоступны
+            if (!userId) {
+              userId = `web-user-${Math.floor(Math.random() * 1000000000)}`;
+              localStorage.setItem('userId', userId);
+              console.log('🔄 Создан fallback userId:', userId);
+            }
+            
+            console.log('🎮 Инициализируем пользователя с fallback userId:', userId);
+            await initializeUser(userId);
           }
           
-          // Инициализируем пользователя с правильным userId
-          console.log('🎮 Инициализируем пользователя с userId:', userId);
-          await initializeUser(userId);
-        } else {
-          console.warn('⚠️ Telegram данные недоступны или некорректны, используем fallback');
-          
-          // Fallback для случаев когда Telegram данные недоступны
-          if (!userId) {
-            userId = `web-user-${Math.floor(Math.random() * 1000000000)}`;
-            localStorage.setItem('userId', userId);
-            console.log('🔄 Создан fallback userId:', userId);
-          }
-          
-          console.log('🎮 Инициализируем пользователя с fallback userId:', userId);
-          await initializeUser(userId);
-        }
+          console.log('✅ Инициализация приложения завершена');
+        })();
         
-        console.log('✅ Инициализация приложения завершена');
+        // Ждем инициализацию с таймаутом
+        await Promise.race([initPromise, timeoutPromise]);
+        
         setIsLoading(false);
       } catch (err) {
         console.error('❌ Ошибка инициализации приложения:', err);
@@ -276,6 +294,11 @@ const App: React.FC = () => {
         <div className="cyber-text text-2xl font-bold mb-4">CYBERFLEX</div>
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500"></div>
         <div className="mt-4 text-gray-400">Загрузка...</div>
+        <div className="mt-2 text-xs text-gray-500">
+          {/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+            ? 'Мобильная версия' 
+            : 'Десктопная версия'}
+        </div>
       </div>
     );
   }
