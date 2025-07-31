@@ -66,16 +66,22 @@ const App: React.FC = () => {
         setIsLoading(true);
         setError(null);
         
-        // Уменьшаем таймаут до 8 секунд
+        // Уменьшаем таймаут до 5 секунд
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Таймаут инициализации (8с)')), 5000); // Уменьшаем до 5 секунд
+          setTimeout(() => reject(new Error('Таймаут инициализации (5с)')), 5000);
         });
         
-        // Emergency fallback - принудительно завершаем загрузку через 10 секунд
+        // Emergency fallback - принудительно завершаем загрузку через 6 секунд
         const emergencyTimeout = setTimeout(() => {
           console.warn('🚨 Emergency fallback - принудительно завершаем загрузку');
           setIsLoading(false);
-        }, 6000); // Уменьшаем до 6 секунд
+        }, 6000);
+        
+        // ДОПОЛНИТЕЛЬНЫЙ FALLBACK - принудительно завершаем через 3 секунды
+        const forceTimeout = setTimeout(() => {
+          console.warn('🚨 Force fallback - принудительно завершаем загрузку через 3 секунды');
+          setIsLoading(false);
+        }, 3000);
         
         const initPromise = (async () => {
           // Этап 1: Быстрые операции (синхронно)
@@ -140,7 +146,7 @@ const App: React.FC = () => {
               await Promise.race([
                 initializeUser(userId),
                 new Promise((_, reject) => 
-                  setTimeout(() => reject(new Error('Таймаут инициализации пользователя')), 3000) // Сокращаем до 3 секунд
+                  setTimeout(() => reject(new Error('Таймаут инициализации пользователя')), 3000)
                 )
               ]);
               console.log('✅ Пользователь инициализирован');
@@ -160,11 +166,14 @@ const App: React.FC = () => {
         await Promise.race([initPromise, timeoutPromise]);
         
         clearTimeout(emergencyTimeout);
+        clearTimeout(forceTimeout);
         setIsLoading(false);
+        console.log('✅ isLoading установлен в false');
       } catch (err) {
         console.error('❌ Ошибка инициализации приложения:', err);
         setError(err instanceof Error ? err.message : 'Неизвестная ошибка');
         setIsLoading(false);
+        console.log('✅ isLoading установлен в false (ошибка)');
       }
     };
     
@@ -297,6 +306,7 @@ const App: React.FC = () => {
 
   // Показываем состояние загрузки
   if (isLoading) {
+    console.log('🔄 Рендеринг: Состояние загрузки (isLoading=true)');
     return (
       <div className="cyber-container" style={{
         height: '100vh',
@@ -325,6 +335,7 @@ const App: React.FC = () => {
 
   // Показываем ошибку
   if (error) {
+    console.log('❌ Рендеринг: Состояние ошибки (error=', error, ')');
     return (
       <div className="cyber-container" style={{
         height: '100vh',
@@ -348,6 +359,19 @@ const App: React.FC = () => {
       </div>
     );
   }
+
+  console.log('🎮 Рендеринг: Основной игровой интерфейс (isLoading=false, error=null)');
+  console.log('🎮 Состояние игры:', {
+    tokens,
+    engineLevel,
+    gearboxLevel,
+    batteryLevel,
+    powerGridLevel,
+    activeTokenSymbol,
+    fuelLevel,
+    hyperdriveCharge,
+    gear
+  });
 
   return (
     <div 
