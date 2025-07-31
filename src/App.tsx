@@ -68,14 +68,14 @@ const App: React.FC = () => {
         
         // Уменьшаем таймаут до 8 секунд
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Таймаут инициализации (8с)')), 8000);
+          setTimeout(() => reject(new Error('Таймаут инициализации (8с)')), 5000); // Уменьшаем до 5 секунд
         });
         
         // Emergency fallback - принудительно завершаем загрузку через 10 секунд
         const emergencyTimeout = setTimeout(() => {
           console.warn('🚨 Emergency fallback - принудительно завершаем загрузку');
           setIsLoading(false);
-        }, 10000);
+        }, 6000); // Уменьшаем до 6 секунд
         
         const initPromise = (async () => {
           // Этап 1: Быстрые операции (синхронно)
@@ -136,11 +136,11 @@ const App: React.FC = () => {
           
           if (userId) {
             try {
-              // Добавляем таймаут для initializeUser
+              // Добавляем таймаут для initializeUser - сокращаем до 3 секунд
               await Promise.race([
                 initializeUser(userId),
                 new Promise((_, reject) => 
-                  setTimeout(() => reject(new Error('Таймаут инициализации пользователя')), 5000)
+                  setTimeout(() => reject(new Error('Таймаут инициализации пользователя')), 3000) // Сокращаем до 3 секунд
                 )
               ]);
               console.log('✅ Пользователь инициализирован');
@@ -704,19 +704,19 @@ const App: React.FC = () => {
       )}
 
       {/* Debug Panel для диагностики */}
-      <DebugPanel />
+      {/* <DebugPanel /> */}
       
       {/* Initialization Test для диагностики */}
-      <InitializationTest />
+      {/* <InitializationTest /> */}
       
       {/* Loading Test для проверки загрузки */}
-      <LoadingTest />
+      {/* <LoadingTest /> */}
       
       {/* Service Worker Manager */}
-      <ServiceWorkerManager />
+      {/* <ServiceWorkerManager /> */}
 
-      {/* Telegram Diagnostics */}
-      <TelegramDiagnostics />
+      {/* Telegram Diagnostics - показываем только при загрузке */}
+      {isLoading && <TelegramDiagnostics />}
     </div>
   );
 };

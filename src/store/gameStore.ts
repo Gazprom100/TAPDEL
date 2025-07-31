@@ -150,6 +150,37 @@ export const useGameStore = create<GameStore>()(
           console.log(`🏁 gameStore.initializeUser запущен для userId: ${userId}`);
           set({ isLoading: true, error: null });
           
+          // Сначала устанавливаем базовые значения, чтобы игра могла запуститься
+          const fallbackProfile = {
+            userId,
+            username: `Игрок ${userId.slice(-4)}`,
+            maxEnergy: 100,
+            energyRecoveryRate: 1,
+            maxGear: 'M' as Gear,
+            level: 1,
+            experience: 0,
+            createdAt: new Date(),
+            lastLogin: new Date()
+          };
+          
+          set({
+            profile: fallbackProfile,
+            tokens: 0,
+            highScore: 0,
+            engineLevel: COMPONENTS.ENGINES[0].level as EngineMark,
+            gearboxLevel: COMPONENTS.GEARBOXES[0].level as GearboxLevel,
+            batteryLevel: COMPONENTS.BATTERIES[0].level as BatteryLevel,
+            hyperdriveLevel: COMPONENTS.HYPERDRIVES[0].level as HyperdriveLevel,
+            powerGridLevel: COMPONENTS.POWER_GRIDS[0].level as PowerGridLevel,
+            transactions: [],
+            leaderboard: [],
+            lastSyncTime: Date.now(),
+            isLoading: false,
+            error: null
+          });
+          
+          console.log('✅ Fallback профиль установлен, игра готова');
+          
           // Проверяем если пользователь тот же - не сбрасываем данные
           const existingState = get();
           const isSameUser = existingState.profile?.userId === userId;
