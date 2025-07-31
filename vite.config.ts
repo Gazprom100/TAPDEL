@@ -13,12 +13,16 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
-    // Добавляем правильные MIME типы
+    // Исправляем MIME типы для модулей
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     },
+    // Добавляем правильную обработку модулей
+    fs: {
+      strict: false
+    }
   },
   build: {
     outDir: 'dist',
@@ -43,5 +47,10 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ['react', 'react-dom', 'gsap', 'zustand']
+  },
+  // Добавляем правильные MIME типы для разработки
+  esbuild: {
+    loader: 'tsx',
+    include: ['src/**/*.tsx', 'src/**/*.ts']
   }
 }) 

@@ -43,7 +43,8 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      // Регистрация Service Worker с задержкой
+      // ВРЕМЕННО ОТКЛЮЧАЕМ Service Worker для тестирования
+      /*
       if ('serviceWorker' in navigator) {
         // Ждем полной загрузки приложения перед регистрацией SW
         setTimeout(() => {
@@ -56,6 +57,8 @@
             });
         }, 2000); // Задержка 2 секунды
       }
+      */
+      console.log('Service Worker temporarily disabled for testing');
     </script>
   </body>
 </html> 

@@ -1,11 +1,11 @@
-const CACHE_NAME = 'tapdel-v2';
+const CACHE_NAME = 'tapdel-v3'; // Обновляем версию кэша
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json'
 ];
 
-// Установка Service Worker
+// Устанавливаем кэш при установке SW
 self.addEventListener('install', (event) => {
   console.log('Service Worker: Installing...');
   event.waitUntil(
@@ -15,33 +15,38 @@ self.addEventListener('install', (event) => {
         return cache.addAll(STATIC_ASSETS);
       })
       .then(() => {
-        console.log('Service Worker: Installation complete');
+        console.log('Service Worker: Installed successfully');
         return self.skipWaiting();
+      })
+      .catch((error) => {
+        console.error('Service Worker: Installation failed:', error);
       })
   );
 });
 
-// Активация Service Worker
+// Активируем SW и очищаем старые кэши
 self.addEventListener('activate', (event) => {
   console.log('Service Worker: Activating...');
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('Service Worker: Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    }).then(() => {
-      console.log('Service Worker: Activation complete');
-      return self.clients.claim();
-    })
+    caches.keys()
+      .then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cacheName) => {
+            if (cacheName !== CACHE_NAME) {
+              console.log('Service Worker: Deleting old cache:', cacheName);
+              return caches.delete(cacheName);
+            }
+          })
+        );
+      })
+      .then(() => {
+        console.log('Service Worker: Activated successfully');
+        return self.clients.claim();
+      })
   );
 });
 
-// Перехват запросов
+// Перехватываем fetch запросы
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -52,7 +57,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Пропускаем Vite dev server запросы
-  if (url.pathname.startsWith('/@vite/') || 
+  if (url.pathname.startsWith('/@vite/') ||
       url.pathname.startsWith('/@react-refresh') ||
       url.pathname.startsWith('/node_modules/') ||
       url.pathname.includes('?t=') ||
@@ -60,57 +65,60 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Пропускаем модули JavaScript
-  if (request.destination === 'script' && 
-      (url.pathname.endsWith('.js') || url.pathname.endsWith('.ts') || url.pathname.endsWith('.tsx'))) {
+  // Пропускаем JavaScript модули (критично!)
+  if (request.destination === 'script' ||
+      url.pathname.endsWith('.js') || 
+      url.pathname.endsWith('.ts') || 
+      url.pathname.endsWith('.tsx') ||
+      url.pathname.endsWith('.mjs')) {
+    console.log('Service Worker: Skipping JavaScript module:', url.pathname);
     return;
   }
 
   // Пропускаем CSS модули
-  if (request.destination === 'style' && 
-      (url.pathname.endsWith('.css') || url.pathname.includes('?import'))) {
+  if (request.destination === 'style' ||
+      url.pathname.endsWith('.css') || 
+      url.pathname.includes('?import')) {
+    console.log('Service Worker: Skipping CSS module:', url.pathname);
     return;
   }
 
+  // Пропускаем HTML модули
+  if (request.destination === 'document' ||
+      url.pathname.endsWith('.html')) {
+    console.log('Service Worker: Skipping HTML module:', url.pathname);
+    return;
+  }
+
+  // Кэшируем только статические ресурсы
   event.respondWith(
     caches.match(request)
       .then((response) => {
-        // Возвращаем кешированный ресурс если есть
         if (response) {
           console.log('Service Worker: Serving from cache:', url.pathname);
           return response;
         }
 
-        // Иначе делаем сетевой запрос
         return fetch(request)
           .then((response) => {
-            // Кешируем только успешные GET запросы для статических ресурсов
-            if (!response || response.status !== 200 || response.type !== 'basic' || request.method !== 'GET') {
-              return response;
-            }
-
-            // Кешируем только определенные типы ресурсов
-            const shouldCache = url.pathname === '/' || 
-                              url.pathname === '/index.html' ||
-                              url.pathname.startsWith('/manifest') ||
-                              url.pathname.startsWith('/icon') ||
-                              url.pathname.startsWith('/vite.svg');
-
-            if (shouldCache) {
-              // Клонируем ответ для кеширования
-              const responseToCache = response.clone();
+            // Кэшируем только успешные ответы для статических ресурсов
+            if (response && response.status === 200 && 
+                (request.destination === 'image' || 
+                 request.destination === 'font' ||
+                 STATIC_ASSETS.includes(url.pathname))) {
+              const responseClone = response.clone();
               caches.open(CACHE_NAME)
                 .then((cache) => {
-                  cache.put(request, responseToCache);
-                  console.log('Service Worker: Cached:', url.pathname);
+                  cache.put(request, responseClone);
                 });
             }
-
             return response;
           })
-          .catch((error) => {
-            console.log('Service Worker: Fetch failed:', url.pathname, error);
-            return new Response('Network error', { status: 503 });
+          .catch(() => {
+            // Fallback для статических ресурсов
+            if (STATIC_ASSETS.includes(url.pathname)) {
+              return caches.match('/index.html');
+            }
           });
       })
   );
@@ -118,29 +126,17 @@ self.addEventListener('fetch', (event) => {
 
 // Обработка push уведомлений
 self.addEventListener('push', (event) => {
-  console.log('Service Worker: Push received');
+  console.log('Service Worker: Push event received');
   
   const options = {
-    body: event.data ? event.data.text() : 'Новое уведомление',
+    body: 'TAPDEL: Новое уведомление!',
     icon: '/vite.svg',
     badge: '/vite.svg',
     vibrate: [100, 50, 100],
     data: {
       dateOfArrival: Date.now(),
       primaryKey: 1
-    },
-    actions: [
-      {
-        action: 'explore',
-        title: 'Открыть',
-        icon: '/vite.svg'
-      },
-      {
-        action: 'close',
-        title: 'Закрыть',
-        icon: '/vite.svg'
-      }
-    ]
+    }
   };
 
   event.waitUntil(
@@ -148,15 +144,13 @@ self.addEventListener('push', (event) => {
   );
 });
 
-// Обработка кликов по уведомлениям
+// Обработка клика по уведомлению
 self.addEventListener('notificationclick', (event) => {
-  console.log('Service Worker: Notification click received');
+  console.log('Service Worker: Notification clicked');
   
   event.notification.close();
-
-  if (event.action === 'explore') {
-    event.waitUntil(
-      clients.openWindow('/')
-    );
-  }
+  
+  event.waitUntil(
+    clients.openWindow('/')
+  );
 }); 
