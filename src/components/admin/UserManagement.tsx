@@ -77,7 +77,14 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onUserUpdate }) 
     if (!confirm(confirmMessage[action])) return;
 
     try {
-      await adminApiService.bulkUpdateUsers(selectedUsers, action);
+      // Получаем userId для выбранных пользователей
+      const selectedUserIds = users
+        .filter(user => selectedUsers.includes(user._id))
+        .map(user => user.userId);
+      
+      console.log('Массовая операция:', { action, selectedUserIds });
+      
+      await adminApiService.bulkUpdateUsers(selectedUserIds, action);
       
       // Обновляем локальное состояние
       setUsers(prev => prev.map(user => {
@@ -107,7 +114,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onUserUpdate }) 
       alert(`Операция ${action} выполнена успешно`);
     } catch (error) {
       console.error('Ошибка массовой операции:', error);
-      alert('Ошибка выполнения операции');
+      const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+      alert(`Ошибка выполнения операции: ${errorMessage}`);
     }
   };
 
@@ -135,7 +143,15 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onUserUpdate }) 
           return;
       }
       
-      await adminApiService.updateUser(userId, updates);
+      // Находим пользователя по _id чтобы получить его userId
+      const user = users.find(u => u._id === userId);
+      if (!user) {
+        throw new Error('Пользователь не найден');
+      }
+      
+      console.log('Обновление пользователя:', { userId: user.userId, action, updates });
+      
+      await adminApiService.updateUser(user.userId, updates);
       
       // Обновляем локальное состояние
       setUsers(prev => prev.map(user => {
@@ -148,7 +164,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onUserUpdate }) 
       alert('Пользователь обновлен успешно');
     } catch (error) {
       console.error('Ошибка операции с пользователем:', error);
-      alert('Ошибка обновления пользователя');
+      const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+      alert(`Ошибка обновления пользователя: ${errorMessage}`);
     }
   };
 
