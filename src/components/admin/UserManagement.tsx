@@ -128,6 +128,9 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onUserUpdate }) 
         case 'balance':
           updates = { tokens: value };
           break;
+        case 'resetBalance':
+          updates = { tokens: 0, highScore: 0 };
+          break;
         default:
           return;
       }
