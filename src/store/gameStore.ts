@@ -181,16 +181,13 @@ export const useGameStore = create<GameStore>()(
               const migrationResult = await apiService.migrateUser(userId, oldUserId);
               if (migrationResult.migrated) {
                 console.log(`✅ Миграция выполнена успешно, токены: ${migrationResult.tokens}`);
-                // Очищаем старый userId из localStorage
                 localStorage.removeItem('oldUserId');
               } else {
                 console.log(`⚠️ Миграция не выполнена или не требуется`);
-                // Очищаем oldUserId даже если миграция не нужна, чтобы избежать повторных попыток
                 localStorage.removeItem('oldUserId');
               }
             } catch (error) {
               console.error('❌ Ошибка миграции:', error);
-              // Очищаем oldUserId чтобы не зациклиться
               localStorage.removeItem('oldUserId');
             }
           }
@@ -451,7 +448,39 @@ export const useGameStore = create<GameStore>()(
           }
           
         } catch (error) {
-          set({ error: (error as Error).message });
+          console.error('❌ Критическая ошибка инициализации пользователя:', error);
+          
+          // FALLBACK: Создаем базовый профиль локально
+          console.log('🆘 Создаем fallback профиль...');
+          const fallbackProfile = {
+            userId,
+            username: `Игрок ${userId.slice(-4)}`,
+            maxEnergy: 100,
+            energyRecoveryRate: 1,
+            maxGear: 'M' as Gear,
+            level: 1,
+            experience: 0,
+            createdAt: new Date(),
+            lastLogin: new Date()
+          };
+          
+          set({
+            profile: fallbackProfile,
+            tokens: 0,
+            highScore: 0,
+            engineLevel: COMPONENTS.ENGINES[0].level as EngineMark,
+            gearboxLevel: COMPONENTS.GEARBOXES[0].level as GearboxLevel,
+            batteryLevel: COMPONENTS.BATTERIES[0].level as BatteryLevel,
+            hyperdriveLevel: COMPONENTS.HYPERDRIVES[0].level as HyperdriveLevel,
+            powerGridLevel: COMPONENTS.POWER_GRIDS[0].level as PowerGridLevel,
+            transactions: [],
+            leaderboard: [],
+            lastSyncTime: Date.now(),
+            isLoading: false,
+            error: null
+          });
+          
+          console.log('✅ Fallback профиль создан, приложение готово к работе');
         } finally {
           set({ isLoading: false });
         }

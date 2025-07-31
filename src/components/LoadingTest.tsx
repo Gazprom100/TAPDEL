@@ -1,222 +1,304 @@
 import React, { useState, useEffect } from 'react';
 
+interface TestResult {
+  name: string;
+  status: 'pending' | 'success' | 'error';
+  message: string;
+  duration?: number;
+}
+
 export const LoadingTest: React.FC = () => {
-  const [testResults, setTestResults] = useState<string[]>([]);
+  const [testResults, setTestResults] = useState<TestResult[]>([]);
   const [isComplete, setIsComplete] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
     const runLoadingTests = async () => {
-      const results: string[] = [];
+      const results: TestResult[] = [];
       
+      // Тест 1: Vite dev server
+      const startTime1 = Date.now();
       try {
-        results.push('🚀 Начало тестирования загрузки приложения...');
-        
-        // Тест 1: Проверка Vite dev server
-        results.push('🔍 Тест 1: Vite dev server...');
-        try {
-          const response = await fetch('/');
-          if (response.ok) {
-            results.push('✅ Vite dev server работает');
-          } else {
-            results.push(`❌ Vite dev server ошибка: ${response.status}`);
-          }
-        } catch (err) {
-          results.push(`❌ Vite dev server недоступен: ${err}`);
-        }
-        
-        // Тест 2: Проверка модулей
-        results.push('🔍 Тест 2: JavaScript модули...');
-        try {
-          const moduleResponse = await fetch('/src/main.tsx');
-          if (moduleResponse.ok) {
-            const contentType = moduleResponse.headers.get('content-type');
-            if (contentType && contentType.includes('javascript')) {
-              results.push('✅ JavaScript модули загружаются корректно');
-            } else {
-              results.push(`⚠️ Неправильный MIME тип: ${contentType}`);
-            }
-          } else {
-            results.push(`❌ Ошибка загрузки модулей: ${moduleResponse.status}`);
-          }
-        } catch (err) {
-          results.push(`❌ Ошибка загрузки модулей: ${err}`);
-        }
-        
-        // Тест 3: Проверка API
-        results.push('🔍 Тест 3: API сервер...');
-        try {
-          const apiResponse = await fetch('/api/health');
-          if (apiResponse.ok) {
-            const data = await apiResponse.json();
-            results.push(`✅ API сервер работает: ${data.status}`);
-          } else {
-            results.push(`❌ API сервер ошибка: ${apiResponse.status}`);
-          }
-        } catch (err) {
-          results.push(`❌ API сервер недоступен: ${err}`);
-        }
-        
-        // Тест 4: Проверка React
-        results.push('🔍 Тест 4: React...');
-        results.push(`✅ React версия: ${React.version}`);
-        
-        // Тест 5: Проверка браузера
-        results.push('🔍 Тест 5: Браузер...');
-        results.push(`✅ User Agent: ${navigator.userAgent.substring(0, 50)}...`);
-        results.push(`✅ Платформа: ${navigator.platform}`);
-        
-        // Тест 6: Проверка viewport
-        results.push('🔍 Тест 6: Viewport...');
-        results.push(`✅ Размер окна: ${window.innerWidth}x${window.innerHeight}`);
-        results.push(`✅ Размер экрана: ${screen.width}x${screen.height}`);
-        
-        // Тест 7: Проверка localStorage
-        results.push('🔍 Тест 7: LocalStorage...');
-        try {
-          localStorage.setItem('test', 'test');
-          localStorage.removeItem('test');
-          results.push('✅ LocalStorage работает');
-        } catch (err) {
-          results.push(`❌ LocalStorage ошибка: ${err}`);
-        }
-        
-        // Тест 8: Проверка Telegram WebApp
-        results.push('🔍 Тест 8: Telegram WebApp...');
-        if (window.Telegram?.WebApp) {
-          results.push('✅ Telegram WebApp доступен');
-          const user = window.Telegram?.WebApp?.initDataUnsafe?.user;
-          if (user) {
-            results.push(`✅ Telegram пользователь: ${user.first_name || 'Unknown'}`);
-          } else {
-            results.push('⚠️ Telegram пользователь не определен');
-          }
-        } else {
-          results.push('⚠️ Telegram WebApp недоступен (но это нормально для веб-версии)');
-        }
-        
-        // Тест 9: Проверка Service Worker
-        results.push('🔍 Тест 9: Service Worker...');
-        if ('serviceWorker' in navigator) {
-          try {
-            const registration = await navigator.serviceWorker.getRegistration();
-            if (registration) {
-              results.push('✅ Service Worker зарегистрирован');
-              results.push(`✅ SW статус: ${registration.active ? 'active' : 'installing'}`);
-            } else {
-              results.push('⚠️ Service Worker не зарегистрирован');
-            }
-          } catch (err) {
-            results.push(`❌ Ошибка проверки Service Worker: ${err}`);
-          }
-        } else {
-          results.push('⚠️ Service Worker не поддерживается');
-        }
-        
-        results.push('✅ Все тесты завершены успешно!');
-        
-      } catch (err) {
-        results.push(`❌ Критическая ошибка тестирования: ${err}`);
+        const response = await fetch('/', { 
+          method: 'GET',
+          headers: { 'Cache-Control': 'no-cache' }
+        });
+        const duration1 = Date.now() - startTime1;
+        results.push({
+          name: 'Vite Dev Server',
+          status: response.ok ? 'success' : 'error',
+          message: `HTTP ${response.status} (${duration1}ms)`,
+          duration: duration1
+        });
+      } catch (error) {
+        results.push({
+          name: 'Vite Dev Server',
+          status: 'error',
+          message: `Error: ${error}`
+        });
       }
-      
+
+      // Тест 2: JavaScript modules
+      const startTime2 = Date.now();
+      try {
+        const response = await fetch('/src/main.tsx', { 
+          method: 'GET',
+          headers: { 'Cache-Control': 'no-cache' }
+        });
+        const duration2 = Date.now() - startTime2;
+        results.push({
+          name: 'JavaScript Modules',
+          status: response.ok ? 'success' : 'error',
+          message: `HTTP ${response.status} (${duration2}ms)`,
+          duration: duration2
+        });
+      } catch (error) {
+        results.push({
+          name: 'JavaScript Modules',
+          status: 'error',
+          message: `Error: ${error}`
+        });
+      }
+
+      // Тест 3: API server
+      const startTime3 = Date.now();
+      try {
+        const response = await fetch('/api/health', { 
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const duration3 = Date.now() - startTime3;
+        results.push({
+          name: 'API Server',
+          status: response.ok ? 'success' : 'error',
+          message: `HTTP ${response.status} (${duration3}ms)`,
+          duration: duration3
+        });
+      } catch (error) {
+        results.push({
+          name: 'API Server',
+          status: 'error',
+          message: `Error: ${error}`
+        });
+      }
+
+      // Тест 4: React version
+      results.push({
+        name: 'React Version',
+        status: 'success',
+        message: `React ${React.version}`
+      });
+
+      // Тест 5: Browser
+      results.push({
+        name: 'Browser',
+        status: 'success',
+        message: `${navigator.userAgent.split(' ')[0]} - ${navigator.platform}`
+      });
+
+      // Тест 6: Viewport
+      results.push({
+        name: 'Viewport',
+        status: 'success',
+        message: `${window.innerWidth}x${window.innerHeight} (screen: ${screen.width}x${screen.height})`
+      });
+
+      // Тест 7: LocalStorage
+      try {
+        const testKey = '__test__';
+        localStorage.setItem(testKey, 'test');
+        localStorage.removeItem(testKey);
+        results.push({
+          name: 'LocalStorage',
+          status: 'success',
+          message: 'Available and working'
+        });
+      } catch (error) {
+        results.push({
+          name: 'LocalStorage',
+          status: 'error',
+          message: `Error: ${error}`
+        });
+      }
+
+      // Тест 8: Telegram WebApp
+      if (window.Telegram?.WebApp) {
+        results.push({
+          name: 'Telegram WebApp',
+          status: 'success',
+          message: 'Available'
+        });
+      } else {
+        results.push({
+          name: 'Telegram WebApp',
+          status: 'error',
+          message: 'Not available'
+        });
+      }
+
+      // Тест 9: Service Worker
+      try {
+        if ('serviceWorker' in navigator) {
+          const registration = await navigator.serviceWorker.getRegistration();
+          results.push({
+            name: 'Service Worker',
+            status: registration ? 'success' : 'error',
+            message: registration ? 'Registered' : 'Not registered'
+          });
+        } else {
+          results.push({
+            name: 'Service Worker',
+            status: 'error',
+            message: 'Not supported'
+          });
+        }
+      } catch (error) {
+        results.push({
+          name: 'Service Worker',
+          status: 'error',
+          message: `Error: ${error}`
+        });
+      }
+
+      // Тест 10: Network connectivity
+      try {
+        const response = await fetch('https://httpbin.org/get', { 
+          method: 'GET',
+          mode: 'no-cors'
+        });
+        results.push({
+          name: 'Network',
+          status: 'success',
+          message: 'Internet connection available'
+        });
+      } catch (error) {
+        results.push({
+          name: 'Network',
+          status: 'error',
+          message: `No internet connection: ${error}`
+        });
+      }
+
       setTestResults(results);
       setIsComplete(true);
     };
-    
+
     runLoadingTests();
   }, []);
 
-  if (!isComplete) {
-    return (
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.95)',
-        color: '#fff',
-        padding: '20px',
-        fontSize: '14px',
-        zIndex: 10000,
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'center'
-      }}>
-        <div style={{ fontWeight: 'bold', marginBottom: '20px', fontSize: '18px' }}>
-          🔧 Тестирование загрузки приложения...
-        </div>
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500"></div>
-        <div style={{ marginTop: '20px', textAlign: 'center' }}>
-          <div>Проверка Vite dev server...</div>
-          <div>Проверка JavaScript модулей...</div>
-          <div>Проверка API сервера...</div>
-        </div>
-      </div>
-    );
-  }
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'success': return '#4CAF50';
+      case 'error': return '#F44336';
+      case 'pending': return '#FF9800';
+      default: return '#9E9E9E';
+    }
+  };
 
   return (
     <div style={{
       position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.95)',
-      color: '#fff',
-      padding: '20px',
-      fontSize: '14px',
-      zIndex: 10000,
-      overflow: 'auto'
+      top: '10px',
+      left: '10px',
+      zIndex: 9998,
+      backgroundColor: 'rgba(0, 0, 0, 0.9)',
+      color: 'white',
+      padding: '10px',
+      borderRadius: '5px',
+      fontSize: '12px',
+      maxWidth: '350px',
+      maxHeight: '500px',
+      overflow: 'auto',
+      fontFamily: 'monospace'
     }}>
-      <div style={{ fontWeight: 'bold', marginBottom: '20px', fontSize: '18px' }}>
-        🔧 Результаты тестирования загрузки
-      </div>
-      
-      {testResults.map((result, index) => (
-        <div key={index} style={{ 
-          marginBottom: '8px',
-          color: result.includes('❌') ? '#ff4444' : 
-                 result.includes('⚠️') ? '#ffaa00' : 
-                 result.includes('✅') ? '#00ff88' : '#ffffff'
-        }}>
-          {result}
-        </div>
-      ))}
-      
-      <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
+      <div style={{ marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <strong>🔧 Loading Test</strong>
         <button 
-          onClick={() => window.location.reload()} 
+          onClick={() => setIsVisible(!isVisible)}
           style={{
-            padding: '10px 20px',
-            backgroundColor: '#0066cc',
-            color: '#fff',
+            background: 'none',
             border: 'none',
-            borderRadius: '5px',
-            cursor: 'pointer'
+            color: 'white',
+            cursor: 'pointer',
+            fontSize: '16px'
           }}
         >
-          Перезагрузить страницу
-        </button>
-        
-        <button 
-          onClick={() => {
-            const element = document.getElementById('loading-test');
-            if (element) element.remove();
-          }} 
-          style={{
-            padding: '10px 20px',
-            backgroundColor: '#666',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '5px',
-            cursor: 'pointer'
-          }}
-        >
-          Скрыть тест
+          {isVisible ? '▼' : '▲'}
         </button>
       </div>
+      
+      {isVisible && (
+        <>
+          {!isComplete && (
+            <div style={{ textAlign: 'center', padding: '20px' }}>
+              <div>🔄 Running tests...</div>
+              <div style={{ marginTop: '10px' }}>
+                <div style={{
+                  width: '100%',
+                  height: '4px',
+                  backgroundColor: '#333',
+                  borderRadius: '2px',
+                  overflow: 'hidden'
+                }}>
+                  <div style={{
+                    width: '60%',
+                    height: '100%',
+                    backgroundColor: '#4CAF50',
+                    animation: 'pulse 1s infinite'
+                  }}></div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {isComplete && (
+            <div>
+              {testResults.map((result, index) => (
+                <div key={index} style={{ 
+                  marginBottom: '8px',
+                  padding: '5px',
+                  borderLeft: `3px solid ${getStatusColor(result.status)}`,
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)'
+                }}>
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    marginBottom: '2px'
+                  }}>
+                    <strong>{result.name}</strong>
+                    <span style={{ color: getStatusColor(result.status) }}>●</span>
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#ccc' }}>
+                    {result.message}
+                    {result.duration && ` (${result.duration}ms)`}
+                  </div>
+                </div>
+              ))}
+              
+              <div style={{ 
+                marginTop: '10px', 
+                padding: '10px', 
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                borderRadius: '3px'
+              }}>
+                <strong>Summary:</strong>
+                <div>✅ Success: {testResults.filter(r => r.status === 'success').length}</div>
+                <div>❌ Errors: {testResults.filter(r => r.status === 'error').length}</div>
+                <div>⏳ Pending: {testResults.filter(r => r.status === 'pending').length}</div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+      
+      <style>{`
+        @keyframes pulse {
+          0% { opacity: 1; }
+          50% { opacity: 0.5; }
+          100% { opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 }; 
