@@ -140,14 +140,10 @@ export const useGameConfigStore = create<GameConfigState>((set, get) => ({
           return;
         }
       }
-      
-      console.warn('⚠️ Не удалось загрузить настройки, используем дефолтные');
-      set({ 
-        config: defaultConfig, 
-        isLoaded: true 
-      });
+      throw new Error(`HTTP ${response.status}`);
     } catch (error) {
       console.error('❌ Ошибка загрузки настроек игры:', error);
+      // Fallback: используем дефолтные настройки
       set({ 
         config: defaultConfig, 
         isLoaded: true 

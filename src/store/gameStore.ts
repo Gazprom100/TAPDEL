@@ -996,6 +996,8 @@ export const useGameStore = create<GameStore>()(
           }
         } catch (error) {
           console.error('❌ Ошибка обновления активного токена:', error);
+          // Fallback: устанавливаем дефолтный токен
+          set({ activeTokenSymbol: 'BOOST' });
         }
       },
 
