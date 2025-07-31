@@ -1224,6 +1224,36 @@ router.get('/decimal/withdrawals', async (req, res) => {
   }
 });
 
+router.post('/decimal/withdrawals', async (req, res) => {
+  try {
+    const { default: fetch } = await import('node-fetch');
+    const response = await fetch(`http://localhost:3001/api/decimal/withdrawals`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(req.body)
+    });
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Ошибка проксирования POST /decimal/withdrawals:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
+
+router.get('/decimal/users/:userId/withdrawals', async (req, res) => {
+  try {
+    const { default: fetch } = await import('node-fetch');
+    const response = await fetch(`http://localhost:3001/api/decimal/users/${req.params.userId}/withdrawals`);
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Ошибка проксирования /decimal/users/:userId/withdrawals:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
+
 // Закрытие соединения при завершении работы
 process.on('SIGINT', async () => {
   if (client) {

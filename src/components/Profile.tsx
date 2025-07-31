@@ -187,15 +187,15 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     try {
       setIsLoading(true);
       
-      const response = await fetch('/api/withdraw', {
+      const response = await fetch('/api/decimal/withdrawals', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          amount,
-          address: withdrawAddress,
-          tokenSymbol: safeActiveTokenSymbol
+          userId: safeProfile?.userId,
+          toAddress: withdrawAddress,
+          amount: amount
         }),
       });
 
