@@ -8,6 +8,7 @@ import { DebugPanel } from './components/DebugPanel'
 import { InitializationTest } from './components/InitializationTest'
 import { LoadingTest } from './components/LoadingTest'
 import { ServiceWorkerManager } from './components/ServiceWorkerManager'
+import { TelegramDiagnostics } from './components/TelegramDiagnostics';
 import './styles/effects.css'
 
 // Lazy loading для тяжелых компонентов
@@ -313,6 +314,9 @@ const App: React.FC = () => {
             ? 'Мобильная версия' 
             : 'Десктопная версия'}
         </div>
+        
+        {/* Показываем диагностику при длительной загрузке */}
+        <TelegramDiagnostics />
       </div>
     );
   }
@@ -698,16 +702,19 @@ const App: React.FC = () => {
       )}
 
       {/* Debug Panel для диагностики */}
-      {/* <DebugPanel /> */}
+      <DebugPanel />
       
       {/* Initialization Test для диагностики */}
-      {/* <InitializationTest /> */}
+      <InitializationTest />
       
       {/* Loading Test для проверки загрузки */}
-      {/* <LoadingTest /> */}
+      <LoadingTest />
       
       {/* Service Worker Manager */}
-      {/* <ServiceWorkerManager /> */}
+      <ServiceWorkerManager />
+
+      {/* Telegram Diagnostics */}
+      <TelegramDiagnostics />
     </div>
   );
 };
