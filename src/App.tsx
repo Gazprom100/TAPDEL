@@ -107,7 +107,9 @@ const App: React.FC = () => {
               localStorage.setItem('userId', correctUserId);
             }
           } else if (!userId) {
-            userId = `web-user-${Math.floor(Math.random() * 1000000000)}`;
+            // Fallback для браузера без Telegram WebApp
+            console.log('⚠️ Telegram WebApp недоступен, создаем демо пользователя');
+            userId = `browser-user-${Math.floor(Math.random() * 1000000000)}`;
             localStorage.setItem('userId', userId);
           }
           
