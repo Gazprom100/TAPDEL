@@ -1045,7 +1045,11 @@ router.get('/wallet-balance', async (req, res) => {
           ], token.address);
           
           const balanceWei = await tokenContract.methods.balanceOf(workingAddress).call();
-          balance = parseFloat(decimalService.web3.utils.fromWei(balanceWei, 'ether'));
+          
+          // Правильно обрабатываем decimals для каждого токена
+          const decimals = token.decimals || 18;
+          const divisor = Math.pow(10, decimals);
+          balance = parseFloat(balanceWei) / divisor;
         }
         
         const balanceData = {
@@ -1077,9 +1081,26 @@ router.get('/wallet-balance', async (req, res) => {
       }
     }
     
+    // Вычисляем общий баланс в USD (упрощенно, без курса валют)
+    // Для примера: DEL = $0.10, BOOST = $0.01, остальные = $0.001
+    const tokenPrices = {
+      'DEL': 0.10,
+      'BOOST': 0.01,
+      'MAKAROVSKY': 0.001,
+      'BTT': 0.001,
+      'SBT': 0.001
+    };
+    
+    let totalBalanceUSD = 0;
+    walletBalances.forEach(balance => {
+      const price = tokenPrices[balance.symbol] || 0.001;
+      totalBalanceUSD += balance.balance * price;
+    });
+    
     res.json({
       success: true,
       balances: walletBalances,
+      totalBalanceUSD: totalBalanceUSD,
       lastUpdated: new Date().toISOString()
     });
   } catch (error) {
