@@ -20,13 +20,33 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
   const { config } = useGameConfigStore();
   
+  // FALLBACK: Если данные не загружены, используем дефолтные значения
+  const fallbackProfile = {
+    userId: 'fallback-user',
+    username: 'Игрок',
+    telegramUsername: null,
+    maxEnergy: 100,
+    energyRecoveryRate: 1,
+    maxGear: 'M' as any,
+    level: 1,
+    experience: 0,
+    createdAt: new Date(),
+    lastLogin: new Date()
+  };
+  
+  const safeProfile = profile || fallbackProfile;
+  const safeTokens = tokens || 0;
+  const safeTransactions = transactions || [];
+  const safeLeaderboard = leaderboard || [];
+  const safeActiveTokenSymbol = activeTokenSymbol || 'BOOST';
+  
   // Отладочная информация для проверки профиля
   console.log('🔍 Profile Component Debug:', { 
-    profile,
-    username: profile?.username,
-    telegramUsername: profile?.telegramUsername,
-    userId: profile?.userId,
-    isEvgeni: profile?.username === 'Evgeni_Krasnov' || profile?.telegramUsername === 'Evgeni_Krasnov',
+    profile: safeProfile,
+    username: safeProfile?.username,
+    telegramUsername: safeProfile?.telegramUsername,
+    userId: safeProfile?.userId,
+    isEvgeni: safeProfile?.username === 'Evgeni_Krasnov' || safeProfile?.telegramUsername === 'Evgeni_Krasnov',
     // Временно показываем кнопку для всех для отладки
     showAdminButton: true
   });
@@ -146,59 +166,57 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     }
   }, [activeTab, profile?.userId, deposits.length, withdrawals.length, isTransactionsLoading, lastTransactionsUpdate]);
 
+  // Функция для вывода токенов
   const handleWithdraw = useCallback(async () => {
     if (!withdrawAmount || !withdrawAddress) {
-      alert('Введите количество для вывода');
+      alert('Пожалуйста, заполните все поля');
       return;
     }
 
     const amount = parseFloat(withdrawAmount);
-    
-    if (amount <= 0) {
-      alert('Количество должно быть больше 0');
+    if (isNaN(amount) || amount <= 0) {
+      alert('Пожалуйста, введите корректную сумму');
       return;
     }
 
-    if (tokens < amount) {
-      alert(`Недостаточно средств. Доступно: ${Math.floor(tokens)} ${activeTokenSymbol || 'токенов'}`);
+    if (safeTokens < amount) {
+      alert(`Недостаточно средств. Доступно: ${Math.floor(safeTokens)} ${safeActiveTokenSymbol || 'токенов'}`);
       return;
     }
 
     try {
       setIsLoading(true);
       
-      const response = await fetch('/api/decimal/withdrawals', {
+      const response = await fetch('/api/withdraw', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
-          userId: profile!.userId,
-          toAddress: withdrawAddress,
-          amount: amount
-        })
+          amount,
+          address: withdrawAddress,
+          tokenSymbol: safeActiveTokenSymbol
+        }),
       });
-      
-      const result = await response.json();
-      
-      if (response.ok && result.withdrawalId) {
-        alert(`Вывод создан успешно! ID: ${result.withdrawalId}`);
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert('Заявка на вывод создана успешно!');
         setWithdrawAmount('');
         setWithdrawAddress('');
-        
         // Обновляем баланс
         await refreshBoostBalance();
-        
-        // Обновляем список выводов
-        // await loadTransactionsData(); // Удалено, так как loadTransactionsData зависит от activeTab
       } else {
-        alert(result.error || 'Ошибка создания вывода');
+        alert('Ошибка при создании заявки на вывод: ' + data.error);
       }
     } catch (error) {
-      console.error('Ошибка вывода:', error);
-      alert('Ошибка при создании вывода');
+      console.error('Ошибка при выводе токенов:', error);
+      alert('Ошибка при создании заявки на вывод');
     } finally {
       setIsLoading(false);
     }
-  }, [withdrawAmount, withdrawAddress, tokens, profile?.userId, activeTokenSymbol, refreshBoostBalance]);
+  }, [withdrawAmount, withdrawAddress, safeTokens, safeProfile?.userId, safeActiveTokenSymbol, refreshBoostBalance]);
 
   const handleDeposit = useCallback(async () => {
     if (!depositAmount) {
@@ -388,11 +406,11 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             >
               <div className="space-y-4 sm:space-y-6 p-4">
                 <div className="cyber-text text-lg font-bold mb-4">
-                  {activeTokenSymbol || 'BOOST'} Баланс: {Math.floor(tokens)} {activeTokenSymbol || 'BOOST'}
+                  {safeActiveTokenSymbol || 'BOOST'} Баланс: {Math.floor(safeTokens)} {safeActiveTokenSymbol || 'BOOST'}
                 </div>
                 
                 <div className="cyber-panel space-y-3 sm:space-y-4 p-3 sm:p-4">
-                  <div className="cyber-text text-sm sm:text-base">Вывод {activeTokenSymbol || 'BOOST'}</div>
+                  <div className="cyber-text text-sm sm:text-base">Вывод {safeActiveTokenSymbol || 'BOOST'}</div>
                   <div className="space-y-2">
                     <input
                       type="number"
@@ -402,7 +420,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         e.stopPropagation();
                       }}
                       className="cyber-input w-full text-sm sm:text-base"
-                      placeholder={`Количество ${activeTokenSymbol || 'BOOST'} для вывода`}
+                                              placeholder={`Количество ${safeActiveTokenSymbol || 'BOOST'} для вывода`}
                       style={{
                         minHeight: '40px',
                         pointerEvents: 'auto'
@@ -433,13 +451,13 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         pointerEvents: 'auto'
                       }}
                     >
-                      Вывести {activeTokenSymbol || 'BOOST'}
+                                              Вывести {safeActiveTokenSymbol || 'BOOST'}
                     </button>
                   </div>
                 </div>
 
                 <div className="cyber-panel space-y-3 sm:space-y-4 p-3 sm:p-4">
-                  <div className="cyber-text text-sm sm:text-base">Ввод {activeTokenSymbol || 'BOOST'}</div>
+                  <div className="cyber-text text-sm sm:text-base">Ввод {safeActiveTokenSymbol || 'BOOST'}</div>
                   <div className="flex flex-col sm:flex-row gap-2">
                     <input
                       type="number"
@@ -615,10 +633,10 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     )}
 
                     {/* Игровые транзакции */}
-                    {transactions && transactions.length > 0 && (
+                    {safeTransactions && safeTransactions.length > 0 && (
                       <div className="space-y-2">
                         <div className="cyber-text text-base font-bold">Игровые операции</div>
-                        {transactions.map((tx) => (
+                        {safeTransactions.map((tx) => (
                           <div
                             key={tx.id}
                             className="cyber-card flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 p-3 sm:p-4"
@@ -660,7 +678,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     )}
 
                     {/* Если нет транзакций */}
-                    {deposits.length === 0 && withdrawals.length === 0 && (!transactions || transactions.length === 0) && (
+                    {deposits.length === 0 && withdrawals.length === 0 && (!safeTransactions || safeTransactions.length === 0) && (
                       <div className="text-center opacity-50 py-8 text-sm sm:text-base">
                         История транзакций пуста
                       </div>
@@ -686,8 +704,8 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     <div className="cyber-spinner"></div>
                     <div className="mt-4 text-sm sm:text-base opacity-70">Загрузка таблицы лидеров...</div>
                   </div>
-                ) : leaderboard && leaderboard.length > 0 ? (
-                  leaderboard.map((entry, index) => (
+                              ) : safeLeaderboard && safeLeaderboard.length > 0 ? (
+                safeLeaderboard.map((entry, index) => (
                     <div
                       key={entry.id}
                       className={`cyber-card flex justify-between items-center p-3 sm:p-4 ${
