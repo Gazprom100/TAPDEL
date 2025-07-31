@@ -15,6 +15,10 @@ interface WalletBalanceData {
   balances: WalletBalance[];
   totalBalanceUSD: number;
   lastUpdated: string;
+  walletAddress?: string;
+  walletType?: string;
+  network?: string;
+  status?: string;
 }
 
 export const WalletBalance: React.FC = () => {
@@ -82,7 +86,8 @@ export const WalletBalance: React.FC = () => {
     if (balance === undefined || balance === null || isNaN(balance)) {
       return '0.00';
     }
-    return (balance / Math.pow(10, decimals)).toFixed(2);
+    // Баланс уже должен быть в правильных единицах (backend уже обработал decimals)
+    return balance.toFixed(2);
   };
 
   const formatDate = (dateString: string) => {
@@ -251,20 +256,20 @@ export const WalletBalance: React.FC = () => {
           <div>
             <span className="text-gray-400">Адрес кошелька:</span>
             <div className="text-white font-mono break-all">
-              {process.env.REACT_APP_DECIMAL_WORKING_ADDRESS || 'Не настроен'}
+              {walletData.walletAddress || 'Не настроен'}
             </div>
           </div>
           <div>
             <span className="text-gray-400">Сеть:</span>
-            <div className="text-white">DecimalChain</div>
+            <div className="text-white">{walletData.network || 'DecimalChain'}</div>
           </div>
           <div>
             <span className="text-gray-400">Тип кошелька:</span>
-            <div className="text-white">Рабочий (для выводов)</div>
+            <div className="text-white">{walletData.walletType || 'Рабочий (для выводов)'}</div>
           </div>
           <div>
             <span className="text-gray-400">Статус:</span>
-            <div className="text-green-400">Активен</div>
+            <div className="text-green-400">{walletData.status || 'Активен'}</div>
           </div>
         </div>
       </div>

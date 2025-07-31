@@ -978,6 +978,9 @@ router.get('/wallet-balance', async (req, res) => {
   try {
     const database = await connectToDatabase();
     
+    // Получаем адрес рабочего кошелька из переменных окружения
+    const workingAddress = process.env.DECIMAL_WORKING_ADDRESS || '0x59888c4759503AdB6d9280d71999A1Db3Cf5fb43';
+    
     // Получаем все токены НАПРЯМУЮ ИЗ БЛОКЧЕЙНА (не из БД)
     const tokens = [
       {
@@ -1019,7 +1022,6 @@ router.get('/wallet-balance', async (req, res) => {
       try {
         // Получаем реальный баланс с DecimalChain
         const decimalService = require('../services/decimalService');
-        const workingAddress = process.env.DECIMAL_WORKING_ADDRESS || '0x59888c4759503AdB6d9280d71999A1Db3Cf5fb43';
         
         // Инициализируем DecimalService если нужно
         if (!decimalService.isInitialized) {
@@ -1030,10 +1032,16 @@ router.get('/wallet-balance', async (req, res) => {
         
         // Для нативного токена DEL используем web3.eth.getBalance
         if (token.symbol === 'DEL') {
+          console.log(`🔍 Получаем баланс DEL для адреса: ${workingAddress}`);
           const balanceWei = await decimalService.web3.eth.getBalance(workingAddress);
+          console.log(`🔍 DEL balanceWei: ${balanceWei}`);
           balance = parseFloat(decimalService.web3.utils.fromWei(balanceWei, 'ether'));
+          console.log(`🔍 DEL balance (ether): ${balance}`);
         } else {
           // Для ERC-20 токенов используем контракт
+          console.log(`🔍 Получаем баланс ${token.symbol} для адреса: ${workingAddress}`);
+          console.log(`🔍 Контракт токена: ${token.address}`);
+          
           const tokenContract = new decimalService.web3.eth.Contract([
             {
               "constant": true,
@@ -1045,11 +1053,13 @@ router.get('/wallet-balance', async (req, res) => {
           ], token.address);
           
           const balanceWei = await tokenContract.methods.balanceOf(workingAddress).call();
+          console.log(`🔍 ${token.symbol} balanceWei: ${balanceWei}`);
           
           // Правильно обрабатываем decimals для каждого токена
           const decimals = token.decimals || 18;
           const divisor = Math.pow(10, decimals);
           balance = parseFloat(balanceWei) / divisor;
+          console.log(`🔍 ${token.symbol} balance (decimals=${decimals}): ${balance}`);
         }
         
         const balanceData = {
@@ -1101,6 +1111,10 @@ router.get('/wallet-balance', async (req, res) => {
       success: true,
       balances: walletBalances,
       totalBalanceUSD: totalBalanceUSD,
+      walletAddress: workingAddress, // Добавляем адрес кошелька
+      walletType: 'Рабочий (для выводов)',
+      network: 'DecimalChain',
+      status: 'Активен',
       lastUpdated: new Date().toISOString()
     });
   } catch (error) {
