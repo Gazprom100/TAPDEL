@@ -47,10 +47,5 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ['react', 'react-dom', 'gsap', 'zustand']
-  },
-  // Добавляем правильные MIME типы для разработки
-  esbuild: {
-    loader: 'tsx',
-    include: ['src/**/*.tsx', 'src/**/*.ts']
   }
 }) 
