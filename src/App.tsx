@@ -70,6 +70,12 @@ const App: React.FC = () => {
           setTimeout(() => reject(new Error('Таймаут инициализации (8с)')), 8000);
         });
         
+        // Emergency fallback - принудительно завершаем загрузку через 10 секунд
+        const emergencyTimeout = setTimeout(() => {
+          console.warn('🚨 Emergency fallback - принудительно завершаем загрузку');
+          setIsLoading(false);
+        }, 10000);
+        
         const initPromise = (async () => {
           // Этап 1: Быстрые операции (синхронно)
           console.log('⚡ Этап 1: Быстрые операции...');
@@ -150,6 +156,7 @@ const App: React.FC = () => {
         // Ждем инициализацию с таймаутом
         await Promise.race([initPromise, timeoutPromise]);
         
+        clearTimeout(emergencyTimeout);
         setIsLoading(false);
       } catch (err) {
         console.error('❌ Ошибка инициализации приложения:', err);
@@ -691,18 +698,18 @@ const App: React.FC = () => {
       )}
 
       {/* Debug Panel для диагностики */}
-      <DebugPanel />
+      {/* <DebugPanel /> */}
       
       {/* Initialization Test для диагностики */}
-      <InitializationTest />
+      {/* <InitializationTest /> */}
       
       {/* Loading Test для проверки загрузки */}
-      <LoadingTest />
+      {/* <LoadingTest /> */}
       
       {/* Service Worker Manager */}
-      <ServiceWorkerManager />
+      {/* <ServiceWorkerManager /> */}
     </div>
-  )
-}
+  );
+};
 
 export default App;
