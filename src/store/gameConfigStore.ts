@@ -127,7 +127,19 @@ export const useGameConfigStore = create<GameConfigState>((set, get) => ({
     try {
       console.log('🎮 Загружаем настройки игры...');
       
-      const response = await fetch('/api/admin/game-config');
+      // Добавляем таймаут для предотвращения зависания
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        console.warn('⏰ Timeout загрузки настроек игры');
+        controller.abort();
+      }, 5000); // 5 секунд timeout
+      
+      const response = await fetch('/api/admin/game-config', {
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
@@ -140,10 +152,11 @@ export const useGameConfigStore = create<GameConfigState>((set, get) => ({
           return;
         }
       }
-      throw new Error(`HTTP ${response.status}`);
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     } catch (error) {
       console.error('❌ Ошибка загрузки настроек игры:', error);
       // Fallback: используем дефолтные настройки
+      console.log('🔄 Используем дефолтные настройки игры');
       set({ 
         config: defaultConfig, 
         isLoaded: true 

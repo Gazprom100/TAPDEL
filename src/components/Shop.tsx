@@ -27,6 +27,13 @@ export const Shop: React.FC = () => {
   const safeTokens = tokens || 0;
   const safeActiveTokenSymbol = activeTokenSymbol || 'BOOST';
   
+  // FALLBACK для уровней компонентов
+  const safeEngineLevel = engineLevel || 'Mk I';
+  const safeGearboxLevel = gearboxLevel || 'Gear 1';
+  const safeBatteryLevel = batteryLevel || 'Cell 1';
+  const safeHyperdriveLevel = hyperdriveLevel || 'Drive 1';
+  const safePowerGridLevel = powerGridLevel || 'Grid 1';
+  
   // Отладочная информация
   console.log('🔍 Shop Component Debug:', {
     tokens: tokens,
@@ -37,10 +44,15 @@ export const Shop: React.FC = () => {
     hasConfig: !!config,
     hasComponents: !!config?.components,
     engineLevel: engineLevel,
+    safeEngineLevel: safeEngineLevel,
     gearboxLevel: gearboxLevel,
+    safeGearboxLevel: safeGearboxLevel,
     batteryLevel: batteryLevel,
+    safeBatteryLevel: safeBatteryLevel,
     hyperdriveLevel: hyperdriveLevel,
-    powerGridLevel: powerGridLevel
+    safeHyperdriveLevel: safeHyperdriveLevel,
+    powerGridLevel: powerGridLevel,
+    safePowerGridLevel: safePowerGridLevel
   });
   
   const [purchaseInProgress, setPurchaseInProgress] = useState(false);
@@ -116,69 +128,108 @@ export const Shop: React.FC = () => {
 
   // Функция для получения следующего доступного апгрейда
   const getNextUpgrade = useCallback((type: string, currentLevel: string) => {
-    if (!config) return null;
+    console.log('🔍 Shop: getNextUpgrade вызвана для:', type, currentLevel);
+    
+    if (!config) {
+      console.warn('⚠️ Shop: Config не загружен в getNextUpgrade');
+      return null;
+    }
     
     const getCurrentIndex = (array: any[], currentLevel: string) => {
       return array.findIndex(item => item.level === currentLevel);
     };
 
     let components: any[];
-    switch (type) {
-      case 'engine':
-        components = generateComponents('engine');
-        break;
-      case 'gearbox':
-        components = generateComponents('gearbox');
-        break;
-      case 'battery':
-        components = generateComponents('battery');
-        break;
-      case 'hyperdrive':
-        components = generateComponents('hyperdrive');
-        break;
-      case 'powerGrid':
-        components = generateComponents('powerGrid');
-        break;
-      default:
-        return null;
+    try {
+      switch (type) {
+        case 'engine':
+          components = generateComponents('engine');
+          break;
+        case 'gearbox':
+          components = generateComponents('gearbox');
+          break;
+        case 'battery':
+          components = generateComponents('battery');
+          break;
+        case 'hyperdrive':
+          components = generateComponents('hyperdrive');
+          break;
+        case 'powerGrid':
+          components = generateComponents('powerGrid');
+          break;
+        default:
+          console.warn('⚠️ Shop: Неизвестный тип компонента:', type);
+          return null;
+      }
+    } catch (error) {
+      console.error('❌ Shop: Ошибка генерации компонентов для', type, ':', error);
+      return null;
+    }
+
+    if (!components || components.length === 0) {
+      console.warn('⚠️ Shop: Нет компонентов для', type);
+      return null;
     }
 
     const currentIndex = getCurrentIndex(components, currentLevel);
+    console.log('🔍 Shop: Индексы для', type, ':', { currentIndex, currentLevel, totalComponents: components.length });
+    
     const nextIndex = currentIndex + 1;
     
     if (nextIndex < components.length) {
-      return components[nextIndex];
+      const nextUpgrade = components[nextIndex];
+      console.log('✅ Shop: Найден следующий апгрейд для', type, ':', nextUpgrade);
+      return nextUpgrade;
     }
     
+    console.log('✅ Shop: Достигнут максимальный уровень для', type);
     return null; // Максимальный уровень достигнут
   }, [generateComponents, config]);
 
   // Функция для получения текущего компонента
   const getCurrentComponent = useCallback((type: string, currentLevel: string) => {
-    if (!config) return null;
+    console.log('🔍 Shop: getCurrentComponent вызвана для:', type, currentLevel);
+    
+    if (!config) {
+      console.warn('⚠️ Shop: Config не загружен в getCurrentComponent');
+      return null;
+    }
     
     let components: any[];
-    switch (type) {
-      case 'engine':
-        components = generateComponents('engine');
-        break;
-      case 'gearbox':
-        components = generateComponents('gearbox');
-        break;
-      case 'battery':
-        components = generateComponents('battery');
-        break;
-      case 'hyperdrive':
-        components = generateComponents('hyperdrive');
-        break;
-      case 'powerGrid':
-        components = generateComponents('powerGrid');
-        break;
-      default:
-        return null;
+    try {
+      switch (type) {
+        case 'engine':
+          components = generateComponents('engine');
+          break;
+        case 'gearbox':
+          components = generateComponents('gearbox');
+          break;
+        case 'battery':
+          components = generateComponents('battery');
+          break;
+        case 'hyperdrive':
+          components = generateComponents('hyperdrive');
+          break;
+        case 'powerGrid':
+          components = generateComponents('powerGrid');
+          break;
+        default:
+          console.warn('⚠️ Shop: Неизвестный тип компонента:', type);
+          return null;
+      }
+    } catch (error) {
+      console.error('❌ Shop: Ошибка генерации компонентов для', type, ':', error);
+      return null;
     }
 
-    return components.find(item => item.level === currentLevel) || null;
+    if (!components || components.length === 0) {
+      console.warn('⚠️ Shop: Нет компонентов для', type);
+      return null;
+    }
+
+    const currentComponent = components.find(item => item.level === currentLevel);
+    console.log('🔍 Shop: Текущий компонент для', type, ':', currentComponent);
+    return currentComponent || components[0]; // Fallback на первый компонент
   }, [generateComponents, config]);
 
   const handleUpgrade = async (
@@ -443,32 +494,32 @@ export const Shop: React.FC = () => {
       <div className="space-y-6">
         {/* Двигатели */}
         {(() => {
-          console.log('🔍 Shop: Рендерим двигатели, engineLevel:', engineLevel);
-          return renderCategory('engine', 'Двигатели', engineLevel, '🚀');
+          console.log('🔍 Shop: Рендерим двигатели, engineLevel:', engineLevel, 'safeEngineLevel:', safeEngineLevel);
+          return renderCategory('engine', 'Двигатели', safeEngineLevel, '🚀');
         })()}
         
         {/* Коробки передач */}
         {(() => {
-          console.log('🔍 Shop: Рендерим коробки передач, gearboxLevel:', gearboxLevel);
-          return renderCategory('gearbox', 'Коробки передач', gearboxLevel, '⚙️');
+          console.log('🔍 Shop: Рендерим коробки передач, gearboxLevel:', gearboxLevel, 'safeGearboxLevel:', safeGearboxLevel);
+          return renderCategory('gearbox', 'Коробки передач', safeGearboxLevel, '⚙️');
         })()}
         
         {/* Батареи */}
         {(() => {
-          console.log('🔍 Shop: Рендерим батареи, batteryLevel:', batteryLevel);
-          return renderCategory('battery', 'Батареи', batteryLevel, '🔋');
+          console.log('🔍 Shop: Рендерим батареи, batteryLevel:', batteryLevel, 'safeBatteryLevel:', safeBatteryLevel);
+          return renderCategory('battery', 'Батареи', safeBatteryLevel, '🔋');
         })()}
         
         {/* Гипердвигатели */}
         {(() => {
-          console.log('🔍 Shop: Рендерим гипердвигатели, hyperdriveLevel:', hyperdriveLevel);
-          return renderCategory('hyperdrive', 'Гипердвигатели', hyperdriveLevel, '⚡');
+          console.log('🔍 Shop: Рендерим гипердвигатели, hyperdriveLevel:', hyperdriveLevel, 'safeHyperdriveLevel:', safeHyperdriveLevel);
+          return renderCategory('hyperdrive', 'Гипердвигатели', safeHyperdriveLevel, '⚡');
         })()}
         
         {/* Энергосети */}
         {(() => {
-          console.log('🔍 Shop: Рендерим энергосети, powerGridLevel:', powerGridLevel);
-          return renderCategory('powerGrid', 'Энергосети', powerGridLevel, '🔌');
+          console.log('🔍 Shop: Рендерим энергосети, powerGridLevel:', powerGridLevel, 'safePowerGridLevel:', safePowerGridLevel);
+          return renderCategory('powerGrid', 'Энергосети', safePowerGridLevel, '🔌');
         })()}
       </div>
     </div>
