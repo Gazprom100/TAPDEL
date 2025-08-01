@@ -59,6 +59,61 @@ class TokenBalanceService {
     }
   }
 
+  // Принудительно обновить баланс пользователя для конкретного токена
+  async updateUserTokenBalance(userId, tokenSymbol, newBalance) {
+    try {
+      const database = await connectToDatabase();
+      
+      const balanceData = {
+        userId,
+        tokenSymbol,
+        balance: newBalance,
+        highScore: 0, // Сбрасываем highScore при принудительном обновлении
+        lastUpdated: new Date(),
+        isActive: true
+      };
+
+      // Обновляем или создаем запись
+      await database.collection('user_token_balances').updateOne(
+        { userId, tokenSymbol },
+        { $set: balanceData },
+        { upsert: true }
+      );
+
+      // Очищаем кеш для этого пользователя
+      this.cache.delete(`${userId}-${tokenSymbol}`);
+
+      console.log(`💾 Принудительно обновлен баланс для пользователя ${userId}, токен ${tokenSymbol}: ${newBalance}`);
+      return true;
+    } catch (error) {
+      console.error('Ошибка принудительного обновления баланса токена:', error);
+      return false;
+    }
+  }
+
+  // Полностью очистить все балансы пользователя
+  async clearAllUserBalances(userId) {
+    try {
+      const database = await connectToDatabase();
+      
+      // Удаляем все записи балансов для пользователя
+      await database.collection('user_token_balances').deleteMany({ userId });
+      
+      // Очищаем кеш для всех токенов этого пользователя
+      for (const [key] of this.cache) {
+        if (key.startsWith(`${userId}-`)) {
+          this.cache.delete(key);
+        }
+      }
+
+      console.log(`🗑️ Очищены все балансы для пользователя ${userId}`);
+      return true;
+    } catch (error) {
+      console.error('Ошибка очистки всех балансов пользователя:', error);
+      return false;
+    }
+  }
+
   // Получить все балансы пользователя по токенам
   async getAllUserTokenBalances(userId) {
     try {

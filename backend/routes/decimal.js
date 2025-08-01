@@ -495,12 +495,17 @@ router.get('/users/:userId/balance', async (req, res) => {
       console.warn('⚠️ Ошибка получения баланса токена:', error);
     }
     
-    // Для активного токена используем gameState.tokens если нет сохраненного баланса
-    // или если сохраненный баланс равен 0
+    // ИСПРАВЛЕНО: Приоритет gameState.tokens над сохраненным балансом
+    // Если gameState.tokens = 0 (сброшено в админке), то игнорируем сохраненный баланс
     let gameBalance = user.gameState?.tokens || 0;
     
-    if (tokenBalance && tokenBalance.balance > 0) {
+    // Используем сохраненный баланс только если gameState.tokens > 0
+    // Это предотвращает возврат баланса после сброса в админке
+    if (tokenBalance && tokenBalance.balance > 0 && gameBalance > 0) {
       gameBalance = tokenBalance.balance;
+      console.log(`💰 Используем сохраненный баланс: ${gameBalance} ${activeToken.symbol}`);
+    } else {
+      console.log(`💰 Используем gameState.tokens: ${gameBalance} ${activeToken.symbol}`);
     }
 
     let workingWalletBalance = 0;

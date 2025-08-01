@@ -651,10 +651,11 @@ router.put('/users/:userId', async (req, res) => {
             const tokenService = require('../services/tokenService');
             const activeToken = await tokenService.getActiveToken();
             
-            await tokenBalanceService.updateUserTokenBalance(userId, activeToken.symbol, 0);
-            console.log(`✅ Очищен сохраненный баланс токена для пользователя ${userId}`);
+            // Полностью очищаем все балансы пользователя
+            await tokenBalanceService.clearAllUserBalances(userId);
+            console.log(`✅ Очищены все сохраненные балансы для пользователя ${userId}`);
           } catch (error) {
-            console.warn(`⚠️ Не удалось очистить сохраненный баланс для ${userId}:`, error);
+            console.warn(`⚠️ Не удалось очистить сохраненные балансы для ${userId}:`, error);
           }
         }
       }
@@ -711,14 +712,16 @@ router.post('/users/bulk-update', async (req, res) => {
         // Очищаем сохраненные балансы токенов для сброшенных пользователей
         try {
           const tokenBalanceService = require('../services/tokenBalanceService');
-          const activeToken = await tokenBalanceService.getActiveToken();
+          const tokenService = require('../services/tokenService');
+          const activeToken = await tokenService.getActiveToken();
           
           for (const userId of userIds) {
             try {
-              await tokenBalanceService.updateUserTokenBalance(userId, activeToken.symbol, 0);
-              console.log(`✅ Очищен сохраненный баланс токена для пользователя ${userId}`);
+              // Полностью очищаем все балансы пользователя
+              await tokenBalanceService.clearAllUserBalances(userId);
+              console.log(`✅ Очищены все сохраненные балансы для пользователя ${userId}`);
             } catch (error) {
-              console.warn(`⚠️ Не удалось очистить сохраненный баланс для ${userId}:`, error);
+              console.warn(`⚠️ Не удалось очистить сохраненные балансы для ${userId}:`, error);
             }
           }
         } catch (error) {
@@ -749,16 +752,85 @@ router.post('/users/bulk-update', async (req, res) => {
     
     // Обновляем лидерборд если нужно
     if (leaderboardUpdates.length > 0) {
-      await database.collection('leaderboard').bulkWrite(leaderboardUpdates);
+      try {
+        await database.collection('leaderboard').bulkWrite(leaderboardUpdates);
+        console.log(`✅ Обновлен лидерборд для ${userIds.length} пользователей`);
+      } catch (error) {
+        console.warn('⚠️ Ошибка обновления лидерборда:', error);
+      }
     }
     
     res.json({ 
       success: true, 
-      message: `Обновлено ${result.modifiedCount} пользователей`,
-      modifiedCount: result.modifiedCount
+      message: `Операция "${action}" выполнена для ${result.modifiedCount} пользователей` 
     });
   } catch (error) {
     console.error('Ошибка массового обновления пользователей:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Принудительное обновление баланса пользователя (для frontend)
+router.post('/users/:userId/force-update-balance', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { newBalance } = req.body;
+    
+    if (newBalance === undefined) {
+      return res.status(400).json({ error: 'newBalance обязателен' });
+    }
+    
+    const database = await connectToDatabase();
+    
+    // Обновляем gameState.tokens
+    const result = await database.collection('users').updateOne(
+      { userId: userId },
+      { 
+        $set: { 
+          'gameState.tokens': newBalance,
+          'gameState.lastSaved': new Date(),
+          updatedAt: new Date()
+        } 
+      }
+    );
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+    
+    // Если сбрасываем баланс, очищаем сохраненные балансы
+    if (newBalance === 0) {
+      try {
+        const tokenBalanceService = require('../services/tokenBalanceService');
+        await tokenBalanceService.clearAllUserBalances(userId);
+        console.log(`✅ Очищены все сохраненные балансы для пользователя ${userId}`);
+      } catch (error) {
+        console.warn(`⚠️ Не удалось очистить сохраненные балансы для ${userId}:`, error);
+      }
+    }
+    
+    // Обновляем лидерборд
+    try {
+      await database.collection('leaderboard').updateOne(
+        { userId: userId },
+        { 
+          $set: { 
+            tokens: newBalance,
+            updatedAt: new Date()
+          } 
+        },
+        { upsert: true }
+      );
+    } catch (error) {
+      console.warn('⚠️ Ошибка обновления лидерборда:', error);
+    }
+    
+    res.json({ 
+      success: true, 
+      message: `Баланс пользователя ${userId} принудительно обновлен на ${newBalance}` 
+    });
+  } catch (error) {
+    console.error('Ошибка принудительного обновления баланса:', error);
     res.status(500).json({ error: error.message });
   }
 });
