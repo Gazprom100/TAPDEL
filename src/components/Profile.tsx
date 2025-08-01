@@ -135,11 +135,17 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       try {
         console.log('🔄 Загружаем данные транзакций для:', profile.userId);
         
-        // Простая загрузка без излишних промисов
+        // Добавляем timeout для предотвращения зависания
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 секунд timeout
+        
         const response = await fetch(`/api/decimal/users/${profile.userId}/transactions`, {
           method: 'GET',
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
         
         if (response.ok) {
           const data = await response.json();
@@ -153,8 +159,10 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         
       } catch (error) {
         console.error('❌ Profile: Ошибка загрузки данных транзакций:', error);
+        // Устанавливаем пустые массивы вместо undefined
         setDeposits([]);
         setWithdrawals([]);
+        setLastTransactionsUpdate(now); // Обновляем время чтобы не повторять запрос
       } finally {
         setIsTransactionsLoading(false);
       }
@@ -680,7 +688,14 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     {/* Если нет транзакций */}
                     {deposits.length === 0 && withdrawals.length === 0 && (!safeTransactions || safeTransactions.length === 0) && (
                       <div className="text-center opacity-50 py-8 text-sm sm:text-base">
-                        История транзакций пуста
+                        {isTransactionsLoading ? (
+                          <div>
+                            <div className="cyber-spinner mx-auto mb-4"></div>
+                            <div>Загрузка транзакций...</div>
+                          </div>
+                        ) : (
+                          'История транзакций пуста'
+                        )}
                       </div>
                     )}
                   </>

@@ -23,6 +23,10 @@ export const Shop: React.FC = () => {
 
   const { config } = useGameConfigStore();
   
+  // FALLBACK: Если данные не загружены, используем дефолтные значения
+  const safeTokens = tokens || 0;
+  const safeActiveTokenSymbol = activeTokenSymbol || 'BOOST';
+  
   const [purchaseInProgress, setPurchaseInProgress] = useState(false);
   const [purchaseAnimation, setPurchaseAnimation] = useState<string | null>(null);
 
@@ -44,13 +48,22 @@ export const Shop: React.FC = () => {
   const generateComponents = useCallback((componentType: string) => {
     if (!config || !config.components) {
       console.warn('⚠️ Config не загружен, используем дефолтные компоненты');
-      return [];
+      // Возвращаем дефолтные компоненты вместо пустого массива
+      return [
+        { level: 'Level 1', cost: 100, bonus: 1, power: 1, gear: 1, efficiency: 1, speedMultiplier: 1.1 },
+        { level: 'Level 2', cost: 200, bonus: 2, power: 2, gear: 2, efficiency: 2, speedMultiplier: 1.2 },
+        { level: 'Level 3', cost: 400, bonus: 4, power: 4, gear: 4, efficiency: 4, speedMultiplier: 1.3 }
+      ];
     }
     
     const configComponent = config.components[componentType as keyof typeof config.components];
     if (!configComponent) {
-      console.warn(`⚠️ Компонент ${componentType} не найден в конфиге`);
-      return [];
+      console.warn(`⚠️ Компонент ${componentType} не найден в конфиге, используем дефолтные`);
+      return [
+        { level: 'Level 1', cost: 100, bonus: 1, power: 1, gear: 1, efficiency: 1, speedMultiplier: 1.1 },
+        { level: 'Level 2', cost: 200, bonus: 2, power: 2, gear: 2, efficiency: 2, speedMultiplier: 1.2 },
+        { level: 'Level 3', cost: 400, bonus: 4, power: 4, gear: 4, efficiency: 4, speedMultiplier: 1.3 }
+      ];
     }
     
     const components = [];
@@ -155,7 +168,7 @@ export const Shop: React.FC = () => {
       return;
     }
 
-    const totalBalance = tokens;
+    const totalBalance = safeTokens;
     const cost = nextUpgrade.cost;
     
     console.log(`🛒 Попытка апгрейда ${type} до ${nextUpgrade.level}:`, {
@@ -166,8 +179,8 @@ export const Shop: React.FC = () => {
     });
     
     if (totalBalance < cost) {
-      console.warn(`❌ Недостаточно средств: нужно ${cost}, доступно ${totalBalance} ${activeTokenSymbol || 'DEL'}`);
-      alert(`Недостаточно средств! Нужно ${cost} ${activeTokenSymbol || 'DEL'}, у вас ${totalBalance} ${activeTokenSymbol || 'DEL'}`);
+      console.warn(`❌ Недостаточно средств: нужно ${cost}, доступно ${totalBalance} ${safeActiveTokenSymbol}`);
+      alert(`Недостаточно средств! Нужно ${cost} ${safeActiveTokenSymbol}, у вас ${totalBalance} ${safeActiveTokenSymbol}`);
       return;
     }
     
@@ -177,7 +190,7 @@ export const Shop: React.FC = () => {
     }
 
     try {
-      console.log(`🛒 Начинаем апгрейд ${type} до ${nextUpgrade.level} за ${cost} ${activeTokenSymbol || 'DEL'}`);
+      console.log(`🛒 Начинаем апгрейд ${type} до ${nextUpgrade.level} за ${cost} ${safeActiveTokenSymbol}`);
       setPurchaseInProgress(true);
       
       // Сначала тратим токены и проверяем успех с таймаутом
@@ -258,7 +271,7 @@ export const Shop: React.FC = () => {
     const currentComponent = getCurrentComponent(type, currentLevel);
     const nextUpgrade = getNextUpgrade(type, currentLevel);
     const isMaxLevel = !nextUpgrade;
-    const canUpgrade = nextUpgrade && tokens >= nextUpgrade.cost && !purchaseInProgress;
+    const canUpgrade = nextUpgrade && safeTokens >= nextUpgrade.cost && !purchaseInProgress;
     const isAnimating = purchaseAnimation === nextUpgrade?.level;
 
     return (
@@ -367,7 +380,7 @@ export const Shop: React.FC = () => {
               minWidth: '120px'
             }}
           >
-            {isMaxLevel ? 'Максимум' : `${nextUpgrade?.cost || 0} ${activeTokenSymbol || 'DEL'}`}
+            {isMaxLevel ? 'Максимум' : `${nextUpgrade?.cost || 0} ${safeActiveTokenSymbol}`}
           </button>
         </div>
       </div>
