@@ -180,7 +180,7 @@ export const useGameStore = create<GameStore>()(
         
         console.log('✅ Fallback профиль установлен, игра готова');
         
-        // ПРИНУДИТЕЛЬНОЕ ЗАВЕРШЕНИЕ ЧЕРЕЗ 2 СЕКУНДЫ
+        // ПРИНУДИТЕЛЬНО ЗАВЕРШЕНИЕ ЧЕРЕЗ 2 СЕКУНДЫ
         const forceComplete = setTimeout(() => {
           console.warn('🚨 Force complete - принудительно завершаем initializeUser');
           set({ isLoading: false, error: null });
@@ -1025,6 +1025,35 @@ export const useGameStore = create<GameStore>()(
           
         } catch (error) {
           console.error('❌ Ошибка обновления BOOST баланса:', error);
+          // При ошибке не меняем баланс, оставляем текущий
+        }
+      },
+
+      // Принудительное обновление баланса (для админки)
+      forceUpdateBalance: async (newBalance: number) => {
+        try {
+          const state = get();
+          if (!state.profile?.userId) return;
+          
+          // Принудительно устанавливаем новый баланс
+          set({ tokens: newBalance });
+          console.log(`💰 Принудительно установлен баланс: ${newBalance} BOOST`);
+          
+          // Очищаем кеш в localStorage если сбрасываем баланс
+          if (newBalance === 0) {
+            try {
+              localStorage.removeItem('tapdel-storage');
+              console.log('🗑️ Очищен кеш localStorage при сбросе баланса');
+            } catch (error) {
+              console.warn('⚠️ Не удалось очистить localStorage:', error);
+            }
+          }
+          
+          // Обновляем рейтинг
+          await get().refreshLeaderboard();
+          
+        } catch (error) {
+          console.error('❌ Ошибка принудительного обновления баланса:', error);
         }
       },
 

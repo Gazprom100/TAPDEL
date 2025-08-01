@@ -643,6 +643,20 @@ router.put('/users/:userId', async (req, res) => {
           },
           { upsert: true }
         );
+        
+        // Если сбрасываем баланс, очищаем сохраненный баланс токена
+        if (updates.tokens === 0) {
+          try {
+            const tokenBalanceService = require('../services/tokenBalanceService');
+            const tokenService = require('../services/tokenService');
+            const activeToken = await tokenService.getActiveToken();
+            
+            await tokenBalanceService.updateUserTokenBalance(userId, activeToken.symbol, 0);
+            console.log(`✅ Очищен сохраненный баланс токена для пользователя ${userId}`);
+          } catch (error) {
+            console.warn(`⚠️ Не удалось очистить сохраненный баланс для ${userId}:`, error);
+          }
+        }
       }
     }
     
@@ -693,6 +707,23 @@ router.post('/users/bulk-update', async (req, res) => {
             upsert: true
           }
         }));
+        
+        // Очищаем сохраненные балансы токенов для сброшенных пользователей
+        try {
+          const tokenBalanceService = require('../services/tokenBalanceService');
+          const activeToken = await tokenBalanceService.getActiveToken();
+          
+          for (const userId of userIds) {
+            try {
+              await tokenBalanceService.updateUserTokenBalance(userId, activeToken.symbol, 0);
+              console.log(`✅ Очищен сохраненный баланс токена для пользователя ${userId}`);
+            } catch (error) {
+              console.warn(`⚠️ Не удалось очистить сохраненный баланс для ${userId}:`, error);
+            }
+          }
+        } catch (error) {
+          console.warn('⚠️ Ошибка очистки сохраненных балансов токенов:', error);
+        }
         break;
       case 'delete':
         // Удаляем пользователей и связанные данные
