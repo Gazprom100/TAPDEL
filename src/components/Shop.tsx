@@ -27,6 +27,22 @@ export const Shop: React.FC = () => {
   const safeTokens = tokens || 0;
   const safeActiveTokenSymbol = activeTokenSymbol || 'BOOST';
   
+  // Отладочная информация
+  console.log('🔍 Shop Component Debug:', {
+    tokens: tokens,
+    safeTokens: safeTokens,
+    activeTokenSymbol: activeTokenSymbol,
+    safeActiveTokenSymbol: safeActiveTokenSymbol,
+    config: config,
+    hasConfig: !!config,
+    hasComponents: !!config?.components,
+    engineLevel: engineLevel,
+    gearboxLevel: gearboxLevel,
+    batteryLevel: batteryLevel,
+    hyperdriveLevel: hyperdriveLevel,
+    powerGridLevel: powerGridLevel
+  });
+  
   const [purchaseInProgress, setPurchaseInProgress] = useState(false);
   const [purchaseAnimation, setPurchaseAnimation] = useState<string | null>(null);
 
@@ -46,24 +62,35 @@ export const Shop: React.FC = () => {
 
   // Генерируем компоненты из настроек с проверкой на config
   const generateComponents = useCallback((componentType: string) => {
+    console.log('🔍 Shop: generateComponents вызвана для:', componentType, {
+      hasConfig: !!config,
+      hasComponents: !!config?.components,
+      componentType: componentType,
+      configComponents: config?.components
+    });
+    
     if (!config || !config.components) {
       console.warn('⚠️ Config не загружен, используем дефолтные компоненты');
       // Возвращаем дефолтные компоненты вместо пустого массива
-      return [
+      const defaultComponents = [
         { level: 'Level 1', cost: 100, bonus: 1, power: 1, gear: 1, efficiency: 1, speedMultiplier: 1.1 },
         { level: 'Level 2', cost: 200, bonus: 2, power: 2, gear: 2, efficiency: 2, speedMultiplier: 1.2 },
         { level: 'Level 3', cost: 400, bonus: 4, power: 4, gear: 4, efficiency: 4, speedMultiplier: 1.3 }
       ];
+      console.log('✅ Shop: Возвращаем дефолтные компоненты:', defaultComponents);
+      return defaultComponents;
     }
     
     const configComponent = config.components[componentType as keyof typeof config.components];
     if (!configComponent) {
       console.warn(`⚠️ Компонент ${componentType} не найден в конфиге, используем дефолтные`);
-      return [
+      const defaultComponents = [
         { level: 'Level 1', cost: 100, bonus: 1, power: 1, gear: 1, efficiency: 1, speedMultiplier: 1.1 },
         { level: 'Level 2', cost: 200, bonus: 2, power: 2, gear: 2, efficiency: 2, speedMultiplier: 1.2 },
         { level: 'Level 3', cost: 400, bonus: 4, power: 4, gear: 4, efficiency: 4, speedMultiplier: 1.3 }
       ];
+      console.log('✅ Shop: Возвращаем дефолтные компоненты для отсутствующего типа:', defaultComponents);
+      return defaultComponents;
     }
     
     const components = [];
@@ -82,6 +109,8 @@ export const Shop: React.FC = () => {
         speedMultiplier: bonus / 10 + 1
       });
     }
+    
+    console.log('✅ Shop: Сгенерированы компоненты для', componentType, ':', components);
     return components;
   }, [config]);
 
@@ -268,11 +297,27 @@ export const Shop: React.FC = () => {
     currentLevel: string,
     icon: string
   ) => {
+    console.log('🔍 Shop: renderCategory вызвана для:', type, {
+      title,
+      currentLevel,
+      icon,
+      safeTokens,
+      purchaseInProgress
+    });
+    
     const currentComponent = getCurrentComponent(type, currentLevel);
     const nextUpgrade = getNextUpgrade(type, currentLevel);
     const isMaxLevel = !nextUpgrade;
     const canUpgrade = nextUpgrade && safeTokens >= nextUpgrade.cost && !purchaseInProgress;
     const isAnimating = purchaseAnimation === nextUpgrade?.level;
+
+    console.log('🔍 Shop: renderCategory данные для', type, {
+      currentComponent,
+      nextUpgrade,
+      isMaxLevel,
+      canUpgrade,
+      isAnimating
+    });
 
     return (
       <div
@@ -397,19 +442,34 @@ export const Shop: React.FC = () => {
     >
       <div className="space-y-6">
         {/* Двигатели */}
-        {renderCategory('engine', 'Двигатели', engineLevel, '🚀')}
+        {(() => {
+          console.log('🔍 Shop: Рендерим двигатели, engineLevel:', engineLevel);
+          return renderCategory('engine', 'Двигатели', engineLevel, '🚀');
+        })()}
         
         {/* Коробки передач */}
-        {renderCategory('gearbox', 'Коробки передач', gearboxLevel, '⚙️')}
+        {(() => {
+          console.log('🔍 Shop: Рендерим коробки передач, gearboxLevel:', gearboxLevel);
+          return renderCategory('gearbox', 'Коробки передач', gearboxLevel, '⚙️');
+        })()}
         
         {/* Батареи */}
-        {renderCategory('battery', 'Батареи', batteryLevel, '🔋')}
+        {(() => {
+          console.log('🔍 Shop: Рендерим батареи, batteryLevel:', batteryLevel);
+          return renderCategory('battery', 'Батареи', batteryLevel, '🔋');
+        })()}
         
         {/* Гипердвигатели */}
-        {renderCategory('hyperdrive', 'Гипердвигатели', hyperdriveLevel, '⚡')}
+        {(() => {
+          console.log('🔍 Shop: Рендерим гипердвигатели, hyperdriveLevel:', hyperdriveLevel);
+          return renderCategory('hyperdrive', 'Гипердвигатели', hyperdriveLevel, '⚡');
+        })()}
         
         {/* Энергосети */}
-        {renderCategory('powerGrid', 'Энергосети', powerGridLevel, '🔌')}
+        {(() => {
+          console.log('🔍 Shop: Рендерим энергосети, powerGridLevel:', powerGridLevel);
+          return renderCategory('powerGrid', 'Энергосети', powerGridLevel, '🔌');
+        })()}
       </div>
     </div>
   );

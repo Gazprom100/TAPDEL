@@ -120,6 +120,11 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   useEffect(() => {
     const loadTransactionsData = async () => {
       if (activeTab !== 'transactions' || !profile?.userId || isTransactionsLoading) {
+        console.log('🔄 Profile: Пропускаем загрузку транзакций:', { 
+          activeTab, 
+          userId: profile?.userId, 
+          isTransactionsLoading 
+        });
         return;
       }
 
@@ -131,13 +136,15 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       }
       
       setIsTransactionsLoading(true);
+      console.log('🔄 Profile: Начинаем загрузку транзакций для:', profile.userId);
       
       try {
-        console.log('🔄 Загружаем данные транзакций для:', profile.userId);
-        
         // Добавляем timeout для предотвращения зависания
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 секунд timeout
+        const timeoutId = setTimeout(() => {
+          console.warn('⏰ Timeout загрузки транзакций');
+          controller.abort();
+        }, 10000); // 10 секунд timeout
         
         const response = await fetch(`/api/decimal/users/${profile.userId}/transactions`, {
           method: 'GET',
@@ -149,12 +156,13 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         
         if (response.ok) {
           const data = await response.json();
+          console.log('✅ Profile: Получены данные транзакций:', data);
           setDeposits(data.deposits || []);
           setWithdrawals(data.withdrawals || []);
           setLastTransactionsUpdate(now);
           console.log('✅ Данные транзакций обновлены');
         } else {
-          throw new Error(`HTTP ${response.status}`);
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
         
       } catch (error) {
@@ -165,11 +173,13 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         setLastTransactionsUpdate(now); // Обновляем время чтобы не повторять запрос
       } finally {
         setIsTransactionsLoading(false);
+        console.log('🏁 Profile: Загрузка транзакций завершена');
       }
     };
 
     // Загружаем данные при первом открытии вкладки транзакций
     if (activeTab === 'transactions' && profile?.userId && deposits.length === 0 && withdrawals.length === 0) {
+      console.log('🔄 Profile: Запускаем загрузку транзакций');
       loadTransactionsData();
     }
   }, [activeTab, profile?.userId, deposits.length, withdrawals.length, isTransactionsLoading, lastTransactionsUpdate]);
