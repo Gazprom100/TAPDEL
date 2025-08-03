@@ -4,11 +4,7 @@ import { useGameConfigStore } from './store/gameConfigStore'
 import { useGameMechanics } from './hooks/useGameMechanics'
 import { useFullscreen } from './hooks/useFullscreen'
 import { COMPONENTS } from './types/game'
-import { DebugPanel } from './components/DebugPanel'
-import { InitializationTest } from './components/InitializationTest'
-import { LoadingTest } from './components/LoadingTest'
 import { ServiceWorkerManager } from './components/ServiceWorkerManager'
-import { TelegramDiagnostics } from './components/TelegramDiagnostics';
 import './styles/effects.css'
 
 // Lazy loading для тяжелых компонентов
@@ -62,7 +58,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        console.log('🚀 Начало инициализации приложения...');
+        // console.log('🚀 Начало инициализации приложения...');
         setIsLoading(true);
         setError(null);
         
@@ -73,19 +69,19 @@ const App: React.FC = () => {
         
         // Emergency fallback - принудительно завершаем загрузку через 6 секунд
         const emergencyTimeout = setTimeout(() => {
-          console.warn('🚨 Emergency fallback - принудительно завершаем загрузку');
+          // console.warn('🚨 Emergency fallback - принудительно завершаем загрузку');
           setIsLoading(false);
         }, 6000);
         
         // ДОПОЛНИТЕЛЬНЫЙ FALLBACK - принудительно завершаем через 3 секунды
         const forceTimeout = setTimeout(() => {
-          console.warn('🚨 Force fallback - принудительно завершаем загрузку через 3 секунды');
+          // console.warn('🚨 Force fallback - принудительно завершаем загрузку через 3 секунды');
           setIsLoading(false);
         }, 3000);
         
         const initPromise = (async () => {
           // Этап 1: Быстрые операции (синхронно)
-          console.log('⚡ Этап 1: Быстрые операции...');
+          // console.log('⚡ Этап 1: Быстрые операции...');
           
           // Очистка localStorage (синхронно)
           const problematicOldUserId = localStorage.getItem('oldUserId');
@@ -114,31 +110,31 @@ const App: React.FC = () => {
             }
           } else if (!userId) {
             // Fallback для браузера без Telegram WebApp
-            console.log('⚠️ Telegram WebApp недоступен, создаем демо пользователя');
+            // console.log('⚠️ Telegram WebApp недоступен, создаем демо пользователя');
             userId = `browser-user-${Math.floor(Math.random() * 1000000000)}`;
             localStorage.setItem('userId', userId);
           }
           
-          console.log('✅ Этап 1 завершен, userId:', userId);
+          // console.log('✅ Этап 1 завершен, userId:', userId);
           
           // Этап 2: Параллельные API вызовы с таймаутами
-          console.log('🔄 Этап 2: Параллельные API вызовы...');
+          // console.log('🔄 Этап 2: Параллельные API вызовы...');
           
           const [tokenResult, configResult] = await Promise.allSettled([
             refreshActiveToken().catch(err => {
-              console.warn('⚠️ Ошибка обновления токена:', err);
+              // console.warn('⚠️ Ошибка обновления токена:', err);
               return null;
             }),
             loadGameConfig().catch(err => {
-              console.warn('⚠️ Ошибка загрузки конфигурации:', err);
+              // console.warn('⚠️ Ошибка загрузки конфигурации:', err);
               return null;
             })
           ]);
           
-          console.log('✅ Этап 2 завершен');
+          // console.log('✅ Этап 2 завершен');
           
           // Этап 3: Инициализация пользователя с таймаутом
-          console.log('👤 Этап 3: Инициализация пользователя...');
+          // console.log('👤 Этап 3: Инициализация пользователя...');
           
           if (userId) {
             try {
@@ -149,17 +145,17 @@ const App: React.FC = () => {
                   setTimeout(() => reject(new Error('Таймаут инициализации пользователя')), 3000)
                 )
               ]);
-              console.log('✅ Пользователь инициализирован');
+              // console.log('✅ Пользователь инициализирован');
             } catch (userError) {
-              console.error('❌ Ошибка инициализации пользователя:', userError);
+              // console.error('❌ Ошибка инициализации пользователя:', userError);
               // Продолжаем без пользователя - приложение должно работать
-              console.log('⚠️ Продолжаем без инициализации пользователя');
+              // console.log('⚠️ Продолжаем без инициализации пользователя');
             }
           } else {
-            console.warn('⚠️ Не удалось определить userId, продолжаем без пользователя');
+            // console.warn('⚠️ Не удалось определить userId, продолжаем без пользователя');
           }
           
-          console.log('✅ Инициализация приложения завершена');
+          // console.log('✅ Инициализация приложения завершена');
         })();
         
         // Ждем инициализацию с таймаутом
@@ -168,12 +164,12 @@ const App: React.FC = () => {
         clearTimeout(emergencyTimeout);
         clearTimeout(forceTimeout);
         setIsLoading(false);
-        console.log('✅ isLoading установлен в false');
+        // console.log('✅ isLoading установлен в false');
       } catch (err) {
-        console.error('❌ Ошибка инициализации приложения:', err);
+        // console.error('❌ Ошибка инициализации приложения:', err);
         setError(err instanceof Error ? err.message : 'Неизвестная ошибка');
         setIsLoading(false);
-        console.log('✅ isLoading установлен в false (ошибка)');
+        // console.log('✅ isLoading установлен в false (ошибка)');
       }
     };
     
@@ -264,15 +260,15 @@ const App: React.FC = () => {
     const handleWindowFocus = async () => {
       if (isSyncing) return; // Предотвращаем множественные вызовы
       
-      console.log('👁️ Окно получило фокус - принудительная синхронизация');
+      // console.log('👁️ Окно получило фокус - принудительная синхронизация');
       isSyncing = true;
       
       try {
         const { syncGameState, refreshLeaderboard } = useGameStore.getState();
         await Promise.allSettled([syncGameState(), refreshLeaderboard()]);
-        console.log('✅ Принудительная синхронизация при фокусе завершена');
+        // console.log('✅ Принудительная синхронизация при фокусе завершена');
       } catch (error) {
-        console.error('❌ Ошибка принудительной синхронизации при фокусе:', error);
+        // console.error('❌ Ошибка принудительной синхронизации при фокусе:', error);
       } finally {
         isSyncing = false;
       }
@@ -281,15 +277,15 @@ const App: React.FC = () => {
     const handleVisibilityChange = async () => {
       if (document.hidden || isSyncing) return; // Предотвращаем множественные вызовы
       
-      console.log('👁️ Страница стала видимой - принудительная синхронизация');
+      // console.log('👁️ Страница стала видимой - принудительная синхронизация');
       isSyncing = true;
       
       try {
         const { syncGameState, refreshLeaderboard } = useGameStore.getState();
         await Promise.allSettled([syncGameState(), refreshLeaderboard()]);
-        console.log('✅ Принудительная синхронизация при показе страницы завершена');
+        // console.log('✅ Принудительная синхронизация при показе страницы завершена');
       } catch (error) {
-        console.error('❌ Ошибка принудительной синхронизации при показе страницы:', error);
+        // console.error('❌ Ошибка принудительной синхронизации при показе страницы:', error);
       } finally {
         isSyncing = false;
       }
@@ -306,7 +302,7 @@ const App: React.FC = () => {
 
   // Показываем состояние загрузки
   if (isLoading) {
-    console.log('🔄 Рендеринг: Состояние загрузки (isLoading=true)');
+    // console.log('🔄 Рендеринг: Состояние загрузки (isLoading=true)');
     return (
       <div className="cyber-container" style={{
         height: '100vh',
@@ -328,14 +324,13 @@ const App: React.FC = () => {
         </div>
         
         {/* Показываем диагностику при длительной загрузке */}
-        <TelegramDiagnostics />
       </div>
     );
   }
 
   // Показываем ошибку
   if (error) {
-    console.log('❌ Рендеринг: Состояние ошибки (error=', error, ')');
+    // console.log('❌ Рендеринг: Состояние ошибки (error=', error, ')');
     return (
       <div className="cyber-container" style={{
         height: '100vh',
@@ -360,18 +355,18 @@ const App: React.FC = () => {
     );
   }
 
-  console.log('🎮 Рендеринг: Основной игровой интерфейс (isLoading=false, error=null)');
-  console.log('🎮 Состояние игры:', {
-    tokens,
-    engineLevel,
-    gearboxLevel,
-    batteryLevel,
-    powerGridLevel,
-    activeTokenSymbol,
-    fuelLevel,
-    hyperdriveCharge,
-    gear
-  });
+  // console.log('🎮 Рендеринг: Основной игровой интерфейс (isLoading=false, error=null)');
+  // console.log('🎮 Состояние игры:', {
+  //   tokens,
+  //   engineLevel,
+  //   gearboxLevel,
+  //   batteryLevel,
+  //   powerGridLevel,
+  //   activeTokenSymbol,
+  //   fuelLevel,
+  //   hyperdriveCharge,
+  //   gear
+  // });
 
   return (
     <div 
@@ -727,20 +722,8 @@ const App: React.FC = () => {
         </Suspense>
       )}
 
-      {/* Debug Panel для диагностики */}
-      {/* <DebugPanel /> */}
-      
-      {/* Initialization Test для диагностики */}
-      {/* <InitializationTest /> */}
-      
-      {/* Loading Test для проверки загрузки */}
-      {/* <LoadingTest /> */}
-      
       {/* Service Worker Manager */}
-      {/* <ServiceWorkerManager /> */}
-
-      {/* Telegram Diagnostics - показываем только при загрузке */}
-      {isLoading && <TelegramDiagnostics />}
+      <ServiceWorkerManager />
     </div>
   );
 };

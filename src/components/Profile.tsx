@@ -41,15 +41,15 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const safeActiveTokenSymbol = activeTokenSymbol || 'BOOST';
   
   // Отладочная информация для проверки профиля
-  console.log('🔍 Profile Component Debug:', { 
-    profile: safeProfile,
-    username: safeProfile?.username,
-    telegramUsername: safeProfile?.telegramUsername,
-    userId: safeProfile?.userId,
-    isEvgeni: safeProfile?.username === 'Evgeni_Krasnov' || safeProfile?.telegramUsername === 'Evgeni_Krasnov',
-    // Временно показываем кнопку для всех для отладки
-    showAdminButton: true
-  });
+  // console.log('🔍 Profile Component Debug:', { 
+  //   profile: safeProfile,
+  //   username: safeProfile?.username,
+  //   telegramUsername: safeProfile?.telegramUsername,
+  //   userId: safeProfile?.userId,
+  //   isEvgeni: safeProfile?.username === 'Evgeni_Krasnov' || safeProfile?.telegramUsername === 'Evgeni_Krasnov',
+  //   // Временно показываем кнопку для всех для отладки
+  //   showAdminButton: true
+  // });
   
   const [activeTab, setActiveTab] = useState<Tab>('balance');
   const [withdrawAmount, setWithdrawAmount] = useState('');
@@ -92,10 +92,10 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       if (activeTab === 'leaderboard' && !isLeaderboardLoading) {
         setIsLeaderboardLoading(true);
         try {
-          console.log('🔄 Profile: Обновление лидерборда...');
+          // console.log('🔄 Profile: Обновление лидерборда...');
           await refreshLeaderboard();
         } catch (error) {
-          console.error('❌ Profile: Ошибка обновления лидерборда:', error);
+          // console.error('❌ Profile: Ошибка обновления лидерборда:', error);
           // Не показываем ошибку пользователю, просто логируем
         } finally {
           setIsLeaderboardLoading(false);
@@ -123,29 +123,29 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         return;
       }
 
-      // Дебаунсинг: не загружаем чаще чем раз в 10 секунд
+      // Дебаунсинг: не загружаем чаще чем раз в 15 секунд
       const now = Date.now();
-      if (now - lastTransactionsUpdate < 10000) {
+      if (now - lastTransactionsUpdate < 15000) {
         return;
       }
       
       setIsTransactionsLoading(true);
       
-      // ПРИНУДИТЕЛЬНЫЙ ТАЙМАУТ - 3 СЕКУНДЫ
+      // ПРИНУДИТЕЛЬНЫЙ ТАЙМАУТ - 2 СЕКУНДЫ
       const forceTimeout = setTimeout(() => {
-        console.warn('🚨 Force timeout транзакций - устанавливаем пустые данные');
+        // console.warn('🚨 Force timeout транзакций - устанавливаем пустые данные');
         setDeposits([]);
         setWithdrawals([]);
         setLastTransactionsUpdate(Date.now());
         setIsTransactionsLoading(false);
-      }, 3000);
+      }, 2000);
       
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => {
-          console.warn('⏰ Timeout загрузки транзакций');
+          // console.warn('⏰ Timeout загрузки транзакций');
           controller.abort();
-        }, 5000); // 5 секунд timeout
+        }, 3000); // 3 секунды timeout
         
         const response = await fetch(`/api/decimal/users/${profile.userId}/transactions`, {
           method: 'GET',
@@ -166,7 +166,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         }
         
       } catch (error) {
-        console.error('❌ Profile: Ошибка загрузки данных транзакций:', error);
+        // console.error('❌ Profile: Ошибка загрузки данных транзакций:', error);
         setDeposits([]);
         setWithdrawals([]);
         setLastTransactionsUpdate(now);
@@ -176,10 +176,11 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       }
     };
 
-    if (activeTab === 'transactions' && profile?.userId && deposits.length === 0 && withdrawals.length === 0) {
+    // Загружаем транзакции только при переключении на вкладку
+    if (activeTab === 'transactions' && profile?.userId) {
       loadTransactionsData();
     }
-  }, [activeTab, profile?.userId, deposits.length, withdrawals.length, isTransactionsLoading, lastTransactionsUpdate]);
+  }, [activeTab, profile?.userId, isTransactionsLoading, lastTransactionsUpdate]);
 
   // Функция для вывода токенов
   const handleWithdraw = useCallback(async () => {
@@ -380,13 +381,13 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             profile?.telegramUsername === 'Evgeni_Krasnov' ||
             profile?.telegramFirstName === 'Evgeni') && (
             // Отладочная информация
-            console.log('🔍 ADMIN Button Debug:', { 
-              username: profile?.username, 
-              telegramUsername: profile?.telegramUsername,
-              telegramFirstName: profile?.telegramFirstName,
-              userId: profile?.userId,
-              showAdmin: true
-            }),
+            // console.log('🔍 ADMIN Button Debug:', { 
+            //   username: profile?.username, 
+            //   telegramUsername: profile?.telegramUsername,
+            //   telegramFirstName: profile?.telegramFirstName,
+            //   userId: profile?.userId,
+            //   showAdmin: true
+            // }),
             <button
               onClick={(e) => {
                 e.stopPropagation();
