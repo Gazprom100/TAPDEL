@@ -7,40 +7,40 @@ const STATIC_ASSETS = [
 
 // Устанавливаем кэш при установке SW
 self.addEventListener('install', (event) => {
-  console.log('Service Worker: Installing...');
+  // console.log('Service Worker: Installing...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Service Worker: Caching static assets');
+        // console.log('Service Worker: Caching static assets');
         return cache.addAll(STATIC_ASSETS);
       })
       .then(() => {
-        console.log('Service Worker: Installed successfully');
+        // console.log('Service Worker: Installed successfully');
         return self.skipWaiting();
       })
       .catch((error) => {
-        console.error('Service Worker: Installation failed:', error);
+        // console.error('Service Worker: Installation failed:', error);
       })
   );
 });
 
 // Активируем SW и очищаем старые кэши
 self.addEventListener('activate', (event) => {
-  console.log('Service Worker: Activating...');
+  // console.log('Service Worker: Activating...');
   event.waitUntil(
     caches.keys()
       .then((cacheNames) => {
         return Promise.all(
           cacheNames.map((cacheName) => {
             if (cacheName !== CACHE_NAME) {
-              console.log('Service Worker: Deleting old cache:', cacheName);
+              // console.log('Service Worker: Deleting old cache:', cacheName);
               return caches.delete(cacheName);
             }
           })
         );
       })
       .then(() => {
-        console.log('Service Worker: Activated successfully');
+        // console.log('Service Worker: Activated successfully');
         return self.clients.claim();
       })
   );
@@ -71,7 +71,7 @@ self.addEventListener('fetch', (event) => {
       url.pathname.endsWith('.ts') || 
       url.pathname.endsWith('.tsx') ||
       url.pathname.endsWith('.mjs')) {
-    console.log('Service Worker: Skipping JavaScript module:', url.pathname);
+    // console.log('Service Worker: Skipping JavaScript module:', url.pathname);
     return;
   }
 
@@ -79,14 +79,14 @@ self.addEventListener('fetch', (event) => {
   if (request.destination === 'style' ||
       url.pathname.endsWith('.css') || 
       url.pathname.includes('?import')) {
-    console.log('Service Worker: Skipping CSS module:', url.pathname);
+    // console.log('Service Worker: Skipping CSS module:', url.pathname);
     return;
   }
 
   // Пропускаем HTML модули
   if (request.destination === 'document' ||
       url.pathname.endsWith('.html')) {
-    console.log('Service Worker: Skipping HTML module:', url.pathname);
+    // console.log('Service Worker: Skipping HTML module:', url.pathname);
     return;
   }
 
@@ -95,7 +95,7 @@ self.addEventListener('fetch', (event) => {
     caches.match(request)
       .then((response) => {
         if (response) {
-          console.log('Service Worker: Serving from cache:', url.pathname);
+          // console.log('Service Worker: Serving from cache:', url.pathname);
           return response;
         }
 
@@ -126,7 +126,7 @@ self.addEventListener('fetch', (event) => {
 
 // Обработка push уведомлений
 self.addEventListener('push', (event) => {
-  console.log('Service Worker: Push event received');
+  // console.log('Service Worker: Push event received');
   
   const options = {
     body: 'TAPDEL: Новое уведомление!',
@@ -146,7 +146,7 @@ self.addEventListener('push', (event) => {
 
 // Обработка клика по уведомлению
 self.addEventListener('notificationclick', (event) => {
-  console.log('Service Worker: Notification clicked');
+  // console.log('Service Worker: Notification clicked');
   
   event.notification.close();
   

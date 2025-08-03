@@ -118,43 +118,52 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
   // Отдельный useEffect для загрузки транзакций
   useEffect(() => {
+    let isMounted = true;
+    let abortController: AbortController | null = null;
+
     const loadTransactionsData = async () => {
       if (activeTab !== 'transactions' || !profile?.userId || isTransactionsLoading) {
         return;
       }
 
-      // Дебаунсинг: не загружаем чаще чем раз в 15 секунд
+      // Дебаунсинг: не загружаем чаще чем раз в 20 секунд
       const now = Date.now();
-      if (now - lastTransactionsUpdate < 15000) {
+      if (now - lastTransactionsUpdate < 20000) {
         return;
       }
       
       setIsTransactionsLoading(true);
       
-      // ПРИНУДИТЕЛЬНЫЙ ТАЙМАУТ - 2 СЕКУНДЫ
+      // Создаем новый AbortController для этого запроса
+      abortController = new AbortController();
+      
+      // ПРИНУДИТЕЛЬНЫЙ ТАЙМАУТ - 1.5 СЕКУНДЫ
       const forceTimeout = setTimeout(() => {
-        // console.warn('🚨 Force timeout транзакций - устанавливаем пустые данные');
-        setDeposits([]);
-        setWithdrawals([]);
-        setLastTransactionsUpdate(Date.now());
-        setIsTransactionsLoading(false);
-      }, 2000);
+        if (isMounted) {
+          // console.warn('🚨 Force timeout транзакций - устанавливаем пустые данные');
+          setDeposits([]);
+          setWithdrawals([]);
+          setLastTransactionsUpdate(Date.now());
+          setIsTransactionsLoading(false);
+        }
+      }, 1500);
       
       try {
-        const controller = new AbortController();
         const timeoutId = setTimeout(() => {
           // console.warn('⏰ Timeout загрузки транзакций');
-          controller.abort();
-        }, 3000); // 3 секунды timeout
+          abortController?.abort();
+        }, 2500); // 2.5 секунды timeout
         
         const response = await fetch(`/api/decimal/users/${profile.userId}/transactions`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
-          signal: controller.signal
+          signal: abortController.signal
         });
         
         clearTimeout(timeoutId);
         clearTimeout(forceTimeout);
+        
+        if (!isMounted) return;
         
         if (response.ok) {
           const data = await response.json();
@@ -166,13 +175,17 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         }
         
       } catch (error) {
+        if (!isMounted) return;
+        
         // console.error('❌ Profile: Ошибка загрузки данных транзакций:', error);
         setDeposits([]);
         setWithdrawals([]);
         setLastTransactionsUpdate(now);
       } finally {
         clearTimeout(forceTimeout);
-        setIsTransactionsLoading(false);
+        if (isMounted) {
+          setIsTransactionsLoading(false);
+        }
       }
     };
 
@@ -180,6 +193,13 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     if (activeTab === 'transactions' && profile?.userId) {
       loadTransactionsData();
     }
+
+    return () => {
+      isMounted = false;
+      if (abortController) {
+        abortController.abort();
+      }
+    };
   }, [activeTab, profile?.userId, isTransactionsLoading, lastTransactionsUpdate]);
 
   // Функция для вывода токенов
@@ -542,7 +562,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     {Array.isArray(deposits) && deposits.length > 0 && (
                       <div className="space-y-2">
                         <div className="cyber-text text-base font-bold">Депозиты BOOST</div>
-                        {deposits.map((deposit: any) => {
+                        {deposits.slice(0, 10).map((deposit: any) => {
                           const isExpired = deposit.status === 'expired';
                           const expiresIn = !isExpired ? Math.max(0, Math.floor((new Date(deposit.expiresAt).getTime() - Date.now()) / 1000)) : 0;
                           return (
@@ -599,6 +619,11 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                             </div>
                           );
                         })}
+                        {deposits.length > 10 && (
+                          <div className="text-center text-xs opacity-70 py-2">
+                            Показано {Math.min(10, deposits.length)} из {deposits.length} депозитов
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -606,7 +631,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     {withdrawals.length > 0 && (
                       <div className="space-y-2">
                         <div className="cyber-text text-base font-bold">Выводы BOOST</div>
-                        {withdrawals.map((withdrawal) => (
+                        {withdrawals.slice(0, 10).map((withdrawal) => (
                           <div
                             key={withdrawal.withdrawalId}
                             className="cyber-card p-3 sm:p-4"
@@ -645,6 +670,11 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                             </div>
                           </div>
                         ))}
+                        {withdrawals.length > 10 && (
+                          <div className="text-center text-xs opacity-70 py-2">
+                            Показано {Math.min(10, withdrawals.length)} из {withdrawals.length} выводов
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -652,7 +682,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     {safeTransactions && safeTransactions.length > 0 && (
                       <div className="space-y-2">
                         <div className="cyber-text text-base font-bold">Игровые операции</div>
-                        {safeTransactions.map((tx) => (
+                        {safeTransactions.slice(0, 15).map((tx) => (
                           <div
                             key={tx.id}
                             className="cyber-card flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 p-3 sm:p-4"
@@ -690,6 +720,11 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                             </div>
                           </div>
                         ))}
+                        {safeTransactions.length > 15 && (
+                          <div className="text-center text-xs opacity-70 py-2">
+                            Показано {Math.min(15, safeTransactions.length)} из {safeTransactions.length} игровых операций
+                          </div>
+                        )}
                       </div>
                     )}
 

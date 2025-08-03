@@ -18,7 +18,7 @@ export const ServiceWorkerManager: React.FC = () => {
         if (existingRegistration) {
           setSwRegistration(existingRegistration);
           setSwStatus('already-registered');
-          console.log('Service Worker already registered:', existingRegistration);
+          // console.log('Service Worker already registered:', existingRegistration);
           return;
         }
 
@@ -28,15 +28,15 @@ export const ServiceWorkerManager: React.FC = () => {
             const registration = await navigator.serviceWorker.register('/sw.js');
             setSwRegistration(registration);
             setSwStatus('registered');
-            console.log('Service Worker registered successfully:', registration);
+            // console.log('Service Worker registered successfully:', registration);
           } catch (error) {
-            console.error('Service Worker registration failed:', error);
+            // console.error('Service Worker registration failed:', error);
             setSwStatus('failed');
           }
         }, 3000); // Увеличиваем задержку до 3 секунд
 
       } catch (error) {
-        console.error('Service Worker check failed:', error);
+        // console.error('Service Worker check failed:', error);
         setSwStatus('error');
       }
     };
@@ -44,8 +44,8 @@ export const ServiceWorkerManager: React.FC = () => {
     registerServiceWorker();
   }, []);
 
-  // Отображение статуса только если есть проблемы
-  if (swStatus === 'checking' || swStatus === 'registered' || swStatus === 'already-registered') {
+  // Отображение статуса только если есть критические проблемы
+  if (swStatus === 'checking' || swStatus === 'registered' || swStatus === 'already-registered' || swStatus === 'not-supported') {
     return null;
   }
 
@@ -54,19 +54,18 @@ export const ServiceWorkerManager: React.FC = () => {
       position: 'fixed',
       bottom: '10px',
       right: '10px',
-      backgroundColor: 'rgba(255, 0, 0, 0.9)',
+      backgroundColor: 'rgba(255, 165, 0, 0.9)',
       color: 'white',
-      padding: '10px',
+      padding: '8px',
       borderRadius: '5px',
-      fontSize: '12px',
+      fontSize: '11px',
       zIndex: 1000,
-      maxWidth: '300px'
+      maxWidth: '250px'
     }}>
-      <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>
+      <div style={{ fontWeight: 'bold', marginBottom: '3px' }}>
         ⚠️ Service Worker: {swStatus}
       </div>
-      <div style={{ fontSize: '11px' }}>
-        {swStatus === 'not-supported' && 'Service Worker не поддерживается'}
+      <div style={{ fontSize: '10px' }}>
         {swStatus === 'failed' && 'Ошибка регистрации Service Worker'}
         {swStatus === 'error' && 'Ошибка проверки Service Worker'}
       </div>
@@ -78,13 +77,13 @@ export const ServiceWorkerManager: React.FC = () => {
           }
         }}
         style={{
-          marginTop: '5px',
-          padding: '3px 8px',
+          marginTop: '3px',
+          padding: '2px 6px',
           backgroundColor: 'white',
           color: 'black',
           border: 'none',
           borderRadius: '3px',
-          fontSize: '10px',
+          fontSize: '9px',
           cursor: 'pointer'
         }}
       >

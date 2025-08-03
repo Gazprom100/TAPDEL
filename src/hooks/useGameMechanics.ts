@@ -63,7 +63,9 @@ export const useGameMechanics = () => {
 
   // Обновляем максимальную энергию при изменении настроек
   useEffect(() => {
-    if (isLoaded && fuelLevel === 100) {
+    if (isLoaded) {
+      // Устанавливаем топливо на максимальный уровень при загрузке настроек
+      // console.log('🔧 Инициализация топлива:', { energyMax: config.energyMax, currentFuel: fuelLevel });
       setFuelLevel(config.energyMax);
     }
   }, [isLoaded, config.energyMax]);
@@ -112,7 +114,11 @@ export const useGameMechanics = () => {
       ? FUEL_MECHANICS.CONSUMPTION_PER_TAP * HYPERDRIVE_MECHANICS.FUEL_CONSUMPTION_MULTIPLIER
       : FUEL_MECHANICS.CONSUMPTION_PER_TAP;
     
-    setFuelLevel(prev => Math.max(FUEL_MECHANICS.MIN_LEVEL, prev - fuelConsumption));
+    setFuelLevel(prev => {
+      const newLevel = Math.max(FUEL_MECHANICS.MIN_LEVEL, prev - fuelConsumption);
+      // console.log('⛽ Расход топлива:', { prev, newLevel, consumption: fuelConsumption, max: FUEL_MECHANICS.MAX_LEVEL });
+      return newLevel;
+    });
     
     // Логика аккумулятора зависит от состояния гипердвигателя
     if (isHyperdriveActive) {
@@ -172,7 +178,11 @@ export const useGameMechanics = () => {
       
       // Восстанавливаем топливо только при бездействии
       if (isInactive) {
-        setFuelLevel(prev => Math.min(FUEL_MECHANICS.MAX_LEVEL, prev + FUEL_MECHANICS.RECOVERY_RATE));
+        setFuelLevel(prev => {
+          const newLevel = Math.min(FUEL_MECHANICS.MAX_LEVEL, prev + FUEL_MECHANICS.RECOVERY_RATE);
+          // console.log('🔋 Восстановление топлива:', { prev, newLevel, max: FUEL_MECHANICS.MAX_LEVEL, recoveryRate: FUEL_MECHANICS.RECOVERY_RATE });
+          return newLevel;
+        });
       }
       
       // Базовая разрядка аккумулятора при активном гипердвигателе (независимо от тапов)
@@ -184,7 +194,7 @@ export const useGameMechanics = () => {
           // ⚡ ИСПРАВЛЕНИЕ: Отключаем гипердвигатель только при ПОЛНОМ РАЗРЯДЕ (0%)
           if (newCharge <= HYPERDRIVE_MECHANICS.MIN_CHARGE) {
             setIsHyperdriveActive(false);
-            console.log('🔋 Гипердвигатель отключен - аккумулятор полностью разряжен по времени');
+            // console.log('🔋 Гипердвигатель отключен - аккумулятор полностью разряжен по времени');
           }
           
           return newCharge;
@@ -193,7 +203,7 @@ export const useGameMechanics = () => {
     }, 1000); // Обновляем каждую секунду
 
     return () => clearInterval(interval);
-  }, [lastTapTime, isHyperdriveActive]); // ⚡ УБРАЛИ зависимость от activationThreshold
+  }, [lastTapTime, isHyperdriveActive, FUEL_MECHANICS.MAX_LEVEL, FUEL_MECHANICS.RECOVERY_RATE]); // Добавляем зависимости
 
   return {
     fuelLevel,

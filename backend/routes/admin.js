@@ -1451,7 +1451,7 @@ router.get('/game-config', async (req, res) => {
     // Если конфигурации нет, возвращаем значения по умолчанию
     const defaultConfig = {
       baseTokensPerTap: 1,
-      energyMax: 1000,
+      energyMax: 100,
       energyRegenRate: 1,
       components: {
         engine: {

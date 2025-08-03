@@ -71,7 +71,7 @@ export const GameSettings: React.FC = () => {
   const { reloadConfig } = useGameConfigStore();
   const [config, setConfig] = useState<GameConfig>({
     baseTokensPerTap: 1,
-    energyMax: 1000,
+    energyMax: 100,
     energyRegenRate: 1,
     components: {
       engine: {
