@@ -1067,27 +1067,16 @@ export const useGameStore = create<GameStore>()(
           set({ activeTokenSymbol: activeToken.symbol });
           console.log(`🪙 Обновлен активный токен: ${activeToken.symbol}`);
           
-          // Если токен изменился, загружаем актуальный баланс для нового токена
-          if (oldToken && oldToken !== activeToken.symbol && state.profile?.userId) {
-            console.log(`🔄 Токен изменился с ${oldToken} на ${activeToken.symbol}, загружаем актуальный баланс...`);
+          // Если токен изменился, ОБНУЛЯЕМ баланс для нового токена
+          if (oldToken && oldToken !== activeToken.symbol) {
+            console.log(`🔄 Токен изменился с ${oldToken} на ${activeToken.symbol}, обнуляем баланс...`);
             
-            try {
-              const { decimalApi } = await import('../services/decimalApi');
-              const balance = await decimalApi.getUserBalance(state.profile.userId);
-              
-              // Обновляем баланс на актуальный для нового токена
-              set({ tokens: balance.gameBalance });
-              console.log(`💰 Загружен актуальный баланс для ${activeToken.symbol}: ${balance.gameBalance}`);
-              
-              // Обновляем рейтинг
-              await get().refreshLeaderboard();
-              
-            } catch (error) {
-              console.error('❌ Ошибка загрузки баланса для нового токена:', error);
-              // В случае ошибки устанавливаем баланс в 0
-              set({ tokens: 0 });
-              console.log(`⚠️ Установлен баланс 0 для ${activeToken.symbol} из-за ошибки`);
-            }
+            // Обнуляем баланс для нового токена
+            set({ tokens: 0 });
+            console.log(`💰 Баланс обнулен для нового токена ${activeToken.symbol}`);
+            
+            // Обновляем рейтинг с нулевым балансом
+            await get().refreshLeaderboard();
           }
         } catch (error) {
           console.error('❌ Ошибка обновления активного токена:', error);
