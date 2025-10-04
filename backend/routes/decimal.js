@@ -443,19 +443,19 @@ router.get('/users/:userId/transactions', async (req, res) => {
     const { userId } = req.params;
     const database = await connectToDatabase();
     
-    // Загружаем депозиты
-    const deposits = await database.collection('deposits')
-      .find({ userId: userId })
-      .sort({ requestedAt: -1 })
-      .limit(50)
-      .toArray();
-    
-    // Загружаем выводы
-    const withdrawals = await database.collection('withdrawals')
-      .find({ userId: userId })
-      .sort({ requestedAt: -1 })
-      .limit(50)
-      .toArray();
+    // Загружаем депозиты и выводы параллельно для ускорения
+    const [deposits, withdrawals] = await Promise.all([
+      database.collection('deposits')
+        .find({ userId: userId })
+        .sort({ createdAt: -1 })
+        .limit(20) // Сокращаем лимит для ускорения
+        .toArray(),
+      database.collection('withdrawals')
+        .find({ userId: userId })
+        .sort({ requestedAt: -1 })
+        .limit(20) // Сокращаем лимит для ускорения
+        .toArray()
+    ]);
     
     res.json({
       deposits: deposits || [],
@@ -465,7 +465,12 @@ router.get('/users/:userId/transactions', async (req, res) => {
 
   } catch (error) {
     console.error('❌ Ошибка получения транзакций:', error);
-    res.status(500).json({ error: 'Ошибка сервера' });
+    // Возвращаем пустые данные вместо ошибки для лучшего UX
+    res.json({
+      deposits: [],
+      withdrawals: [],
+      total: 0
+    });
   }
 });
 

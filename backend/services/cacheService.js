@@ -1,5 +1,6 @@
 const redis = require('redis');
 const config = require('../config/decimal');
+const redisConfig = require('../config/redis');
 const databaseConfig = require('../config/database');
 
 class CacheService {
@@ -18,31 +19,17 @@ class CacheService {
     try {
       console.log('🔄 Инициализация Redis кеша...');
       
-      // Проверяем, есть ли Upstash конфигурация
-      const upstashConfig = config.getUpstashConfig();
-      
-      if (upstashConfig) {
-        console.log('🔗 Обнаружена Upstash конфигурация, используем REST API');
-        // Для Upstash используем REST API через DecimalService
-        this.isConnected = false; // Не используем обычный Redis клиент
-        console.log('✅ Cache Service настроен для работы с Upstash REST API');
-        return true;
-      }
-      
-      // Проверяем, не является ли это RedisCloud (который вызывает SSL ошибки)
-      const isRedisCloud = config.REDIS_URL.includes('redis-cloud.com') || 
-                          config.REDIS_URL.includes('redislabs.com');
-      
-      if (isRedisCloud) {
-        console.log('⚠️ Обнаружен RedisCloud, пропускаем подключение (SSL проблемы)');
-        console.log('✅ Cache Service будет работать только с локальным кешем');
+      // Проверяем конфигурацию Redis
+      if (!redisConfig.isConfigured()) {
+        console.log('⚠️ REDIS_URL не установлен, работаем только с локальным кешем');
         this.isConnected = false;
         return true;
       }
+
+      console.log(`🔧 Redis провайдер: ${redisConfig.getProviderType()}`);
       
-      // Только для локального Redis или других провайдеров
-      const redisConfig = config.getRedisConfig();
-      this.redis = redis.createClient(redisConfig);
+      const redisClientConfig = redisConfig.getRedisConfig();
+      this.redis = redis.createClient(redisClientConfig);
       
       this.redis.on('error', (err) => {
         console.warn('⚠️ Redis ошибка (продолжаем без кеша):', err.message);
@@ -63,7 +50,7 @@ class CacheService {
       // Пытаемся подключиться с timeout
       const connectPromise = this.redis.connect();
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Redis connection timeout')), 5000)
+        setTimeout(() => reject(new Error('Redis connection timeout')), 10000)
       );
       
       await Promise.race([connectPromise, timeoutPromise]);
