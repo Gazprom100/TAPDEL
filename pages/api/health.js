@@ -14,7 +14,7 @@ const generateCleanMongoURI = () => {
 const MONGODB_URI = process.env.MONGODB_URI || generateCleanMongoURI();
 const MONGODB_DB = process.env.MONGODB_DB || 'tapdel';
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -60,4 +60,4 @@ module.exports = async (req, res) => {
       timestamp: new Date().toISOString()
     });
   }
-};
+}

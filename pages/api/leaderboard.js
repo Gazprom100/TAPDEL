@@ -51,7 +51,7 @@ async function updateAllRanks(database) {
   }
 }
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -142,6 +142,7 @@ module.exports = async (req, res) => {
       await client.close();
       res.json({ message: 'Leaderboard updated successfully' });
     } else {
+      await client.close();
       res.status(405).json({ message: 'Method not allowed' });
     }
   } catch (error) {
@@ -152,4 +153,4 @@ module.exports = async (req, res) => {
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
-};
+}

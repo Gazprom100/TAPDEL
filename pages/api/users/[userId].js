@@ -32,7 +32,7 @@ const formatUserName = (username, telegramFirstName, telegramLastName, telegramU
   return `Игрок ${userId?.slice(-4) || '0000'}`;
 };
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -50,9 +50,7 @@ module.exports = async (req, res) => {
     const database = client.db(MONGODB_DB);
     
     // Извлекаем userId из URL
-    const url = new URL(req.url, `http://${req.headers.host}`);
-    const pathParts = url.pathname.split('/');
-    const userId = pathParts[pathParts.length - 1];
+    const { userId } = req.query;
     
     if (req.method === 'GET') {
       const user = await database.collection('users').findOne({ userId });
@@ -88,7 +86,7 @@ module.exports = async (req, res) => {
       
       await client.close();
       res.json({ message: 'User updated successfully' });
-    } else if (req.method === 'POST' && url.pathname.includes('/initialize')) {
+    } else if (req.method === 'POST' && req.url.includes('/initialize')) {
       const { profile, gameState, telegramData } = req.body;
       
       console.log(`🆕 Инициализация нового пользователя: ${userId}`);
@@ -170,7 +168,7 @@ module.exports = async (req, res) => {
         user: newUser,
         isNewUser: !existingUser
       });
-    } else if (req.method === 'PUT' && url.pathname.includes('/gamestate')) {
+    } else if (req.method === 'PUT' && req.url.includes('/gamestate')) {
       const gameState = req.body;
       console.log(`🎮 Обновление gameState для пользователя ${userId}, токены: ${gameState.tokens}`);
       
@@ -199,4 +197,4 @@ module.exports = async (req, res) => {
     console.error('Error in users API:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
-};
+}
