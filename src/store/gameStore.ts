@@ -12,6 +12,7 @@ import {
   GAME_MECHANICS
 } from '../types/game';
 import { apiService } from '../services/api';
+import { gameSettingsService } from '../services/gameSettingsService';
 
 // Вспомогательная функция для безопасного формирования имени пользователя
 const formatUserName = (
@@ -44,8 +45,10 @@ interface ExtendedGameState extends GameStateBase {
   isLoading: boolean;
   error: string | null;
   lastSyncTime: number; // Добавляем поле для отслеживания синхронизации
-  delBalance?: number; // Реальный DEL баланс из блокчейна (отдельно от игровых tokens)
-  // tokens = игровые очки из тапанья, delBalance = реальные DEL токены
+  lastLeaderboardUpdate?: number; // Время последнего обновления лидерборда
+  boostBalance?: number; // Реальный BOOST баланс из блокчейна (отдельно от игровых tokens)
+  // tokens = игровые очки из тапанья, boostBalance = реальные BOOST токены
+  activeTokenSymbol: string; // <--- добавлено
 }
 
 interface GameActions {
@@ -55,7 +58,7 @@ interface GameActions {
   
   // Действия с токенами
   addTokens: (amount: number) => Promise<void>;
-  addDelFromDeposit: (amount: number) => Promise<void>; // Для ввода DEL извне (не тапанье)
+  addBoostFromDeposit: (amount: number) => Promise<void>; // Для ввода BOOST извне (не тапанье)
   spendTokens: (amount: number, itemInfo?: { type: 'engine' | 'gearbox' | 'battery' | 'hyperdrive' | 'powerGrid'; level: string }) => Promise<boolean>;
   withdrawTokens: (amount: number) => Promise<boolean>;
   depositTokens: (amount: number) => Promise<boolean>;
@@ -96,8 +99,15 @@ interface GameActions {
   // Обновление только лидерборда
   refreshLeaderboard: () => Promise<void>;
   
-  // Обновление DEL баланса (общий баланс: натапанные + пополненные)
-  refreshBalance: () => Promise<void>;
+  // Обновление BOOST баланса (общий баланс: натапанные + пополненные)
+  refreshBoostBalance: () => Promise<void>;
+  
+  // Обновление активного токена
+  refreshActiveToken: () => Promise<void>;
+  setActiveTokenSymbol: (symbol: string) => void; // <--- добавлено
+  
+  // Применение настроек игры
+  applyGameConfig: () => Promise<void>;
 }
 
 type GameStore = ExtendedGameState & GameActions;
@@ -129,16 +139,54 @@ export const useGameStore = create<GameStore>()(
       isLoading: false,
       error: null,
       lastSyncTime: 0, // Инициализируем lastSyncTime
+      activeTokenSymbol: '', // Инициализируем activeTokenSymbol
       // Убираем delBalance - используем только tokens как DEL
 
       // Системные действия
       setError: (error) => set({ error }),
       
-      initializeUser: async (userId) => {
+      initializeUser: async (userId: string) => {
+        console.log(`🏁 gameStore.initializeUser запущен для userId: ${userId}`);
+        set({ isLoading: true, error: null });
+        
+        // Сначала устанавливаем базовые значения, чтобы игра могла запуститься
+        const fallbackProfile = {
+          userId,
+          username: `Игрок ${userId.slice(-4)}`,
+          maxEnergy: 100,
+          energyRecoveryRate: 1,
+          maxGear: 'M' as Gear,
+          level: 1,
+          experience: 0,
+          createdAt: new Date(),
+          lastLogin: new Date()
+        };
+        
+        set({
+          profile: fallbackProfile,
+          tokens: 0,
+          highScore: 0,
+          engineLevel: COMPONENTS.ENGINES[0].level as EngineMark,
+          gearboxLevel: COMPONENTS.GEARBOXES[0].level as GearboxLevel,
+          batteryLevel: COMPONENTS.BATTERIES[0].level as BatteryLevel,
+          hyperdriveLevel: COMPONENTS.HYPERDRIVES[0].level as HyperdriveLevel,
+          powerGridLevel: COMPONENTS.POWER_GRIDS[0].level as PowerGridLevel,
+          transactions: [],
+          leaderboard: [],
+          lastSyncTime: Date.now(),
+          isLoading: false,
+          error: null
+        });
+        
+        console.log('✅ Fallback профиль установлен, игра готова');
+        
+        // ПРИНУДИТЕЛЬНО ЗАВЕРШЕНИЕ ЧЕРЕЗ 2 СЕКУНДЫ
+        const forceComplete = setTimeout(() => {
+          console.warn('🚨 Force complete - принудительно завершаем initializeUser');
+          set({ isLoading: false, error: null });
+        }, 2000);
+        
         try {
-          console.log(`🏁 gameStore.initializeUser запущен для userId: ${userId}`);
-          set({ isLoading: true, error: null });
-          
           // Проверяем если пользователь тот же - не сбрасываем данные
           const existingState = get();
           const isSameUser = existingState.profile?.userId === userId;
@@ -170,16 +218,13 @@ export const useGameStore = create<GameStore>()(
               const migrationResult = await apiService.migrateUser(userId, oldUserId);
               if (migrationResult.migrated) {
                 console.log(`✅ Миграция выполнена успешно, токены: ${migrationResult.tokens}`);
-                // Очищаем старый userId из localStorage
                 localStorage.removeItem('oldUserId');
               } else {
                 console.log(`⚠️ Миграция не выполнена или не требуется`);
-                // Очищаем oldUserId даже если миграция не нужна, чтобы избежать повторных попыток
                 localStorage.removeItem('oldUserId');
               }
             } catch (error) {
               console.error('❌ Ошибка миграции:', error);
-              // Очищаем oldUserId чтобы не зациклиться
               localStorage.removeItem('oldUserId');
             }
           }
@@ -421,17 +466,58 @@ export const useGameStore = create<GameStore>()(
             set({ leaderboard: [] });
           }
           
-          // Инициализируем DEL баланс
+          // Инициализируем BOOST баланс
           try {
-            console.log('💰 Инициализация DEL баланса...');
-            await get().refreshBalance();
-            console.log('✅ DEL баланс загружен из блокчейна');
-          } catch (delBalanceError) {
-            console.warn('⚠️ Не удалось загрузить DEL баланс (нормально для новых пользователей):', delBalanceError);
+            console.log('💰 Инициализация BOOST баланса...');
+            await get().refreshBoostBalance();
+            console.log('✅ BOOST баланс загружен из блокчейна');
+          } catch (boostBalanceError) {
+            console.warn('⚠️ Не удалось загрузить BOOST баланс (нормально для новых пользователей):', boostBalanceError);
+          }
+
+          // Применяем настройки игры
+          try {
+            console.log('🎮 Применение настроек игры...');
+            await get().applyGameConfig();
+            console.log('✅ Настройки игры применены');
+          } catch (configError) {
+            console.warn('⚠️ Не удалось применить настройки игры:', configError);
           }
           
         } catch (error) {
-          set({ error: (error as Error).message });
+          console.error('❌ Критическая ошибка инициализации пользователя:', error);
+          
+          // FALLBACK: Создаем базовый профиль локально
+          console.log('🆘 Создаем fallback профиль...');
+          const fallbackProfile = {
+            userId,
+            username: `Игрок ${userId.slice(-4)}`,
+            maxEnergy: 100,
+            energyRecoveryRate: 1,
+            maxGear: 'M' as Gear,
+            level: 1,
+            experience: 0,
+            createdAt: new Date(),
+            lastLogin: new Date()
+          };
+          
+          set({
+            profile: fallbackProfile,
+            tokens: 0,
+            highScore: 0,
+            engineLevel: COMPONENTS.ENGINES[0].level as EngineMark,
+            gearboxLevel: COMPONENTS.GEARBOXES[0].level as GearboxLevel,
+            batteryLevel: COMPONENTS.BATTERIES[0].level as BatteryLevel,
+            hyperdriveLevel: COMPONENTS.HYPERDRIVES[0].level as HyperdriveLevel,
+            powerGridLevel: COMPONENTS.POWER_GRIDS[0].level as PowerGridLevel,
+            transactions: [],
+            leaderboard: [],
+            lastSyncTime: Date.now(),
+            isLoading: false,
+            error: null
+          });
+          
+          console.log('✅ Fallback профиль создан, приложение готово к работе');
         } finally {
           set({ isLoading: false });
         }
@@ -485,7 +571,7 @@ export const useGameStore = create<GameStore>()(
         }
       },
 
-      // Действия с токенами (DEL - единственная валюта)
+      // Действия с токенами (BOOST - единственная валюта)
       addTokens: async (amount) => {
         try {
           set((state) => ({ 
@@ -495,17 +581,17 @@ export const useGameStore = create<GameStore>()(
           
           // НЕМЕДЛЕННАЯ синхронизация с MongoDB
           await get().syncGameState();
-          console.log(`💰 Добавлено ${amount} DEL (баланс: ${get().tokens}, натапано всего: ${get().highScore})`);
+          console.log(`💰 Добавлено ${amount} BOOST (баланс: ${get().tokens}, натапано всего: ${get().highScore})`);
         } catch (error) {
           set({ error: (error as Error).message });
         }
       },
 
-      addDelFromDeposit: async (amount) => {
+      addBoostFromDeposit: async (amount) => {
         try {
           set((state) => ({ tokens: state.tokens + amount }));
           await get().syncGameState();
-          console.log(`💰 Добавлено ${amount} DEL из депозита (баланс: ${get().tokens})`);
+          console.log(`💰 Добавлено ${amount} BOOST из депозита (баланс: ${get().tokens})`);
         } catch (error) {
           set({ error: (error as Error).message });
         }
@@ -524,7 +610,7 @@ export const useGameStore = create<GameStore>()(
           });
           
           if (state.tokens < amount) {
-            console.warn(`❌ spendTokens: Недостаточно средств: нужно ${amount}, доступно ${state.tokens} DEL`);
+            console.warn(`❌ spendTokens: Недостаточно средств: нужно ${amount}, доступно ${state.tokens} BOOST`);
             return false;
           }
           
@@ -573,7 +659,7 @@ export const useGameStore = create<GameStore>()(
             // Продолжаем выполнение несмотря на ошибку
           }
           
-          console.log(`💸 spendTokens завершен успешно: потрачено ${amount} DEL`);
+          console.log(`💸 spendTokens завершен успешно: потрачено ${amount} BOOST`);
           return true;
         } catch (error) {
           console.error('❌ spendTokens: Критическая ошибка:', error);
@@ -871,11 +957,29 @@ export const useGameStore = create<GameStore>()(
         }
       },
 
-      // Обновление только лидерборда
+      // Обновление только лидерборда (с дебаунсингом)
       refreshLeaderboard: async () => {
         try {
           const state = get();
-          const dbLeaderboard = await apiService.getLeaderboard();
+          
+          // Дебаунсинг: не обновляем чаще чем раз в 5 секунд
+          const now = Date.now();
+          const lastUpdate = state.lastLeaderboardUpdate || 0;
+          if (now - lastUpdate < 5000) {
+            console.log('⏱️ Дебаунсинг лидерборда: пропускаем обновление');
+            return;
+          }
+          
+          // Добавляем таймаут для API вызова
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Таймаут запроса лидерборда')), 10000)
+          );
+          
+          const dbLeaderboard = await Promise.race([
+            apiService.getLeaderboard(),
+            timeoutPromise
+          ]) as any[];
+          
           if (dbLeaderboard && dbLeaderboard.length > 0) {
             const leaderboard = dbLeaderboard.map(entry => ({
               id: entry._id.toString(),
@@ -888,18 +992,22 @@ export const useGameStore = create<GameStore>()(
               rank: entry.rank,
               updatedAt: entry.updatedAt
             }));
-            set({ leaderboard });
+            set({ 
+              leaderboard,
+              lastLeaderboardUpdate: now
+            });
             console.log(`✅ Обновлен лидерборд (${leaderboard.length} участников)`);
           } else {
             console.log('⚠️ Обновление лидерборда: лидерборд пуст');
           }
         } catch (error) {
           console.error('❌ Ошибка обновления лидерборда:', error);
+          // При ошибке оставляем текущий лидерборд
         }
       },
 
-      // Обновление DEL баланса (общий баланс: натапанные + пополненные)
-      refreshBalance: async () => {
+      // Обновление BOOST баланса (общий баланс: натапанные + пополненные)
+      refreshBoostBalance: async () => {
         try {
           const state = get();
           if (!state.profile?.userId) return;
@@ -907,16 +1015,96 @@ export const useGameStore = create<GameStore>()(
           const { decimalApi } = await import('../services/decimalApi');
           const balance = await decimalApi.getUserBalance(state.profile.userId);
           
-          // ИСПРАВЛЕНО: tokens = общий DEL баланс (натапанные + пополненные)
+          // ИСПРАВЛЕНО: tokens = общий BOOST баланс (натапанные + пополненные)
           // Этот баланс можно использовать для покупок И для вывода
           set({ tokens: balance.gameBalance });
-          console.log(`💰 Обновлен общий DEL баланс: ${balance.gameBalance} DEL`);
+          console.log(`💰 Обновлен общий BOOST баланс: ${balance.gameBalance} BOOST`);
           
           // Автоматически обновляем рейтинг (используя highScore, НЕ tokens)
           await get().refreshLeaderboard();
           
         } catch (error) {
-          console.error('❌ Ошибка обновления DEL баланса:', error);
+          console.error('❌ Ошибка обновления BOOST баланса:', error);
+          // При ошибке не меняем баланс, оставляем текущий
+        }
+      },
+
+      // Принудительное обновление баланса (для админки)
+      forceUpdateBalance: async (newBalance: number) => {
+        try {
+          const state = get();
+          if (!state.profile?.userId) return;
+          
+          // Принудительно устанавливаем новый баланс
+          set({ tokens: newBalance });
+          console.log(`💰 Принудительно установлен баланс: ${newBalance} BOOST`);
+          
+          // Очищаем кеш в localStorage если сбрасываем баланс
+          if (newBalance === 0) {
+            try {
+              localStorage.removeItem('tapdel-storage');
+              console.log('🗑️ Очищен кеш localStorage при сбросе баланса');
+            } catch (error) {
+              console.warn('⚠️ Не удалось очистить localStorage:', error);
+            }
+          }
+          
+          // Обновляем рейтинг
+          await get().refreshLeaderboard();
+          
+        } catch (error) {
+          console.error('❌ Ошибка принудительного обновления баланса:', error);
+        }
+      },
+
+      // Обновление активного токена
+      refreshActiveToken: async () => {
+        try {
+          const state = get();
+          const activeToken = await apiService.getActiveToken();
+          const oldToken = state.activeTokenSymbol;
+          
+          set({ activeTokenSymbol: activeToken.symbol });
+          console.log(`🪙 Обновлен активный токен: ${activeToken.symbol}`);
+          
+          // Если токен изменился, ОБНУЛЯЕМ баланс для нового токена
+          if (oldToken && oldToken !== activeToken.symbol) {
+            console.log(`🔄 Токен изменился с ${oldToken} на ${activeToken.symbol}, обнуляем баланс...`);
+            
+            // Обнуляем баланс для нового токена
+            set({ tokens: 0 });
+            console.log(`💰 Баланс обнулен для нового токена ${activeToken.symbol}`);
+            
+            // Обновляем рейтинг с нулевым балансом
+            await get().refreshLeaderboard();
+          }
+        } catch (error) {
+          console.error('❌ Ошибка обновления активного токена:', error);
+          // Fallback: устанавливаем дефолтный токен
+          set({ activeTokenSymbol: 'BOOST' });
+        }
+      },
+
+      setActiveTokenSymbol: (symbol) => set({ activeTokenSymbol: symbol }),
+
+      // Применение настроек игры
+      applyGameConfig: async () => {
+        try {
+          const settings = await gameSettingsService.getSettings();
+          console.log('🎮 Применяем настройки игры:', settings);
+          
+          // Применяем базовые настройки
+          const baseTokensPerTap = settings.baseTokensPerTap;
+          const energyMax = settings.energyMax;
+          const energyRegenRate = settings.energyRegenRate;
+          
+          console.log(`✅ Применены настройки: baseTokensPerTap=${baseTokensPerTap}, energyMax=${energyMax}, energyRegenRate=${energyRegenRate}`);
+          
+          // Здесь можно добавить применение настроек к игровой механике
+          // Например, обновить константы в GAME_MECHANICS
+          
+        } catch (error) {
+          console.error('❌ Ошибка применения настроек игры:', error);
         }
       }
     }),
@@ -944,6 +1132,7 @@ export const useGameStore = create<GameStore>()(
         coolingTimer: state.coolingTimer,
         lastTapTimestamp: state.lastTapTimestamp,
         hyperdriveActive: state.hyperdriveActive,
+        activeTokenSymbol: state.activeTokenSymbol, // Добавляем activeTokenSymbol в partialize
 
         // Метка времени для отслеживания синхронизации
         lastSyncTime: state.lastSyncTime

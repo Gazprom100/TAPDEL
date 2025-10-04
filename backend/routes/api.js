@@ -3,8 +3,13 @@ const { MongoClient } = require('mongodb');
 require('dotenv').config();
 const router = express.Router();
 
+
+
 // ОПТИМИЗАЦИЯ: Импортируем cache service
 const cacheService = require('../services/cacheService');
+const advancedCacheService = require('../services/advancedCacheService');
+const tokenService = require('../services/tokenService');
+const tokenBalanceService = require('../services/tokenBalanceService');
 
 // Безопасная функция форматирования имени пользователя
 const formatUserName = (username, telegramFirstName, telegramLastName, telegramUsername, userId) => {
@@ -27,12 +32,11 @@ const formatUserName = (username, telegramFirstName, telegramLastName, telegramU
 
 const generateCleanMongoURI = () => {
   const username = 'TAPDEL';
-  const password = 'fpz%sE62KPzmHfM';
+  const password = 'fpz%25sE62KPzmHfM';
   const cluster = 'cluster0.ejo8obw.mongodb.net';
   const database = 'tapdel';
   
-  const encodedPassword = encodeURIComponent(password);
-  return `mongodb+srv://${username}:${encodedPassword}@${cluster}/${database}?retryWrites=true&w=majority&appName=Cluster0`;
+  return `mongodb+srv://${username}:${password}@${cluster}/${database}?retryWrites=true&w=majority&appName=Cluster0`;
 };
 
 const MONGODB_URI = process.env.MONGODB_URI || generateCleanMongoURI();
@@ -185,7 +189,8 @@ router.post('/users/:userId/deposit', async (req, res) => {
       return res.status(400).json({ error: 'Invalid amount' });
     }
     
-    console.log(`💰 Обновление игрового состояния при депозите: ${userId} +${amount} DEL`);
+            const activeToken = await tokenService.getActiveToken();
+    console.log(`💰 Обновление игрового состояния при депозите: ${userId} +${amount} ${activeToken.symbol}`);
     
     // Получаем текущее состояние пользователя
     const user = await database.collection('users').findOne({ userId });
@@ -420,18 +425,17 @@ router.get('/leaderboard', async (req, res) => {
     const limit = parseInt(req.query.limit) || 100;
     const page = parseInt(req.query.page) || 1;
     
-    // ОПТИМИЗАЦИЯ: Пытаемся получить из кеша
+    // ОПТИМИЗАЦИЯ: Пытаемся получить из расширенного кеша
     let leaderboard;
     try {
-      if (cacheService.isConnected) {
-        leaderboard = await cacheService.getLeaderboard(page, limit);
-        if (leaderboard && leaderboard.length > 0) {
-          console.log(`✅ Лидерборд получен из кеша (${leaderboard.length} записей)`);
-          return res.json(leaderboard);
-        }
+      const cacheKey = `leaderboard:page:${page}:limit:${limit}`;
+      leaderboard = await advancedCacheService.get(cacheKey);
+      if (leaderboard && leaderboard.length > 0) {
+        console.log(`✅ Лидерборд получен из расширенного кеша (${leaderboard.length} записей)`);
+        return res.json(leaderboard);
       }
     } catch (cacheError) {
-      console.warn('⚠️ Ошибка кеша, загружаем из БД:', cacheError.message);
+      console.warn('⚠️ Ошибка расширенного кеша, загружаем из БД:', cacheError.message);
     }
     
     // Загружаем из базы данных (оригинальная логика)
@@ -459,13 +463,15 @@ router.get('/leaderboard', async (req, res) => {
       console.log('🏆 Топ-3:', leaderboard.slice(0, 3).map(u => `${u.telegramFirstName || u.username}: ${u.tokens}`));
     }
     
-    // ОПТИМИЗАЦИЯ: Сохраняем в кеш
+    // ОПТИМИЗАЦИЯ: Сохраняем в расширенный кеш на 10 минут
     try {
-      if (cacheService.isConnected && leaderboard.length > 0) {
-        await cacheService.set(`leaderboard:page:${page}:limit:${limit}`, leaderboard, 300); // 5 минут
+      if (leaderboard.length > 0) {
+        const cacheKey = `leaderboard:page:${page}:limit:${limit}`;
+        await advancedCacheService.cache(cacheKey, leaderboard, 600); // 10 минут
+        console.log(`💾 Лидерборд сохранен в расширенный кеш: ${cacheKey}`);
       }
     } catch (cacheError) {
-      console.warn('⚠️ Не удалось сохранить в кеш:', cacheError.message);
+      console.warn('⚠️ Не удалось сохранить в расширенный кеш:', cacheError.message);
     }
     
     res.json(leaderboard);
@@ -759,7 +765,7 @@ router.get('/admin/settings', async (req, res) => {
       // Дефолтные настройки
       const defaultSettings = {
         token: {
-          symbol: 'DEL',
+          symbol: 'BOOST',
           contractAddress: '',
           decimals: 18
         },
@@ -906,6 +912,347 @@ async function updateAllRanks(database) {
     console.error('Error updating ranks:', error);
   }
 }
+
+// === УПРАВЛЕНИЕ ТОКЕНАМИ ===
+
+// Получить текущую конфигурацию токенов
+router.get('/admin/tokens', async (req, res) => {
+  console.log('==> /api/admin/tokens вызван');
+  try {
+    const database = await connectToDatabase();
+    
+    // Получаем конфигурацию токенов из БД или используем дефолтную
+    const tokenConfig = await database.collection('system_config').findOne({ key: 'tokens' });
+    
+    const defaultTokens = [
+      {
+        symbol: 'BOOST',
+        address: '0x15cefa2ffb0759b519c15e23025a718978be9322',
+        decimals: 18,
+        name: 'BOOST Token',
+        isActive: true
+      },
+      {
+        symbol: 'DEL',
+        address: '0x0000000000000000000000000000000000000000',
+        decimals: 18,
+        name: 'Decimal Token',
+        isActive: false
+      }
+    ];
+    
+    res.json({ 
+      success: true,
+      tokens: tokenConfig?.value || defaultTokens
+    });
+  } catch (error) {
+    console.error('Ошибка получения токенов:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
+
+// Обновить активный токен
+router.post('/admin/tokens/activate', async (req, res) => {
+  try {
+    const { symbol } = req.body;
+    
+    console.log(`🔄 API: Запрос активации токена ${symbol}`);
+    
+    if (!symbol) {
+      return res.status(400).json({ success: false, error: 'Символ токена обязателен' });
+    }
+
+    // Используем tokenService для активации токена
+    // Он автоматически выполнит миграцию и очистит кеш
+    console.log(`🔄 API: Вызываем tokenService.activateToken(${symbol})`);
+    const success = await tokenService.activateToken(symbol);
+    console.log(`🔄 API: Результат активации: ${success}`);
+    
+    if (success) {
+      console.log(`✅ API: Токен ${symbol} активирован через API`);
+      res.json({ success: true, message: `Токен ${symbol} активирован` });
+    } else {
+      console.log(`❌ API: Ошибка активации токена ${symbol}`);
+      res.status(500).json({ success: false, error: 'Ошибка активации токена' });
+    }
+  } catch (error) {
+    console.error('❌ API: Ошибка активации токена:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
+
+// Добавить новый токен
+router.post('/admin/tokens/add', async (req, res) => {
+  try {
+    const { symbol, address, decimals, name } = req.body;
+    
+    if (!symbol || !address || !name) {
+      return res.status(400).json({ success: false, error: 'Все поля обязательны' });
+    }
+    
+    if (!address.match(/^0x[a-fA-F0-9]{40}$/)) {
+      return res.status(400).json({ success: false, error: 'Неверный формат адреса' });
+    }
+
+    const database = await connectToDatabase();
+    
+    // Получаем текущую конфигурацию
+    const tokenConfig = await database.collection('system_config').findOne({ key: 'tokens' });
+    const tokens = tokenConfig?.value || [];
+    
+    // Проверяем, что токен не существует
+    if (tokens.find(t => t.symbol === symbol)) {
+      return res.status(400).json({ success: false, error: 'Токен с таким символом уже существует' });
+    }
+    
+    // Добавляем новый токен
+    const newToken = {
+      symbol: symbol.toUpperCase(),
+      address,
+      decimals: decimals || 18,
+      name,
+      isActive: false
+    };
+    
+    const updatedTokens = [...tokens, newToken];
+    
+    // Сохраняем в БД
+    await database.collection('system_config').updateOne(
+      { key: 'tokens' },
+      { $set: { value: updatedTokens, updatedAt: new Date() } },
+        { upsert: true }
+      );
+      
+    console.log(`➕ Токен ${symbol} добавлен`);
+    
+    res.json({ success: true, message: `Токен ${symbol} добавлен` });
+  } catch (error) {
+    console.error('Ошибка добавления токена:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
+
+// Получить историю изменений токенов
+router.get('/admin/tokens/history', async (req, res) => {
+  try {
+    const database = await connectToDatabase();
+    
+    const history = await database.collection('token_history')
+      .find({})
+      .sort({ changedAt: -1 })
+      .limit(50)
+      .toArray();
+    
+    res.json({ success: true, history });
+  } catch (error) {
+    console.error('Ошибка получения истории токенов:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
+
+// Получить балансы пользователя по токенам (только админ)
+router.get('/admin/token-balances/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    const balances = await tokenBalanceService.getAllUserTokenBalances(userId);
+    
+    res.json({ success: true, balances });
+  } catch (error) {
+    console.error('Ошибка получения балансов токенов:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
+
+// Получить статистику по токенам (только админ)
+router.get('/admin/token-statistics', async (req, res) => {
+  console.log('✅ /api/admin/token-statistics вызван');
+  try {
+    const stats = await tokenBalanceService.getTokenStatistics();
+    
+    res.json({ success: true, statistics: stats });
+  } catch (error) {
+    console.error('Ошибка получения статистики токенов:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
+
+// Принудительная миграция токенов (только админ)
+router.post('/admin/token-balances/migrate', async (req, res) => {
+  try {
+    const { oldTokenSymbol, newTokenSymbol } = req.body;
+    
+    if (!oldTokenSymbol || !newTokenSymbol) {
+      return res.status(400).json({ success: false, error: 'Укажите старый и новый токен' });
+    }
+    
+    const result = await tokenBalanceService.migrateToNewToken(oldTokenSymbol, newTokenSymbol);
+    
+    if (result.success) {
+    res.json({
+        success: true, 
+        message: `Миграция завершена: ${result.migratedCount} пользователей, ошибок: ${result.errorCount}`,
+        result 
+      });
+    } else {
+      res.status(500).json({ success: false, error: result.error });
+    }
+  } catch (error) {
+    console.error('Ошибка миграции токенов:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
+
+// Получить активный токен (публичный endpoint)
+router.get('/active-token', async (req, res) => {
+  try {
+    const activeToken = await tokenService.getActiveToken();
+    
+    res.json({
+      success: true,
+      token: {
+        symbol: activeToken.symbol,
+        name: activeToken.name,
+        address: activeToken.address,
+        decimals: activeToken.decimals
+      }
+    });
+  } catch (error) {
+    console.error('Ошибка получения активного токена:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
+
+// Очистить кеш токенов (только админ)
+router.post('/admin/tokens/clear-cache', async (req, res) => {
+  try {
+    // Принудительно очищаем кеш
+    tokenService.activeToken = null;
+    tokenService.lastUpdate = null;
+    
+    console.log('🧹 Кеш токенов очищен');
+    res.json({ success: true, message: 'Кеш токенов очищен' });
+  } catch (error) {
+    console.error('Ошибка очистки кеша токенов:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
+
+// Алиасы для фронтенда - проксируем запросы к admin роутам
+router.get('/admin/stats', async (req, res) => {
+  try {
+    const { default: fetch } = await import('node-fetch');
+    const response = await fetch(`http://localhost:3001/api/admin/statistics`);
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Ошибка проксирования /admin/stats:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
+
+router.get('/admin/system', async (req, res) => {
+  try {
+    const { default: fetch } = await import('node-fetch');
+    const response = await fetch(`http://localhost:3001/api/admin/system/metrics`);
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Ошибка проксирования /admin/system:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
+
+router.get('/admin/economy', async (req, res) => {
+  try {
+    const { default: fetch } = await import('node-fetch');
+    const response = await fetch(`http://localhost:3001/api/admin/economy/metrics`);
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Ошибка проксирования /admin/economy:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
+
+router.get('/admin/users/:userId', async (req, res) => {
+  try {
+    const { default: fetch } = await import('node-fetch');
+    const response = await fetch(`http://localhost:3001/api/admin/users/${req.params.userId}`);
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Ошибка проксирования /admin/users/:userId:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
+
+// Алиасы для Decimal API
+router.get('/decimal/status', async (req, res) => {
+  try {
+    const { default: fetch } = await import('node-fetch');
+    const response = await fetch(`http://localhost:3001/api/decimal/status`);
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Ошибка проксирования /decimal/status:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
+
+router.get('/decimal/deposits', async (req, res) => {
+  try {
+    const { default: fetch } = await import('node-fetch');
+    const response = await fetch(`http://localhost:3001/api/decimal/deposits`);
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Ошибка проксирования /decimal/deposits:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
+
+router.get('/decimal/withdrawals', async (req, res) => {
+  try {
+    const { default: fetch } = await import('node-fetch');
+    const response = await fetch(`http://localhost:3001/api/decimal/withdrawals`);
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Ошибка проксирования /decimal/withdrawals:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
+
+router.post('/decimal/withdrawals', async (req, res) => {
+  try {
+    const { default: fetch } = await import('node-fetch');
+    const response = await fetch(`http://localhost:3001/api/decimal/withdrawals`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(req.body)
+    });
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Ошибка проксирования POST /decimal/withdrawals:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
+
+router.get('/decimal/users/:userId/withdrawals', async (req, res) => {
+  try {
+    const { default: fetch } = await import('node-fetch');
+    const response = await fetch(`http://localhost:3001/api/decimal/users/${req.params.userId}/withdrawals`);
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Ошибка проксирования /decimal/users/:userId/withdrawals:', error);
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
+  }
+});
 
 // Закрытие соединения при завершении работы
 process.on('SIGINT', async () => {

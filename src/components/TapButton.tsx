@@ -23,8 +23,25 @@ export const TapButton: React.FC = () => {
     gearboxLevel,
     batteryLevel,
     hyperdriveLevel,
-    powerGridLevel
+    powerGridLevel,
+    activeTokenSymbol,
+    refreshActiveToken
   } = useGameStore();
+
+  useEffect(() => {
+    // Всегда обновляем активный токен при монтировании компонента
+    refreshActiveToken();
+    
+    // Периодическое обновление активного токена каждые 30 секунд
+    const tokenUpdateInterval = setInterval(() => {
+      refreshActiveToken();
+    }, 30000);
+    
+    // Очистка интервала при размонтировании
+    return () => {
+      clearInterval(tokenUpdateInterval);
+    };
+  }, [refreshActiveToken]);
   
   const [gear, setGear] = useState<Gear>('N');
   const [taps, setTaps] = useState<number[]>([]);
@@ -281,7 +298,7 @@ export const TapButton: React.FC = () => {
         <h1 className="game-title">CYBERFLEX</h1>
         <div className="token-display">
           <span className="token-value">{Math.floor(tokens)}</span>
-          <span className="token-label">DEL</span>
+          <span className="token-label">{activeTokenSymbol || '...'}</span>
         </div>
       </div>
 

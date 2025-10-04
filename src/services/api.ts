@@ -1,4 +1,5 @@
 import { UserProfile, Transaction, Gear } from '../types';
+import { withTimeout } from '../utils/clientTimeout';
 
 export interface ApiUser {
   userId: string;
@@ -41,40 +42,42 @@ export class ApiService {
 
   private async request<T>(endpoint: string, options?: RequestInit, retries = 3): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
-    
-    for (let i = 0; i <= retries; i++) {
-    try {
-      const response = await fetch(url, {
-        headers: {
-          'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache', // Принудительно отключаем кеширование
-            'Pragma': 'no-cache',
-          ...options?.headers,
-        },
-          cache: 'no-store', // Отключаем кеш браузера
-        ...options,
-      });
+    const TIMEOUT_MS = 7000; // 7 секунд таймаут
 
-      if (!response.ok) {
+    for (let i = 0; i <= retries; i++) {
+      try {
+        const response = await withTimeout(
+          fetch(url, {
+            headers: {
+              'Content-Type': 'application/json',
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache',
+              ...options?.headers,
+            },
+            cache: 'no-store',
+            ...options,
+          }),
+          TIMEOUT_MS,
+          `API request timeout (${TIMEOUT_MS}ms): ${url}`
+        );
+
+        if (!response.ok) {
           const errorData = await response.text();
           const error = new Error(`HTTP error! status: ${response.status} - ${errorData}`);
           (error as any).status = response.status;
           throw error;
-      }
-
-      return await response.json();
-    } catch (error) {
-        console.error(`API request failed (attempt ${i + 1}/${retries + 1}):`, error);
-        
-        if (i === retries) {
-      throw error;
         }
-        
+
+        return await response.json();
+      } catch (error) {
+        console.error(`API request failed (attempt ${i + 1}/${retries + 1}):`, error);
+        if (i === retries) {
+          throw error;
+        }
         // Задержка между попытками
         await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
       }
     }
-    
     throw new Error('All retry attempts failed');
   }
 
@@ -175,6 +178,22 @@ export class ApiService {
       method: 'POST',
       body: JSON.stringify({ oldUserId })
     });
+  }
+
+  async getActiveToken(): Promise<{ symbol: string; name: string; address: string; decimals: number }> {
+    try {
+      const response = await this.request<{ success: boolean; token: { symbol: string; name: string; address: string; decimals: number } }>('/active-token');
+      return response.token;
+    } catch (error) {
+      console.error('❌ Ошибка получения активного токена:', error);
+      // Возвращаем дефолтный токен в случае ошибки
+      return {
+        symbol: 'BOOST',
+        name: 'BOOST Token',
+        address: '0x15cefa2ffb0759b519c15e23025a718978be9322',
+        decimals: 18
+      };
+    }
   }
 }
 

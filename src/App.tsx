@@ -1,17 +1,46 @@
-import React, { useState, useEffect } from 'react'
-import { Profile } from './components/Profile'
-import { EnergyIndicator } from './components/EnergyIndicator'
+import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react'
 import { useGameStore } from './store/gameStore'
+import { useGameConfigStore } from './store/gameConfigStore'
 import { useGameMechanics } from './hooks/useGameMechanics'
 import { useFullscreen } from './hooks/useFullscreen'
 import { COMPONENTS } from './types/game'
+import { ServiceWorkerManager } from './components/ServiceWorkerManager'
 import './styles/effects.css'
+
+// Lazy loading для тяжелых компонентов
+const Profile = lazy(() => import('./components/Profile').then(module => ({ default: module.Profile })));
+const FullAdminPanel = lazy(() => import('./components/FullAdminPanel').then(module => ({ default: module.FullAdminPanel })));
 
 const App: React.FC = () => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   // Инициализация полноэкранного режима Telegram WebApp
   useFullscreen();
+  
+  // Простая система роутинга для админпанели
+  const isAdminRoute = window.location.pathname === '/admin';
+  
+  // Если это админский роут, показываем админпанель
+  if (isAdminRoute) {
+    return (
+      <Suspense fallback={
+        <div className="cyber-container" style={{
+          height: '100vh',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: '#0a0a0a',
+          color: '#ffcc00'
+        }}>
+          <div className="cyber-text text-2xl font-bold">Загрузка админки...</div>
+        </div>
+      }>
+        <FullAdminPanel />
+      </Suspense>
+    );
+  }
   
   const { 
     tokens, 
@@ -19,9 +48,134 @@ const App: React.FC = () => {
     gearboxLevel,
     batteryLevel,
     powerGridLevel,
-    initializeUser
+    initializeUser,
+    activeTokenSymbol,
+    refreshActiveToken
   } = useGameStore();
 
+  const { loadConfig: loadGameConfig } = useGameConfigStore();
+
+  useEffect(() => {
+    const initializeApp = async () => {
+      try {
+        // console.log('🚀 Начало инициализации приложения...');
+        setIsLoading(true);
+        setError(null);
+        
+        // Уменьшаем таймаут до 5 секунд
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Таймаут инициализации (5с)')), 5000);
+        });
+        
+        // Emergency fallback - принудительно завершаем загрузку через 6 секунд
+        const emergencyTimeout = setTimeout(() => {
+          // console.warn('🚨 Emergency fallback - принудительно завершаем загрузку');
+          setIsLoading(false);
+        }, 6000);
+        
+        // ДОПОЛНИТЕЛЬНЫЙ FALLBACK - принудительно завершаем через 3 секунды
+        const forceTimeout = setTimeout(() => {
+          // console.warn('🚨 Force fallback - принудительно завершаем загрузку через 3 секунды');
+          setIsLoading(false);
+        }, 3000);
+        
+        const initPromise = (async () => {
+          // Этап 1: Быстрые операции (синхронно)
+          // console.log('⚡ Этап 1: Быстрые операции...');
+          
+          // Очистка localStorage (синхронно)
+          const problematicOldUserId = localStorage.getItem('oldUserId');
+          if (problematicOldUserId === 'demo-user-atatvzu2f') {
+            localStorage.removeItem('oldUserId');
+          }
+          
+          const currentUserId = localStorage.getItem('userId');
+          if (currentUserId === 'demo-user-atatvzu2f') {
+            localStorage.removeItem('userId');
+          }
+          
+          // Получение userId (синхронно)
+          let userId = localStorage.getItem('userId');
+          const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+          
+          // Обработка userId (синхронно)
+          if (telegramUser?.id) {
+            const correctUserId = `telegram-${telegramUser.id}`;
+            if (userId !== correctUserId) {
+              if (userId) {
+                localStorage.setItem('oldUserId', userId);
+              }
+              userId = correctUserId;
+              localStorage.setItem('userId', correctUserId);
+            }
+          } else if (!userId) {
+            // Fallback для браузера без Telegram WebApp
+            // console.log('⚠️ Telegram WebApp недоступен, создаем демо пользователя');
+            userId = `browser-user-${Math.floor(Math.random() * 1000000000)}`;
+            localStorage.setItem('userId', userId);
+          }
+          
+          // console.log('✅ Этап 1 завершен, userId:', userId);
+          
+          // Этап 2: Параллельные API вызовы с таймаутами
+          // console.log('🔄 Этап 2: Параллельные API вызовы...');
+          
+          const [tokenResult, configResult] = await Promise.allSettled([
+            refreshActiveToken().catch(err => {
+              // console.warn('⚠️ Ошибка обновления токена:', err);
+              return null;
+            }),
+            loadGameConfig().catch(err => {
+              // console.warn('⚠️ Ошибка загрузки конфигурации:', err);
+              return null;
+            })
+          ]);
+          
+          // console.log('✅ Этап 2 завершен');
+          
+          // Этап 3: Инициализация пользователя с таймаутом
+          // console.log('👤 Этап 3: Инициализация пользователя...');
+          
+          if (userId) {
+            try {
+              // Добавляем таймаут для initializeUser - сокращаем до 3 секунд
+              await Promise.race([
+                initializeUser(userId),
+                new Promise((_, reject) => 
+                  setTimeout(() => reject(new Error('Таймаут инициализации пользователя')), 3000)
+                )
+              ]);
+              // console.log('✅ Пользователь инициализирован');
+            } catch (userError) {
+              // console.error('❌ Ошибка инициализации пользователя:', userError);
+              // Продолжаем без пользователя - приложение должно работать
+              // console.log('⚠️ Продолжаем без инициализации пользователя');
+            }
+          } else {
+            // console.warn('⚠️ Не удалось определить userId, продолжаем без пользователя');
+          }
+          
+          // console.log('✅ Инициализация приложения завершена');
+        })();
+        
+        // Ждем инициализацию с таймаутом
+        await Promise.race([initPromise, timeoutPromise]);
+        
+        clearTimeout(emergencyTimeout);
+        clearTimeout(forceTimeout);
+        setIsLoading(false);
+        // console.log('✅ isLoading установлен в false');
+      } catch (err) {
+        // console.error('❌ Ошибка инициализации приложения:', err);
+        setError(err instanceof Error ? err.message : 'Неизвестная ошибка');
+        setIsLoading(false);
+        // console.log('✅ isLoading установлен в false (ошибка)');
+      }
+    };
+    
+    initializeApp();
+  }, [refreshActiveToken, loadGameConfig, initializeUser]);
+  
   const {
     fuelLevel,
     hyperdriveCharge,
@@ -39,8 +193,8 @@ const App: React.FC = () => {
   const currentBattery = COMPONENTS.BATTERIES.find(b => b.level === batteryLevel)!;
   const currentPowerGrid = COMPONENTS.POWER_GRIDS.find(p => p.level === powerGridLevel)!;
 
-  // Функция для определения цвета тахометра
-  const getTachometerColor = (currentGear: string, level: number) => {
+  // Функция для определения цвета тахометра (мемоизированная)
+  const getTachometerColor = useCallback((currentGear: string, level: number) => {
     const zones = {
       'N': { color: 'rgba(100, 100, 100, 0.8)', threshold: 0 },
       '1': { color: 'rgba(0, 255, 136, 0.8)', threshold: 20 },
@@ -64,10 +218,10 @@ const App: React.FC = () => {
     }
     
     return 'rgba(100, 100, 100, 0.2)';
-  };
+  }, []);
 
-  // Функция для определения цвета аккумулятора (инвертированная логика)
-  const getBatteryColor = (chargeLevel: number, activationThreshold: number) => {
+  // Функция для определения цвета аккумулятора (мемоизированная)
+  const getBatteryColor = useCallback((chargeLevel: number, activationThreshold: number) => {
     // Зеленый когда заряд достаточен для активации
     if (chargeLevel >= activationThreshold) return 'rgba(0, 255, 136, 0.8)';
     // Градиент от красного к желтому в зависимости от уровня заряда
@@ -76,224 +230,64 @@ const App: React.FC = () => {
     if (chargeLevel >= 40) return 'rgba(255, 165, 0, 0.8)'; // Оранжевый
     if (chargeLevel >= 20) return 'rgba(255, 100, 0, 0.8)'; // Красно-оранжевый
     return 'rgba(255, 0, 0, 0.8)'; // Красный
-  };
+  }, []);
 
-  // Рассчитываем активность тапов для отображения на шкале
-  const tapActivity = gear === 'N' ? 0 : 
-                     gear === '1' ? 20 :
-                     gear === '2' ? 40 :
-                     gear === '3' ? 60 :
-                     gear === '4' ? 80 : 100;
+  // Рассчитываем активность тапов для отображения на шкале (мемоизированная)
+  const tapActivity = useMemo(() => {
+    return gear === 'N' ? 0 : 
+           gear === '1' ? 20 :
+           gear === '2' ? 40 :
+           gear === '3' ? 60 :
+           gear === '4' ? 80 : 100;
+  }, [gear]);
 
-  // Инициализация пользователя при загрузке приложения
+  // Периодическое обновление активного токена каждые 30 секунд
   useEffect(() => {
-    // ПРИНУДИТЕЛЬНАЯ ОЧИСТКА для остановки бесконечной миграции
-    const problematicOldUserId = localStorage.getItem('oldUserId');
-    if (problematicOldUserId === 'demo-user-atatvzu2f') {
-      console.log('🧹 Принудительно очищаем проблемный oldUserId:', problematicOldUserId);
-      localStorage.removeItem('oldUserId');
-    }
+    const tokenUpdateInterval = setInterval(() => {
+      refreshActiveToken();
+    }, 30000);
     
-    // Также очищаем если userId все еще demo-user-atatvzu2f
-    const currentUserId = localStorage.getItem('userId');
-    if (currentUserId === 'demo-user-atatvzu2f') {
-      console.log('🧹 Очищаем проблемный userId:', currentUserId);
-      localStorage.removeItem('userId');
-    }
-
-    console.log('🚀 App.tsx useEffect - начало инициализации');
-    
-    let userId = localStorage.getItem('userId');
-    console.log('💾 localStorage userId:', userId);
-    
-    // ПРИНУДИТЕЛЬНАЯ ПРОВЕРКА TELEGRAM ДАННЫХ НА КАЖДОМ ЗАПУСКЕ
-    const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
-    console.log('📱 Текущие Telegram данные:', telegramUser);
-    
-    // РАСШИРЕННАЯ ДИАГНОСТИКА
-    console.log('🔍 Диагностика Telegram WebApp:');
-    console.log('  - window.Telegram:', !!window.Telegram);
-    console.log('  - window.Telegram.WebApp:', !!window.Telegram?.WebApp);
-    console.log('  - initDataUnsafe:', !!window.Telegram?.WebApp?.initDataUnsafe);
-    console.log('  - user object:', !!window.Telegram?.WebApp?.initDataUnsafe?.user);
-    console.log('  - user.id:', window.Telegram?.WebApp?.initDataUnsafe?.user?.id);
-    console.log('  - platform:', (window.Telegram?.WebApp as any)?.platform || 'unknown');
-    console.log('  - version:', (window.Telegram?.WebApp as any)?.version || 'unknown');
-    console.log('  - user agent:', navigator.userAgent);
-    
-    if (telegramUser?.id) {
-      const correctUserId = `telegram-${telegramUser.id}`;
-      console.log('🎯 Корректный userId из Telegram:', correctUserId);
-      
-      // Если userId отличается от правильного, обновляем
-      if (userId !== correctUserId) {
-        console.log('🔄 Обновляем userId для синхронизации между устройствами');
-        console.log(`  Старый userId: ${userId}`);
-        console.log(`  Новый userId: ${correctUserId}`);
-        
-        // Сохраняем старый userId для миграции, если он существует и не пустой
-        if (userId && userId !== correctUserId) {
-          const existingOldUserId = localStorage.getItem('oldUserId');
-          if (!existingOldUserId || existingOldUserId !== userId) {
-            localStorage.setItem('oldUserId', userId);
-            console.log('💾 Сохранен oldUserId для миграции:', userId);
-          }
-        }
-        
-        userId = correctUserId;
-        localStorage.setItem('userId', userId);
-        
-        // Сохраняем актуальные Telegram данные
-        const userData = {
-          userId: userId,
-          username: telegramUser.username || `${telegramUser.first_name} ${telegramUser.last_name}`.trim(),
-          telegramFirstName: telegramUser.first_name || '',
-          telegramLastName: telegramUser.last_name || '',
-          telegramUsername: telegramUser.username || '',
-          telegramId: telegramUser.id
-        };
-        localStorage.setItem('telegramUserData', JSON.stringify(userData));
-        console.log('✅ Обновлены Telegram данные для синхронизации:', userData);
-      } else {
-        console.log('✅ userId уже корректный, синхронизация не требуется');
-      }
-    } else {
-      console.warn('⚠️ Telegram данные недоступны! Возможные причины:');
-      console.warn('  1. Приложение запущено не через Telegram');
-      console.warn('  2. Telegram WebApp API недоступен на этом устройстве');
-      console.warn('  3. Проблемы с инициализацией WebApp');
-    }
-    
-    if (!userId) {
-      console.log('🔍 userId не найден, получаем данные из Telegram...');
-      
-      // Логируем доступность Telegram WebApp
-      console.log('📱 window.Telegram:', !!window.Telegram);
-      console.log('📱 window.Telegram.WebApp:', !!window.Telegram?.WebApp);
-      console.log('📱 window.Telegram.WebApp.initDataUnsafe:', !!window.Telegram?.WebApp?.initDataUnsafe);
-      console.log('📱 window.Telegram.WebApp.initDataUnsafe.user:', window.Telegram?.WebApp?.initDataUnsafe?.user);
-      
-      if (telegramUser?.id) {
-        // Используем реальный Telegram ID
-        userId = `telegram-${telegramUser.id}`;
-        
-        // Сохраняем дополнительные данные пользователя
-        const userData = {
-          userId: userId,
-          username: telegramUser.username || `${telegramUser.first_name} ${telegramUser.last_name}`.trim(),
-          telegramFirstName: telegramUser.first_name || '',
-          telegramLastName: telegramUser.last_name || '',
-          telegramUsername: telegramUser.username || '',
-          telegramId: telegramUser.id
-        };
-        
-        // Сохраняем в localStorage
-        localStorage.setItem('userId', userId);
-        localStorage.setItem('telegramUserData', JSON.stringify(userData));
-        
-        console.log('📱 Получены реальные Telegram данные:', userData);
-        console.log('✅ Сохранено в localStorage как telegramUserData');
-      } else {
-        // Проверяем есть ли сохраненные Telegram данные
-        const storedTelegramData = localStorage.getItem('telegramUserData');
-        if (storedTelegramData) {
-          try {
-            const parsedData = JSON.parse(storedTelegramData);
-            if (parsedData.telegramId) {
-              userId = `telegram-${parsedData.telegramId}`;
-              console.log('📱 Используем сохраненный Telegram ID:', userId);
-            }
-          } catch (error) {
-            console.warn('⚠️ Ошибка парсинга сохраненных Telegram данных:', error);
-          }
-        }
-        
-        // КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ: Если все еще нет Telegram данных, показываем ошибку
-        if (!userId) {
-          console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: Приложение должно запускаться только через Telegram!');
-          // Создаем временный userId для тестирования, но предупреждаем
-          const browserFingerprint = [
-            navigator.userAgent,
-            navigator.language,
-            screen.width,
-            screen.height,
-            new Date().toDateString()
-          ].join('|');
-          
-          let hash = 0;
-          for (let i = 0; i < browserFingerprint.length; i++) {
-            const char = browserFingerprint.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash & hash;
-          }
-          
-          userId = `web-user-${Math.abs(hash)}`;
-          console.warn('⚠️ Создан временный веб ID для тестирования:', userId);
-          console.warn('⚠️ ВНИМАНИЕ: Данные не будут синхронизироваться между устройствами!');
-        }
-      }
-      
-      localStorage.setItem('userId', userId);
-      console.log('💾 Установлен userId:', userId);
-    } else {
-      console.log('✅ userId найден в localStorage:', userId);
-      
-      // Проверим есть ли telegramUserData
-      const storedTelegramData = localStorage.getItem('telegramUserData');
-      console.log('📱 telegramUserData в localStorage:', storedTelegramData);
-    }
-    
-    console.log('🔄 Вызываем initializeUser с userId:', userId);
-    
-    // Инициализируем пользователя
-    initializeUser(userId).then(() => {
-      console.log('✅ initializeUser завершён успешно');
-      
-      // Запускаем автосинхронизацию лидерборда каждые 30 секунд
-      const startAutoSync = useGameStore.getState().startAutoSync;
-      if (startAutoSync) {
-        console.log('🚀 Запуск автосинхронизации лидерборда каждые 30 сек');
-        startAutoSync();
-      }
-    }).catch(error => {
-      console.error('❌ Ошибка initializeUser:', error);
-    });
-
-    // Останавливаем автосинхронизацию при закрытии компонента
+    // Очистка интервала при размонтировании
     return () => {
-      const stopAutoSync = useGameStore.getState().stopAutoSync;
-      if (stopAutoSync) {
-        console.log('🛑 Остановка автосинхронизации лидерборда');
-        stopAutoSync();
-      }
+      clearInterval(tokenUpdateInterval);
     };
-  }, [initializeUser]);
+  }, [refreshActiveToken]);
 
-  // Принудительная синхронизация при фокусе на окне (смена устройств)
+  // Принудительная синхронизация при фокусе на окне (смена устройств) - оптимизированная
   useEffect(() => {
+    let isSyncing = false;
+    
     const handleWindowFocus = async () => {
-      console.log('👁️ Окно получило фокус - принудительная синхронизация');
-      const { syncGameState, refreshLeaderboard } = useGameStore.getState();
+      if (isSyncing) return; // Предотвращаем множественные вызовы
+      
+      // console.log('👁️ Окно получило фокус - принудительная синхронизация');
+      isSyncing = true;
+      
       try {
-        await syncGameState();
-        await refreshLeaderboard();
-        console.log('✅ Принудительная синхронизация при фокусе завершена');
+        const { syncGameState, refreshLeaderboard } = useGameStore.getState();
+        await Promise.allSettled([syncGameState(), refreshLeaderboard()]);
+        // console.log('✅ Принудительная синхронизация при фокусе завершена');
       } catch (error) {
-        console.error('❌ Ошибка принудительной синхронизации при фокусе:', error);
+        // console.error('❌ Ошибка принудительной синхронизации при фокусе:', error);
+      } finally {
+        isSyncing = false;
       }
     };
 
     const handleVisibilityChange = async () => {
-      if (!document.hidden) {
-        console.log('👁️ Страница стала видимой - принудительная синхронизация');
+      if (document.hidden || isSyncing) return; // Предотвращаем множественные вызовы
+      
+      // console.log('👁️ Страница стала видимой - принудительная синхронизация');
+      isSyncing = true;
+      
+      try {
         const { syncGameState, refreshLeaderboard } = useGameStore.getState();
-        try {
-          await syncGameState();
-          await refreshLeaderboard();
-          console.log('✅ Принудительная синхронизация при показе страницы завершена');
-        } catch (error) {
-          console.error('❌ Ошибка принудительной синхронизации при показе страницы:', error);
-        }
+        await Promise.allSettled([syncGameState(), refreshLeaderboard()]);
+        // console.log('✅ Принудительная синхронизация при показе страницы завершена');
+      } catch (error) {
+        // console.error('❌ Ошибка принудительной синхронизации при показе страницы:', error);
+      } finally {
+        isSyncing = false;
       }
     };
 
@@ -305,6 +299,74 @@ const App: React.FC = () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
+
+  // Показываем состояние загрузки
+  if (isLoading) {
+    // console.log('🔄 Рендеринг: Состояние загрузки (isLoading=true)');
+    return (
+      <div className="cyber-container" style={{
+        height: '100vh',
+        minHeight: '-webkit-fill-available',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#0a0a0a',
+        color: '#ffcc00'
+      }}>
+        <div className="cyber-text text-2xl font-bold mb-4">CYBERFLEX</div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500"></div>
+        <div className="mt-4 text-gray-400">Загрузка...</div>
+        <div className="mt-2 text-xs text-gray-500">
+          {/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+            ? 'Мобильная версия' 
+            : 'Десктопная версия'}
+        </div>
+        
+        {/* Показываем диагностику при длительной загрузке */}
+      </div>
+    );
+  }
+
+  // Показываем ошибку
+  if (error) {
+    // console.log('❌ Рендеринг: Состояние ошибки (error=', error, ')');
+    return (
+      <div className="cyber-container" style={{
+        height: '100vh',
+        minHeight: '-webkit-fill-available',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#0a0a0a',
+        color: '#ff4444'
+      }}>
+        <div className="cyber-text text-2xl font-bold mb-4">CYBERFLEX</div>
+        <div className="text-red-400 mb-4">Ошибка загрузки</div>
+        <div className="text-gray-400 text-center px-4">{error}</div>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white"
+        >
+          Перезагрузить
+        </button>
+      </div>
+    );
+  }
+
+  // console.log('🎮 Рендеринг: Основной игровой интерфейс (isLoading=false, error=null)');
+  // console.log('🎮 Состояние игры:', {
+  //   tokens,
+  //   engineLevel,
+  //   gearboxLevel,
+  //   batteryLevel,
+  //   powerGridLevel,
+  //   activeTokenSymbol,
+  //   fuelLevel,
+  //   hyperdriveCharge,
+  //   gear
+  // });
 
   return (
     <div 
@@ -353,7 +415,7 @@ const App: React.FC = () => {
             <div className="cyber-text text-lg sm:text-xl md:text-2xl font-bold" style={{
               textShadow: '0 0 5px rgba(0, 255, 136, 0.8)'
             }}>
-              {Math.floor(tokens)} DEL
+              {Math.floor(tokens)} {activeTokenSymbol || '...'}
             </div>
           </div>
         </div>
@@ -575,8 +637,8 @@ const App: React.FC = () => {
               position: 'relative'
             }}>
               {Math.floor(fuelLevel)}%
-            </div>
-            
+        </div>
+
             <div className="cyber-text text-sm opacity-80" style={{
               color: '#00ff88',
               textShadow: '0 0 10px rgba(0, 255, 136, 0.8)',
@@ -585,8 +647,8 @@ const App: React.FC = () => {
               marginTop: '5px'
             }}>
               ТОПЛИВО
-            </div>
-            
+        </div>
+
             {/* Передача */}
             <div className="cyber-text text-sm opacity-80" style={{
               color: '#00ff88',
@@ -644,10 +706,26 @@ const App: React.FC = () => {
 
       {/* Модальное окно профиля */}
       {isProfileOpen && (
-        <Profile onClose={() => setIsProfileOpen(false)} />
+        <Suspense fallback={
+          <div className="cyber-container" style={{
+            height: '100vh',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: '#0a0a0a',
+            color: '#ffcc00'
+          }}>
+            <div className="cyber-text text-2xl font-bold">Загрузка профиля...</div>
+          </div>
+        }>
+          <Profile onClose={() => setIsProfileOpen(false)} />
+        </Suspense>
       )}
+
+      {/* Service Worker Manager */}
+      <ServiceWorkerManager />
     </div>
-  )
-}
+  );
+};
 
 export default App;

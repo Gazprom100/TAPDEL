@@ -9,7 +9,12 @@
     "encrypt-key": "node scripts/encryptPrivateKey.js",
     "test-decimal": "node scripts/testDecimal.js",
     "test-redis": "node scripts/testRedis.js",
-    "reset-leaderboard": "node scripts/resetLeaderboard.js"
+    "reset-leaderboard": "node scripts/resetLeaderboard.js",
+    "check:db": "node scripts/checkDatabase.js",
+    "check:api": "node scripts/checkApi.js",
+    "check:system": "node scripts/checkSystem.js",
+    "check:services": "node scripts/checkNewServices.js",
+    "migrate:supabase": "node scripts/migrateToSupabase.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

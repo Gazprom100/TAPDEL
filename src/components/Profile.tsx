@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useGameStore } from '../store/gameStore';
+import { useGameConfigStore } from '../store/gameConfigStore';
 import { Shop } from './Shop';
 import { AdminPanel } from './AdminPanel';
 
@@ -12,19 +13,43 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     leaderboard,
     refreshLeaderboard,
     profile,
-    refreshBalance
+    refreshBoostBalance,
+    activeTokenSymbol,
+    refreshActiveToken
   } = useGameStore();
+
+  const { config } = useGameConfigStore();
+  
+  // FALLBACK: Если данные не загружены, используем дефолтные значения
+  const fallbackProfile = {
+    userId: 'fallback-user',
+    username: 'Игрок',
+    telegramUsername: null,
+    maxEnergy: 100,
+    energyRecoveryRate: 1,
+    maxGear: 'M' as any,
+    level: 1,
+    experience: 0,
+    createdAt: new Date(),
+    lastLogin: new Date()
+  };
+  
+  const safeProfile = profile || fallbackProfile;
+  const safeTokens = tokens || 0;
+  const safeTransactions = transactions || [];
+  const safeLeaderboard = leaderboard || [];
+  const safeActiveTokenSymbol = activeTokenSymbol || 'BOOST';
   
   // Отладочная информация для проверки профиля
-  console.log('🔍 Profile Component Debug:', { 
-    profile,
-    username: profile?.username,
-    telegramUsername: profile?.telegramUsername,
-    userId: profile?.userId,
-    isEvgeni: profile?.username === 'Evgeni_Krasnov' || profile?.telegramUsername === 'Evgeni_Krasnov',
-    // Временно показываем кнопку для всех для отладки
-    showAdminButton: true
-  });
+  // console.log('🔍 Profile Component Debug:', { 
+  //   profile: safeProfile,
+  //   username: safeProfile?.username,
+  //   telegramUsername: safeProfile?.telegramUsername,
+  //   userId: safeProfile?.userId,
+  //   isEvgeni: safeProfile?.username === 'Evgeni_Krasnov' || safeProfile?.telegramUsername === 'Evgeni_Krasnov',
+  //   // Временно показываем кнопку для всех для отладки
+  //   showAdminButton: true
+  // });
   
   const [activeTab, setActiveTab] = useState<Tab>('balance');
   const [withdrawAmount, setWithdrawAmount] = useState('');
@@ -42,49 +67,46 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [isLeaderboardLoading, setIsLeaderboardLoading] = useState(false);
   const [isTransactionsLoading, setIsTransactionsLoading] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
+  const [lastTransactionsUpdate, setLastTransactionsUpdate] = useState(0);
+  const [isLoading, setIsLoading] = useState(false); // Общий индикатор загрузки
   
+  // Обновление активного токена при монтировании
+  useEffect(() => {
+    refreshActiveToken();
+    
+    // Периодическое обновление активного токена каждые 30 секунд
+    const tokenInterval = setInterval(() => {
+      refreshActiveToken();
+    }, 30000);
+    
+    return () => {
+      clearInterval(tokenInterval);
+    };
+  }, [refreshActiveToken]);
+
   // Периодическое обновление таблицы лидеров
   useEffect(() => {
     let interval: NodeJS.Timeout;
 
     const updateLeaderboard = async () => {
-      if (activeTab === 'leaderboard') {
+      if (activeTab === 'leaderboard' && !isLeaderboardLoading) {
         setIsLeaderboardLoading(true);
         try {
-          console.log('🔄 Profile: Обновление лидерборда...');
+          // console.log('🔄 Profile: Обновление лидерборда...');
           await refreshLeaderboard();
         } catch (error) {
-          console.error('❌ Profile: Ошибка обновления лидерборда:', error);
+          // console.error('❌ Profile: Ошибка обновления лидерборда:', error);
+          // Не показываем ошибку пользователю, просто логируем
         } finally {
           setIsLeaderboardLoading(false);
         }
       }
     };
 
-    const loadTransactionsData = async () => {
-      if (activeTab === 'transactions' && profile?.userId) {
-        setIsTransactionsLoading(true);
-        try {
-          const { decimalApi } = await import('../services/decimalApi');
-          const [depositsData, withdrawalsData] = await Promise.all([
-            decimalApi.getUserDeposits(profile.userId).catch(() => []),
-            decimalApi.getUserWithdrawals(profile.userId).catch(() => [])
-          ]);
-          setDeposits(depositsData);
-          setWithdrawals(withdrawalsData);
-        } catch (error) {
-          console.error('❌ Profile: Ошибка загрузки данных транзакций:', error);
-        } finally {
-          setIsTransactionsLoading(false);
-        }
-      }
-    };
-
     if (activeTab === 'leaderboard') {
       updateLeaderboard();
-      interval = setInterval(updateLeaderboard, 30000); // Обновляем каждые 30 секунд
-    } else if (activeTab === 'transactions') {
-      loadTransactionsData();
+      // Увеличиваем интервал до 60 секунд для снижения нагрузки
+      interval = setInterval(updateLeaderboard, (config.leaderboard?.updateInterval || 60) * 1000); // Используем настройки из админки
     }
 
     return () => {
@@ -92,139 +114,205 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         clearInterval(interval);
       }
     };
-  }, [activeTab, refreshLeaderboard, profile?.userId]);
+  }, [activeTab, refreshLeaderboard, config.leaderboard.updateInterval]);
 
-  const handleWithdraw = async () => {
-    const amount = Number(withdrawAmount);
-    if (!profile?.userId) {
-      alert('Ошибка: пользователь не найден');
-      return;
-    }
+  // Отдельный useEffect для загрузки транзакций
+  useEffect(() => {
+    let isMounted = true;
+    let abortController: AbortController | null = null;
 
-    if (!withdrawAmount || withdrawAmount.trim() === '') {
-      alert('Введите количество DEL для вывода');
-      return;
-    }
-
-    if (amount <= 0) {
-      alert('Количество должно быть больше 0');
-      return;
-    }
-
-    // Проверяем что адрес введен
-    if (!withdrawAddress.trim()) {
-      alert('Введите адрес для вывода');
-      return;
-    }
-
-    // Проверяем формат адреса
-    if (!withdrawAddress.match(/^(xdc|0x)[0-9a-fA-F]{40}$/)) {
-      alert('Неверный формат адреса. Используйте формат: xdc... или 0x...');
-      return;
-    }
-
-    try {
-      // Проверяем общий DEL баланс (tokens) перед выводом
-      if (tokens < amount) {
-        alert(`Недостаточно DEL средств. Доступно: ${Math.floor(tokens)} DEL`);
+    const loadTransactionsData = async () => {
+      if (activeTab !== 'transactions' || !profile?.userId || isTransactionsLoading) {
         return;
       }
 
-      const { decimalApi } = await import('../services/decimalApi');
-      const response = await decimalApi.createWithdrawal({
-        userId: profile.userId,
-        toAddress: withdrawAddress,
-        amount: amount
-      });
-
-      setWithdrawAmount('');
-      setWithdrawAddress('');
-      alert(`Запрос на вывод создан успешно!\nID: ${response.withdrawalId}\nСумма: ${response.amount} DEL\nАдрес: ${response.toAddress}`);
-      
-      // Обновляем баланс
-      await refreshBalance();
-      
-      // Перезагружаем данные транзакций если мы на вкладке транзакций
-      if (activeTab === 'transactions') {
-        try {
-          const { decimalApi } = await import('../services/decimalApi');
-          const [depositsData, withdrawalsData] = await Promise.all([
-            decimalApi.getUserDeposits(profile.userId).catch(() => []),
-            decimalApi.getUserWithdrawals(profile.userId).catch(() => [])
-          ]);
-          setDeposits(depositsData);
-          setWithdrawals(withdrawalsData);
-        } catch (error) {
-          console.error('Ошибка обновления данных транзакций:', error);
-        }
+      // Дебаунсинг: не загружаем чаще чем раз в 10 секунд
+      const now = Date.now();
+      if (now - lastTransactionsUpdate < 10000) {
+        return;
       }
       
+      setIsTransactionsLoading(true);
+      
+      // Создаем новый AbortController для этого запроса
+      abortController = new AbortController();
+      
+      // ПРИНУДИТЕЛЬНЫЙ ТАЙМАУТ - 1 СЕКУНДА
+      const forceTimeout = setTimeout(() => {
+        if (isMounted) {
+          // console.warn('🚨 Force timeout транзакций - устанавливаем пустые данные');
+          setDeposits([]);
+          setWithdrawals([]);
+          setLastTransactionsUpdate(Date.now());
+          setIsTransactionsLoading(false);
+        }
+      }, 1000);
+      
+      try {
+        const timeoutId = setTimeout(() => {
+          // console.warn('⏰ Timeout загрузки транзакций');
+          abortController?.abort();
+        }, 1500); // 1.5 секунды timeout
+        
+        // Пробуем основной endpoint
+        let response = await fetch(`/api/decimal/users/${profile.userId}/transactions`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          signal: abortController.signal
+        });
+        
+        // Если основной endpoint не работает, пробуем fallback
+        if (!response.ok) {
+          response = await fetch(`/api/users/${profile.userId}/transactions`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            signal: abortController.signal
+          });
+        }
+        
+        clearTimeout(timeoutId);
+        clearTimeout(forceTimeout);
+        
+        if (!isMounted) return;
+        
+        if (response.ok) {
+          const data = await response.json();
+          setDeposits(data.deposits || []);
+          setWithdrawals(data.withdrawals || []);
+          setLastTransactionsUpdate(now);
+        } else {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+      } catch (error) {
+        if (!isMounted) return;
+        
+        // console.error('❌ Profile: Ошибка загрузки данных транзакций:', error);
+        setDeposits([]);
+        setWithdrawals([]);
+        setLastTransactionsUpdate(now);
+      } finally {
+        clearTimeout(forceTimeout);
+        if (isMounted) {
+          setIsTransactionsLoading(false);
+        }
+      }
+    };
+
+    // Загружаем транзакции только при переключении на вкладку
+    if (activeTab === 'transactions' && profile?.userId) {
+      loadTransactionsData();
+    }
+
+    return () => {
+      isMounted = false;
+      if (abortController) {
+        abortController.abort();
+      }
+    };
+  }, [activeTab, profile?.userId, isTransactionsLoading, lastTransactionsUpdate]);
+
+  // Функция для вывода токенов
+  const handleWithdraw = useCallback(async () => {
+    if (!withdrawAmount || !withdrawAddress) {
+      alert('Пожалуйста, заполните все поля');
+      return;
+    }
+
+    const amount = parseFloat(withdrawAmount);
+    if (isNaN(amount) || amount <= 0) {
+      alert('Пожалуйста, введите корректную сумму');
+      return;
+    }
+
+    if (safeTokens < amount) {
+      alert(`Недостаточно средств. Доступно: ${Math.floor(safeTokens)} ${safeActiveTokenSymbol || 'токенов'}`);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      
+      const response = await fetch('/api/decimal/withdrawals', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: safeProfile?.userId,
+          toAddress: withdrawAddress,
+          amount: amount
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert('Заявка на вывод создана успешно!');
+        setWithdrawAmount('');
+        setWithdrawAddress('');
+        // Обновляем баланс
+        await refreshBoostBalance();
+      } else {
+        alert('Ошибка при создании заявки на вывод: ' + data.error);
+      }
     } catch (error) {
-      console.error('Ошибка вывода:', error);
-      alert('Ошибка создания вывода: ' + (error instanceof Error ? error.message : 'Неизвестная ошибка'));
+      console.error('Ошибка при выводе токенов:', error);
+      alert('Ошибка при создании заявки на вывод');
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, [withdrawAmount, withdrawAddress, safeTokens, safeProfile?.userId, safeActiveTokenSymbol, refreshBoostBalance]);
 
-  const handleDeposit = async () => {
-    const amount = Number(depositAmount);
-    if (!profile?.userId) {
-      alert('Ошибка: пользователь не найден');
+  const handleDeposit = useCallback(async () => {
+    if (!depositAmount) {
+      alert('Введите количество для пополнения');
       return;
     }
 
-    if (!depositAmount || depositAmount.trim() === '') {
-      alert('Введите количество DEL для депозита');
-      return;
-    }
-
+    const amount = parseFloat(depositAmount);
+    
     if (amount <= 0) {
       alert('Количество должно быть больше 0');
       return;
     }
 
-    if (amount < 0.001) {
-      alert('Минимальная сумма депозита: 0.001 DEL');
-      return;
-    }
-
     try {
-      const { decimalApi } = await import('../services/decimalApi');
-      const deposit = await decimalApi.createDeposit({
-        userId: profile.userId,
-        baseAmount: amount
-      });
-
-      setDepositAmount('');
+      setIsLoading(true);
       
-      // Показываем детали депозита в удобном интерфейсе
-      setShowDepositDetails({
-        depositId: deposit.depositId,
-        uniqueAmount: deposit.uniqueAmount,
-        address: deposit.address,
-        expires: new Date(deposit.expires).toLocaleString('ru-RU'),
-        amountRequested: deposit.amountRequested
+      const response = await fetch('/api/decimal/deposits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: profile!.userId,
+          baseAmount: amount
+        })
       });
       
-      // Перезагружаем данные транзакций если мы на вкладке транзакций
-      if (activeTab === 'transactions') {
-        try {
-          const { decimalApi } = await import('../services/decimalApi');
-          const [depositsData, withdrawalsData] = await Promise.all([
-            decimalApi.getUserDeposits(profile.userId).catch(() => []),
-            decimalApi.getUserWithdrawals(profile.userId).catch(() => [])
-          ]);
-          setDeposits(depositsData);
-          setWithdrawals(withdrawalsData);
-        } catch (error) {
-          console.error('Ошибка обновления данных транзакций:', error);
-        }
+      const result = await response.json();
+      
+      if (response.ok && result.depositId) {
+        setShowDepositDetails({
+          depositId: result.depositId,
+          uniqueAmount: result.uniqueAmount,
+          address: result.address,
+          expires: result.expires,
+          amountRequested: amount
+        });
+        setDepositAmount('');
+        
+        // Обновляем список депозитов
+        // await loadTransactionsData(); // Удалено, так как loadTransactionsData зависит от activeTab
+      } else {
+        alert(result.error || 'Ошибка создания депозита');
       }
-      
     } catch (error) {
       console.error('Ошибка депозита:', error);
-      alert('Ошибка создания депозита: ' + (error instanceof Error ? error.message : 'Неизвестная ошибка'));
+      alert('Ошибка при создании депозита');
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, [depositAmount, profile?.userId]);
 
   return (
     <div 
@@ -323,17 +411,19 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             profile?.telegramUsername === 'Evgeni_Krasnov' ||
             profile?.telegramFirstName === 'Evgeni') && (
             // Отладочная информация
-            console.log('🔍 ADMIN Button Debug:', { 
-              username: profile?.username, 
-              telegramUsername: profile?.telegramUsername,
-              telegramFirstName: profile?.telegramFirstName,
-              userId: profile?.userId,
-              showAdmin: true
-            }),
+            // console.log('🔍 ADMIN Button Debug:', { 
+            //   username: profile?.username, 
+            //   telegramUsername: profile?.telegramUsername,
+            //   telegramFirstName: profile?.telegramFirstName,
+            //   userId: profile?.userId,
+            //   showAdmin: true
+            // }),
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                setShowAdmin(true);
+                // Открываем админпанель в новой вкладке браузера
+                const adminUrl = `${window.location.origin}/admin`;
+                window.open(adminUrl, '_blank');
               }}
               onTouchStart={(e) => {
                 e.stopPropagation();
@@ -361,12 +451,12 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               }}
             >
               <div className="space-y-4 sm:space-y-6 p-4">
-                <div className="cyber-text text-lg sm:text-xl">
-                  DEL Баланс: {Math.floor(tokens)} DEL
+                <div className="cyber-text text-lg font-bold mb-4">
+                  {safeActiveTokenSymbol || 'BOOST'} Баланс: {Math.floor(safeTokens)} {safeActiveTokenSymbol || 'BOOST'}
                 </div>
                 
                 <div className="cyber-panel space-y-3 sm:space-y-4 p-3 sm:p-4">
-                  <div className="cyber-text text-sm sm:text-base">Вывод DEL</div>
+                  <div className="cyber-text text-sm sm:text-base">Вывод {safeActiveTokenSymbol || 'BOOST'}</div>
                   <div className="space-y-2">
                     <input
                       type="number"
@@ -376,7 +466,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         e.stopPropagation();
                       }}
                       className="cyber-input w-full text-sm sm:text-base"
-                      placeholder="Количество DEL для вывода"
+                                              placeholder={`Количество ${safeActiveTokenSymbol || 'BOOST'} для вывода`}
                       style={{
                         minHeight: '40px',
                         pointerEvents: 'auto'
@@ -407,13 +497,13 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         pointerEvents: 'auto'
                       }}
                     >
-                      Вывести DEL
+                                              Вывести {safeActiveTokenSymbol || 'BOOST'}
                     </button>
                   </div>
                 </div>
 
                 <div className="cyber-panel space-y-3 sm:space-y-4 p-3 sm:p-4">
-                  <div className="cyber-text text-sm sm:text-base">Ввод DEL</div>
+                  <div className="cyber-text text-sm sm:text-base">Ввод {safeActiveTokenSymbol || 'BOOST'}</div>
                   <div className="flex flex-col sm:flex-row gap-2">
                     <input
                       type="number"
@@ -471,18 +561,54 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               }}
             >
               <div className="space-y-3 sm:space-y-4 p-4">
+                {/* Кнопка обновления транзакций */}
+                <div className="flex justify-between items-center mb-4">
+                  <div className="cyber-text text-base font-bold">Транзакции</div>
+                  <button
+                    onClick={() => {
+                      setLastTransactionsUpdate(0); // Сбрасываем время последнего обновления
+                      setIsTransactionsLoading(true);
+                      // Принудительно загружаем транзакции
+                      setTimeout(() => {
+                        const loadTransactionsData = async () => {
+                          try {
+                            const response = await fetch(`/api/decimal/users/${profile?.userId}/transactions`);
+                            if (response.ok) {
+                              const data = await response.json();
+                              setDeposits(data.deposits || []);
+                              setWithdrawals(data.withdrawals || []);
+                              setLastTransactionsUpdate(Date.now());
+                            }
+                          } catch (error) {
+                            setDeposits([]);
+                            setWithdrawals([]);
+                          } finally {
+                            setIsTransactionsLoading(false);
+                          }
+                        };
+                        loadTransactionsData();
+                      }, 100);
+                    }}
+                    disabled={isTransactionsLoading}
+                    className="cyber-button text-xs px-3 py-1"
+                  >
+                    {isTransactionsLoading ? 'Обновление...' : 'Обновить'}
+                  </button>
+                </div>
+                
                 {isTransactionsLoading ? (
                   <div className="text-center py-8">
                     <div className="cyber-spinner"></div>
                     <div className="mt-4 text-sm sm:text-base opacity-70">Загрузка транзакций...</div>
+                    <div className="mt-2 text-xs opacity-50">Пожалуйста, подождите</div>
                   </div>
                 ) : (
                   <>
                     {/* Депозиты */}
                     {Array.isArray(deposits) && deposits.length > 0 && (
                       <div className="space-y-2">
-                        <div className="cyber-text text-base font-bold">Депозиты DEL</div>
-                        {deposits.map((deposit: any) => {
+                        <div className="cyber-text text-base font-bold">Депозиты BOOST</div>
+                        {deposits.slice(0, 10).map((deposit: any) => {
                           const isExpired = deposit.status === 'expired';
                           const expiresIn = !isExpired ? Math.max(0, Math.floor((new Date(deposit.expiresAt).getTime() - Date.now()) / 1000)) : 0;
                           return (
@@ -493,13 +619,13 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                               <div className="flex justify-between items-start gap-2">
                                 <div className="flex-1">
                                   <div className="cyber-text text-sm sm:text-base">
-                                    Депозит {deposit.amountRequested} DEL
+                                    Депозит {deposit.amountRequested} BOOST
                                   </div>
                                   <div className="text-xs sm:text-sm opacity-70">
                                     {new Date(deposit.createdAt).toLocaleString('ru-RU')}
                                   </div>
                                   <div className="text-xs sm:text-sm mt-1">
-                                    Отправить: {deposit.uniqueAmount} DEL
+                                    Отправить: {deposit.uniqueAmount} BOOST
                                   </div>
                                   {deposit.txHash && (
                                     <div className="text-xs sm:text-sm opacity-70 break-all">
@@ -531,7 +657,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                                   </div>
                                   {!isExpired && (
                                     <div className="cyber-text text-sm font-bold mt-1 text-green-400">
-                                      +{deposit.amountRequested} DEL
+                                      +{deposit.amountRequested} BOOST
                                     </div>
                                   )}
                                 </div>
@@ -539,14 +665,19 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                             </div>
                           );
                         })}
+                        {deposits.length > 10 && (
+                          <div className="text-center text-xs opacity-70 py-2">
+                            Показано {Math.min(10, deposits.length)} из {deposits.length} депозитов
+                          </div>
+                        )}
                       </div>
                     )}
 
                     {/* Выводы */}
                     {withdrawals.length > 0 && (
                       <div className="space-y-2">
-                        <div className="cyber-text text-base font-bold">Выводы DEL</div>
-                        {withdrawals.map((withdrawal) => (
+                        <div className="cyber-text text-base font-bold">Выводы BOOST</div>
+                        {withdrawals.slice(0, 10).map((withdrawal) => (
                           <div
                             key={withdrawal.withdrawalId}
                             className="cyber-card p-3 sm:p-4"
@@ -554,7 +685,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                             <div className="flex justify-between items-start gap-2">
                               <div className="flex-1">
                                 <div className="cyber-text text-sm sm:text-base">
-                                  Вывод {withdrawal.amount} DEL
+                                  Вывод {withdrawal.amount} BOOST
                                 </div>
                                 <div className="text-xs sm:text-sm opacity-70">
                                   {new Date(withdrawal.requestedAt).toLocaleString('ru-RU')}
@@ -579,20 +710,25 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                                    'В очереди'}
                                 </div>
                                 <div className="cyber-text text-sm font-bold mt-1 text-red-400">
-                                  -{withdrawal.amount} DEL
+                                  -{withdrawal.amount} BOOST
                                 </div>
                               </div>
                             </div>
                           </div>
                         ))}
+                        {withdrawals.length > 10 && (
+                          <div className="text-center text-xs opacity-70 py-2">
+                            Показано {Math.min(10, withdrawals.length)} из {withdrawals.length} выводов
+                          </div>
+                        )}
                       </div>
                     )}
 
                     {/* Игровые транзакции */}
-                    {transactions && transactions.length > 0 && (
+                    {safeTransactions && safeTransactions.length > 0 && (
                       <div className="space-y-2">
                         <div className="cyber-text text-base font-bold">Игровые операции</div>
-                        {transactions.map((tx) => (
+                        {safeTransactions.slice(0, 15).map((tx) => (
                           <div
                             key={tx.id}
                             className="cyber-card flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 p-3 sm:p-4"
@@ -626,17 +762,29 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                             <div className={`cyber-text text-sm sm:text-base font-bold ${
                               tx.amount > 0 ? 'text-[#00ff88]' : 'text-[#ff4444]'
                             }`}>
-                              {tx.amount > 0 ? '+' : ''}{tx.amount} DEL
+                              {tx.amount > 0 ? '+' : ''}{tx.amount} BOOST
                             </div>
                           </div>
                         ))}
+                        {safeTransactions.length > 15 && (
+                          <div className="text-center text-xs opacity-70 py-2">
+                            Показано {Math.min(15, safeTransactions.length)} из {safeTransactions.length} игровых операций
+                          </div>
+                        )}
                       </div>
                     )}
 
                     {/* Если нет транзакций */}
-                    {deposits.length === 0 && withdrawals.length === 0 && (!transactions || transactions.length === 0) && (
+                    {deposits.length === 0 && withdrawals.length === 0 && (!safeTransactions || safeTransactions.length === 0) && (
                       <div className="text-center opacity-50 py-8 text-sm sm:text-base">
-                        История транзакций пуста
+                        {isTransactionsLoading ? (
+                          <div>
+                            <div className="cyber-spinner mx-auto mb-4"></div>
+                            <div>Загрузка транзакций...</div>
+                          </div>
+                        ) : (
+                          'История транзакций пуста'
+                        )}
                       </div>
                     )}
                   </>
@@ -660,8 +808,8 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     <div className="cyber-spinner"></div>
                     <div className="mt-4 text-sm sm:text-base opacity-70">Загрузка таблицы лидеров...</div>
                   </div>
-                ) : leaderboard && leaderboard.length > 0 ? (
-                  leaderboard.map((entry, index) => (
+                              ) : safeLeaderboard && safeLeaderboard.length > 0 ? (
+                safeLeaderboard.map((entry, index) => (
                     <div
                       key={entry.id}
                       className={`cyber-card flex justify-between items-center p-3 sm:p-4 ${
@@ -696,17 +844,14 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                           <div className={`text-xs sm:text-sm ${
                             entry.userId === profile?.userId ? 'text-[#00ff88]/80' : 'opacity-70'
                           }`}>
-                            Уровень: {entry.level} • Рейтинг: {Math.floor(entry.score)}
-                            {entry.userId === profile?.userId && (
-                              <span className="ml-2">• Баланс: {Math.floor(entry.tokens)} DEL</span>
-                            )}
+                            {entry.telegramUsername || entry.username}
                           </div>
                         </div>
                       </div>
                       <div className={`cyber-text text-sm sm:text-base font-bold whitespace-nowrap ml-2 ${
                         entry.userId === profile?.userId ? 'text-[#00ff88]' : ''
                       }`}>
-                        {Math.floor(entry.score)} ⭐
+                        {Math.floor(entry.score)}
                       </div>
                     </div>
                   ))
@@ -746,7 +891,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                       alert('Сумма скопирована!');
                     }}
                   >
-                    {showDepositDetails.uniqueAmount} DEL
+                    {showDepositDetails.uniqueAmount} BOOST
                     <div className="text-xs opacity-70 mt-1">Нажмите чтобы скопировать</div>
                   </div>
                 </div>

@@ -1,17 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { COMPONENTS, GAME_MECHANICS } from '../types/game';
 import { useGameStore } from '../store/gameStore';
+import { useGameConfigStore } from '../store/gameConfigStore';
 
-// Новые константы механики
-const FUEL_MECHANICS = {
-  MAX_LEVEL: 100,
+// Базовые константы механики (динамические настройки подгружаются из config)
+const FUEL_MECHANICS_BASE = {
   MIN_LEVEL: 0,
   // За 3 минуты активного тапания 5 пальцами (максимальная скорость ~15 тапов/сек) тратится все топливо
   // При максимальной скорости: 15 тапов/сек * 180 сек = 2700 тапов
-  // 100% / 2700 тапов = ~0.037% за тап
-  CONSUMPTION_PER_TAP: 100 / (15 * 3 * 60), // ~0.037% за тап при максимальной скорости
+  BASE_CONSUMPTION_RATIO: 1 / (15 * 3 * 60), // Базовая пропорция потребления
   // За 3 минуты бездействия восстанавливается все топливо
-  RECOVERY_RATE: 100 / (3 * 60), // ~0.56% в секунду при бездействии
+  BASE_RECOVERY_RATIO: 1 / (3 * 60), // Базовая пропорция восстановления
   INACTIVITY_THRESHOLD: 2000 // 2 секунды без активности для начала восстановления
 };
 
@@ -37,12 +36,39 @@ export const useGameMechanics = () => {
     addTokens
   } = useGameStore();
 
-  const [fuelLevel, setFuelLevel] = useState(FUEL_MECHANICS.MAX_LEVEL);
+  const { config, isLoaded, loadConfig } = useGameConfigStore();
+
+  const [fuelLevel, setFuelLevel] = useState(100); // Начальное значение, будет обновлено из настроек
   const [hyperdriveCharge, setHyperdriveCharge] = useState(HYPERDRIVE_MECHANICS.MIN_CHARGE);
   const [isHyperdriveActive, setIsHyperdriveActive] = useState(false);
   const [lastTapTime, setLastTapTime] = useState(0);
   const [gear, setGear] = useState('N');
   const [taps, setTaps] = useState<number[]>([]);
+
+  // Загружаем настройки при инициализации
+  useEffect(() => {
+    if (!isLoaded) {
+      loadConfig();
+    }
+  }, [isLoaded, loadConfig]);
+
+  // Динамические константы на основе настроек
+  const FUEL_MECHANICS = {
+    MAX_LEVEL: config.energyMax,
+    MIN_LEVEL: FUEL_MECHANICS_BASE.MIN_LEVEL,
+    CONSUMPTION_PER_TAP: config.energyMax * FUEL_MECHANICS_BASE.BASE_CONSUMPTION_RATIO,
+    RECOVERY_RATE: config.energyMax * FUEL_MECHANICS_BASE.BASE_RECOVERY_RATIO * config.energyRegenRate,
+    INACTIVITY_THRESHOLD: 2000
+  };
+
+  // Обновляем максимальную энергию при изменении настроек
+  useEffect(() => {
+    if (isLoaded) {
+      // Устанавливаем топливо на максимальный уровень при загрузке настроек
+      // console.log('🔧 Инициализация топлива:', { energyMax: config.energyMax, currentFuel: fuelLevel });
+      setFuelLevel(config.energyMax);
+    }
+  }, [isLoaded, config.energyMax]);
 
   // Получаем текущие компоненты
   const currentEngine = COMPONENTS.ENGINES.find(e => e.level === engineLevel)!;
@@ -88,7 +114,11 @@ export const useGameMechanics = () => {
       ? FUEL_MECHANICS.CONSUMPTION_PER_TAP * HYPERDRIVE_MECHANICS.FUEL_CONSUMPTION_MULTIPLIER
       : FUEL_MECHANICS.CONSUMPTION_PER_TAP;
     
-    setFuelLevel(prev => Math.max(FUEL_MECHANICS.MIN_LEVEL, prev - fuelConsumption));
+    setFuelLevel(prev => {
+      const newLevel = Math.max(FUEL_MECHANICS.MIN_LEVEL, prev - fuelConsumption);
+      // console.log('⛽ Расход топлива:', { prev, newLevel, consumption: fuelConsumption, max: FUEL_MECHANICS.MAX_LEVEL });
+      return newLevel;
+    });
     
     // Логика аккумулятора зависит от состояния гипердвигателя
     if (isHyperdriveActive) {
@@ -113,7 +143,7 @@ export const useGameMechanics = () => {
     }
     
     // Рассчитываем награду
-    const baseReward = 1;
+    const baseReward = config.baseTokensPerTap;
     const gearMultiplier = GAME_MECHANICS.GEAR.MULTIPLIERS[newGear] || 1;
     const engineBonus = 1 + (currentEngine.power / 100);
     const gearboxBonus = 1 + (currentGearbox.gear / 10);
@@ -148,7 +178,11 @@ export const useGameMechanics = () => {
       
       // Восстанавливаем топливо только при бездействии
       if (isInactive) {
-        setFuelLevel(prev => Math.min(FUEL_MECHANICS.MAX_LEVEL, prev + FUEL_MECHANICS.RECOVERY_RATE));
+        setFuelLevel(prev => {
+          const newLevel = Math.min(FUEL_MECHANICS.MAX_LEVEL, prev + FUEL_MECHANICS.RECOVERY_RATE);
+          // console.log('🔋 Восстановление топлива:', { prev, newLevel, max: FUEL_MECHANICS.MAX_LEVEL, recoveryRate: FUEL_MECHANICS.RECOVERY_RATE });
+          return newLevel;
+        });
       }
       
       // Базовая разрядка аккумулятора при активном гипердвигателе (независимо от тапов)
@@ -160,7 +194,7 @@ export const useGameMechanics = () => {
           // ⚡ ИСПРАВЛЕНИЕ: Отключаем гипердвигатель только при ПОЛНОМ РАЗРЯДЕ (0%)
           if (newCharge <= HYPERDRIVE_MECHANICS.MIN_CHARGE) {
             setIsHyperdriveActive(false);
-            console.log('🔋 Гипердвигатель отключен - аккумулятор полностью разряжен по времени');
+            // console.log('🔋 Гипердвигатель отключен - аккумулятор полностью разряжен по времени');
           }
           
           return newCharge;
@@ -169,7 +203,7 @@ export const useGameMechanics = () => {
     }, 1000); // Обновляем каждую секунду
 
     return () => clearInterval(interval);
-  }, [lastTapTime, isHyperdriveActive]); // ⚡ УБРАЛИ зависимость от activationThreshold
+  }, [lastTapTime, isHyperdriveActive, FUEL_MECHANICS.MAX_LEVEL, FUEL_MECHANICS.RECOVERY_RATE]); // Добавляем зависимости
 
   return {
     fuelLevel,

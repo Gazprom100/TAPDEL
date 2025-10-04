@@ -3,8 +3,15 @@ require('dotenv').config();
 
 class DatabaseConfig {
   constructor() {
+    const username = 'TAPDEL';
+    const password = 'fpz%25sE62KPzmHfM'; // Уже закодированный пароль
+    const cluster = 'cluster0.ejo8obw.mongodb.net';
+    const database = 'tapdel';
+    
     this.MONGODB_URI = process.env.MONGODB_URI || 
-      'mongodb+srv://TAPDEL:fpz%25sE62KPzmHfM@cluster0.ejo8obw.mongodb.net/tapdel?retryWrites=true&w=majority&appName=Cluster0';
+      `mongodb+srv://${username}:${password}@${cluster}/${database}?retryWrites=true&w=majority&appName=Cluster0`;
+    
+    console.log('🔍 DatabaseConfig URI:', this.MONGODB_URI);
     
     this.client = null;
     this.db = null;
@@ -14,9 +21,9 @@ class DatabaseConfig {
   // Оптимизированная конфигурация для 2000 пользователей
   getConnectionConfig() {
     return {
-      // Connection Pool настройки
-      maxPoolSize: 50,         // Максимум 50 соединений
-      minPoolSize: 5,          // Минимум 5 активных соединений
+      // Connection Pool настройки для 2000 пользователей
+      maxPoolSize: 100,        // Максимум 100 соединений
+      minPoolSize: 10,         // Минимум 10 активных соединений
       maxIdleTimeMS: 30000,    // 30 сек timeout для idle соединений
       
       // Timeouts
@@ -304,4 +311,8 @@ class DatabaseConfig {
 // Singleton instance
 const databaseConfig = new DatabaseConfig();
 
-module.exports = databaseConfig; 
+// Экспортируем функцию connectToDatabase для обратной совместимости
+const connectToDatabase = () => databaseConfig.connect();
+
+module.exports = databaseConfig;
+module.exports.connectToDatabase = connectToDatabase; 

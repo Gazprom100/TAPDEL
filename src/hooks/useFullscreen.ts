@@ -62,6 +62,37 @@ export const useFullscreen = () => {
       }
     } else {
       console.log('ℹ️ useFullscreen: Telegram WebApp недоступен, работаем в обычном режиме');
+      
+      // Fallback для мобильных устройств без Telegram
+      if (/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+        console.log('📱 useFullscreen: Обнаружено мобильное устройство, применяем fallback настройки');
+        console.log('📱 useFullscreen: User Agent:', navigator.userAgent);
+        console.log('📱 useFullscreen: Platform:', navigator.platform);
+        console.log('📱 useFullscreen: Screen size:', screen.width, 'x', screen.height);
+        
+        // Устанавливаем базовые safe area для мобильных устройств
+        document.documentElement.style.setProperty('--safe-top', 'env(safe-area-inset-top, 0px)');
+        document.documentElement.style.setProperty('--safe-bottom', 'env(safe-area-inset-bottom, 0px)');
+        document.documentElement.style.setProperty('--safe-left', 'env(safe-area-inset-left, 0px)');
+        document.documentElement.style.setProperty('--safe-right', 'env(safe-area-inset-right, 0px)');
+        
+        // Применяем мобильные стили
+        document.body.style.setProperty('height', '100vh');
+        document.body.style.setProperty('height', '-webkit-fill-available');
+        document.body.style.setProperty('overflow', 'hidden');
+        document.body.style.setProperty('position', 'fixed');
+        document.body.style.setProperty('width', '100%');
+        document.body.style.setProperty('top', '0');
+        document.body.style.setProperty('left', '0');
+        
+        // Дополнительные настройки для мобильных устройств
+        document.body.style.setProperty('-webkit-touch-callout', 'none');
+        document.body.style.setProperty('-webkit-user-select', 'none');
+        document.body.style.setProperty('user-select', 'none');
+        document.body.style.setProperty('touch-action', 'manipulation');
+        
+        console.log('✅ useFullscreen: Fallback настройки для мобильных устройств применены');
+      }
     }
   }, []);
 

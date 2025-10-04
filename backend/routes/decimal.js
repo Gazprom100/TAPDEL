@@ -2,6 +2,7 @@ const express = require('express');
 const { MongoClient } = require('mongodb');
 const decimalService = require('../services/decimalService');
 const config = require('../config/decimal');
+const tokenService = require('../services/tokenService');
 const router = express.Router();
 
 // Используем подключение к MongoDB из основного API
@@ -53,6 +54,68 @@ router.get('/test', (req, res) => {
   });
 });
 
+// Получить статус Decimal сервиса
+router.get('/status', (req, res) => {
+  try {
+    res.json({
+      success: true,
+      status: 'active',
+      message: 'Decimal сервис работает',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Ошибка получения статуса:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Получить все депозиты
+router.get('/deposits', async (req, res) => {
+  try {
+    const database = await connectToDatabase();
+    const deposits = await database.collection('deposits').find({}).sort({ createdAt: -1 }).limit(100).toArray();
+    
+    res.json({
+      success: true,
+      deposits: deposits.map(deposit => ({
+        id: deposit._id.toString(),
+        userId: deposit.userId,
+        amount: deposit.amountRequested,
+        status: deposit.matched ? 'completed' : 'pending',
+        createdAt: deposit.createdAt?.toISOString(),
+        txHash: deposit.txHash
+      }))
+    });
+  } catch (error) {
+    console.error('Ошибка получения депозитов:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Получить все выводы
+router.get('/withdrawals', async (req, res) => {
+  try {
+    const database = await connectToDatabase();
+    const withdrawals = await database.collection('withdrawals').find({}).sort({ requestedAt: -1 }).limit(100).toArray();
+    
+    res.json({
+      success: true,
+      withdrawals: withdrawals.map(withdrawal => ({
+        id: withdrawal._id.toString(),
+        userId: withdrawal.userId,
+        amount: withdrawal.amount,
+        status: withdrawal.status,
+        createdAt: withdrawal.requestedAt?.toISOString(),
+        processedAt: withdrawal.processedAt?.toISOString(),
+        txHash: withdrawal.txHash
+      }))
+    });
+  } catch (error) {
+    console.error('Ошибка получения выводов:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // === ДЕПОЗИТЫ ===
 
 // Создать депозит
@@ -67,8 +130,9 @@ router.post('/deposits', async (req, res) => {
     }
 
     if (baseAmount < 0.001) {
+      const activeToken = await tokenService.getActiveToken();
       return res.status(400).json({ 
-        error: 'Минимальная сумма депозита: 0.001 DEL' 
+        error: `Минимальная сумма депозита: 0.001 ${activeToken.symbol}` 
       });
     }
 
@@ -105,7 +169,8 @@ router.post('/deposits', async (req, res) => {
 
     const result = await database.collection('deposits').insertOne(deposit);
     
-    console.log(`💳 Создан депозит: ${userId} → ${uniqueAmount} DEL`);
+    const activeToken = await tokenService.getActiveToken();
+    console.log(`💳 Создан депозит: ${userId} → ${uniqueAmount} ${activeToken.symbol}`);
 
     res.json({
       depositId: result.insertedId.toString(),
@@ -205,9 +270,18 @@ router.post('/withdrawals', async (req, res) => {
       });
     }
 
-    if (amount < 0.001) {
+    // Получаем настройки игры для проверки минимальной суммы
+    const { MongoClient } = require('mongodb');
+    const configClient = await MongoClient.connect(process.env.MONGODB_URI);
+    const configDb = configClient.db('tapdel');
+    const systemConfig = await configDb.collection('system_config').findOne({ type: 'game_config' });
+    const minWithdrawal = systemConfig?.config?.economy?.withdrawalMinAmount || 100;
+    await configClient.close();
+
+    if (amount < minWithdrawal) {
+      const activeToken = await tokenService.getActiveToken();
       return res.status(400).json({ 
-        error: 'Минимальная сумма вывода: 0.001 DEL' 
+        error: `Минимальная сумма вывода: ${minWithdrawal} ${activeToken.symbol}` 
       });
     }
 
@@ -230,8 +304,38 @@ router.post('/withdrawals', async (req, res) => {
     const gameBalance = user.gameState?.tokens || 0;
     
     if (gameBalance < amount) {
+      const activeToken = await tokenService.getActiveToken();
       return res.status(400).json({ 
-        error: `Недостаточно средств. Доступно: ${gameBalance} DEL` 
+        error: `Недостаточно средств. Доступно: ${gameBalance} ${activeToken.symbol}` 
+      });
+    }
+
+    // Инициализируем decimalService если нужно
+    if (!decimalService.isInitialized) {
+      try {
+        await decimalService.initialize();
+        console.log('✅ DecimalService инициализирован для вывода');
+      } catch (initError) {
+        console.error('❌ Ошибка инициализации DecimalService:', initError);
+        return res.status(500).json({ 
+          error: 'Ошибка инициализации блокчейн сервиса' 
+        });
+      }
+    }
+
+    // Проверяем баланс рабочего кошелька
+    try {
+      const workingBalance = await decimalService.getWorkingBalance();
+      if (workingBalance < amount) {
+        const activeToken = await tokenService.getActiveToken();
+        return res.status(400).json({ 
+          error: `Недостаточно средств в рабочем кошельке. Доступно: ${workingBalance} ${activeToken.symbol}` 
+        });
+      }
+    } catch (balanceError) {
+      console.error('❌ Ошибка проверки баланса рабочего кошелька:', balanceError);
+      return res.status(500).json({ 
+        error: 'Ошибка проверки баланса рабочего кошелька' 
       });
     }
 
@@ -254,7 +358,8 @@ router.post('/withdrawals', async (req, res) => {
 
     const result = await database.collection('withdrawals').insertOne(withdrawal);
     
-    console.log(`💸 Создан вывод: ${userId} → ${amount} DEL на ${toAddress}`);
+    const activeToken = await tokenService.getActiveToken();
+    console.log(`💸 Создан вывод: ${userId} → ${amount} ${activeToken.symbol} на ${toAddress}`);
 
     res.json({
       withdrawalId: result.insertedId.toString(),
@@ -265,7 +370,7 @@ router.post('/withdrawals', async (req, res) => {
 
   } catch (error) {
     console.error('❌ Ошибка создания вывода:', error);
-    res.status(500).json({ error: 'Ошибка сервера' });
+    res.status(500).json({ error: 'Ошибка сервера', details: error.message });
   }
 });
 
@@ -330,9 +435,48 @@ router.get('/users/:userId/withdrawals', async (req, res) => {
   }
 });
 
+// === ТРАНЗАКЦИИ ===
+
+// Получить все транзакции пользователя (депозиты + выводы)
+router.get('/users/:userId/transactions', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const database = await connectToDatabase();
+    
+    // Загружаем депозиты и выводы параллельно для ускорения
+    const [deposits, withdrawals] = await Promise.all([
+      database.collection('deposits')
+        .find({ userId: userId })
+        .sort({ createdAt: -1 })
+        .limit(20) // Сокращаем лимит для ускорения
+        .toArray(),
+      database.collection('withdrawals')
+        .find({ userId: userId })
+        .sort({ requestedAt: -1 })
+        .limit(20) // Сокращаем лимит для ускорения
+        .toArray()
+    ]);
+    
+    res.json({
+      deposits: deposits || [],
+      withdrawals: withdrawals || [],
+      total: deposits.length + withdrawals.length
+    });
+
+  } catch (error) {
+    console.error('❌ Ошибка получения транзакций:', error);
+    // Возвращаем пустые данные вместо ошибки для лучшего UX
+    res.json({
+      deposits: [],
+      withdrawals: [],
+      total: 0
+    });
+  }
+});
+
 // === БАЛАНС ===
 
-// Получить DEL баланс пользователя
+// Получить баланс пользователя (активный токен)
 router.get('/users/:userId/balance', async (req, res) => {
   try {
     const { userId } = req.params;
@@ -344,17 +488,53 @@ router.get('/users/:userId/balance', async (req, res) => {
       return res.status(404).json({ error: 'Пользователь не найден' });
     }
 
-    const gameBalance = user.gameState?.tokens || 0;
+    const activeToken = await tokenService.getActiveToken();
+    
+    // Получаем баланс для активного токена
+    const tokenBalanceService = require('../services/tokenBalanceService');
+    let tokenBalance = null;
+    
+    try {
+      tokenBalance = await tokenBalanceService.getUserTokenBalance(userId, activeToken.symbol);
+    } catch (error) {
+      console.warn('⚠️ Ошибка получения баланса токена:', error);
+    }
+    
+    // ИСПРАВЛЕНО: Приоритет gameState.tokens над сохраненным балансом
+    // Если gameState.tokens = 0 (сброшено в админке), то игнорируем сохраненный баланс
+    let gameBalance = user.gameState?.tokens || 0;
+    
+    // Используем сохраненный баланс только если gameState.tokens > 0
+    // Это предотвращает возврат баланса после сброса в админке
+    if (tokenBalance && tokenBalance.balance > 0 && gameBalance > 0) {
+      gameBalance = tokenBalance.balance;
+      console.log(`💰 Используем сохраненный баланс: ${gameBalance} ${activeToken.symbol}`);
+    } else {
+      console.log(`💰 Используем gameState.tokens: ${gameBalance} ${activeToken.symbol}`);
+    }
+
+    let workingWalletBalance = 0;
+    try {
+      // Инициализируем decimalService если нужно
+      if (!decimalService.isInitialized) {
+        await decimalService.initialize();
+      }
+      workingWalletBalance = await decimalService.getWorkingBalance();
+    } catch (error) {
+      console.warn('⚠️ Ошибка получения баланса рабочего кошелька:', error);
+    }
 
     res.json({
       userId: userId,
       gameBalance: gameBalance,
-      workingWalletBalance: await decimalService.getWorkingBalance()
+      tokenSymbol: activeToken.symbol,
+      tokenName: activeToken.name,
+      workingWalletBalance: workingWalletBalance
     });
 
   } catch (error) {
     console.error('❌ Ошибка получения баланса:', error);
-    res.status(500).json({ error: 'Ошибка сервера' });
+    res.status(500).json({ error: 'Ошибка сервера', details: error.message });
   }
 });
 

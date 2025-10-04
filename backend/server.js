@@ -6,12 +6,18 @@ require('dotenv').config({ path: './.env' });
 const telegramRoutes = require('./routes/telegram');
 const apiRoutes = require('./routes/api');
 const decimalRoutes = require('./routes/decimal');
+const adminRoutes = require('./routes/admin');
+const resetBalancesRoutes = require('./routes/resetBalances');
+const monitoringRoutes = require('./routes/monitoring');
 const botService = require('./services/botService');
 const decimalService = require('./services/decimalService');
 
 // ОПТИМИЗАЦИЯ: Импортируем оптимизированные сервисы
 const databaseConfig = require('./config/database');
 const cacheService = require('./services/cacheService');
+const advancedCacheService = require('./services/advancedCacheService');
+const withdrawalBatchService = require('./services/withdrawalBatchService');
+const monitoringService = require('./services/monitoringService');
 
 // ВРЕМЕННО: Условная загрузка rate limiter (для deployment)
 let rateLimiterMiddleware = null;
@@ -24,81 +30,79 @@ try {
 const app = express();
 const PORT = process.env.PORT || 3001; // Изменили порт чтобы избежать конфликта
 
+// === ГЛОБАЛЬНЫЙ ЛОГГЕР ===
+app.use((req, res, next) => {
+  console.log('==> GLOBAL:', req.method, req.path);
+  next();
+});
+
 // Middleware
 app.use(cors());
 app.use(express.json());
 
 // ОПТИМИЗАЦИЯ: Rate limiting middleware (если доступен)
-if (rateLimiterMiddleware) {
-  app.use(rateLimiterMiddleware.getLoggingMiddleware());
-  app.use(rateLimiterMiddleware.getDynamicLimiter());
-} else {
-  console.log('⚠️ Rate limiting отключен (зависимости недоступны)');
-}
+// ВРЕМЕННО ОТКЛЮЧЕН для диагностики
+// if (rateLimiterMiddleware) {
+//   app.use(rateLimiterMiddleware.getLoggingMiddleware());
+//   app.use(rateLimiterMiddleware.getDynamicLimiter());
+// } else {
+//   console.log('⚠️ Rate limiting отключен (зависимости недоступны)');
+// }
+console.log('⚠️ Rate limiting временно отключен для диагностики');
 
-// ОПТИМИЗАЦИЯ: Health check endpoint (до rate limiting)
-app.get('/health', async (req, res) => {
-  try {
-    const health = {
-      status: 'healthy',
-      timestamp: new Date(),
-      services: {
-        mongodb: databaseConfig.isConnected,
-        redis: cacheService.isConnected,
-        telegram: !!botService.bot,
-        decimal: decimalService.isInitialized || false,
-        rateLimiter: !!rateLimiterMiddleware
-      },
-      performance: {
-        uptime: process.uptime(),
-        memory: {
-          used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
-          total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024)
-        }
-      }
-    };
+// === API ROUTES (правильный порядок: сначала специфичные, потом общие) ===
+console.log('🔗 Регистрирую API роуты...');
 
-    // Проверяем критические сервисы
-    const allServicesHealthy = health.services.mongodb && health.services.telegram;
-    
-    res.status(allServicesHealthy ? 200 : 503).json(health);
-  } catch (error) {
-    res.status(503).json({
-      status: 'unhealthy',
-      error: error.message,
-      timestamp: new Date()
-    });
-  }
+
+
+// 1. Специфичные роуты (более конкретные)
+app.use('/api/telegram', (req, res, next) => { 
+  console.log('➡️ /api/telegram', req.method, req.path); 
+  next(); 
+}, telegramRoutes);
+
+app.use('/api/decimal', (req, res, next) => { 
+  console.log('➡️ /api/decimal', req.method, req.path); 
+  next(); 
+}, decimalRoutes);
+
+app.use('/api/admin', (req, res, next) => { 
+  console.log('➡️ /api/admin', req.method, req.path); 
+  next(); 
+}, adminRoutes);
+
+app.use('/api/monitoring', (req, res, next) => { 
+  console.log('➡️ /api/monitoring', req.method, req.path); 
+  next(); 
+}, monitoringRoutes);
+
+// 2. Общий API роут (должен быть последним среди API)
+app.use('/api', (req, res, next) => { 
+  console.log('➡️ /api', req.method, req.path); 
+  next(); 
+}, apiRoutes);
+
+// === 404 для API (после всех API-роутов!) ===
+app.use('/api/*', (req, res) => {
+  console.log('❌ 404 API middleware:', req.method, req.path);
+  res.status(404).json({
+    error: 'Маршрут не найден',
+    path: req.path,
+    timestamp: new Date().toISOString()
+  });
 });
 
-// API Routes ПЕРЕД static middleware (критично!)
-app.use('/api/telegram', telegramRoutes);
-app.use('/api', apiRoutes);
-app.use('/api/decimal', decimalRoutes);
-
-// Тестовый роут для отладки
-app.get('/api/test', (req, res) => {
-  res.json({ message: 'API работает!', timestamp: new Date() });
-});
-
-// DecimalChain роуты будут подключены после инициализации сервиса
-
-// Static files только для не-API роутов
+// === STATIC FILES (только для не-API) ===
 app.use((req, res, next) => {
-  if (req.path.startsWith('/api/')) {
-    return next();
-  }
+  if (req.path.startsWith('/api/')) return next();
   express.static(path.join(__dirname, '../dist'))(req, res, next);
 });
 
-// Fallback для SPA (только для не-API роутов)
-app.get('*', (req, res) => {
-  if (!req.path.startsWith('/api/')) {
-    res.sendFile(path.join(__dirname, '../dist/index.html'));
-  }
+// === SPA FALLBACK (только для не-API) ===
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api/')) return next();
+  res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
-
-// DecimalChain роуты будут подключены после инициализации сервиса
 
 // Start server
 const startServer = () => {
@@ -141,44 +145,26 @@ const startServer = () => {
         decimalInitialized = true;
         console.log('✅ DecimalChain сервис инициализирован');
         
-        // Подключаем DecimalChain роуты после успешной инициализации
-        app.use('/api/decimal', decimalRoutes);
-        console.log('🔗 DecimalChain API роуты подключены');
-        
       } catch (error) {
         console.error('⚠️ DecimalChain сервис недоступен:', error.message);
         console.error('📋 Подробности ошибки:', error);
         console.log('ℹ️ Сервер запустится без DecimalChain функционала');
         console.log('🔧 Для активации DecimalChain исправьте Redis подключение');
         
-        // Добавляем fallback роуты для DecimalChain
-        app.get('/api/decimal/*', (req, res) => {
+        // Добавляем fallback middleware для DecimalChain
+        const decimalUnavailableMiddleware = (req, res) => {
           res.status(503).json({ 
             error: 'DecimalChain сервис временно недоступен',
             details: 'Проблема с Redis подключением - проверьте REDIS_URL',
             status: 'service_unavailable',
             configured: false
           });
-        });
+        };
         
-        app.post('/api/decimal/*', (req, res) => {
-          res.status(503).json({ 
-            error: 'DecimalChain сервис временно недоступен',
-            details: 'Проблема с Redis подключением - проверьте REDIS_URL',
-            status: 'service_unavailable',
-            configured: false
-          });
-        });
+        // Переопределяем DecimalChain роуты на fallback
+        app.use('/api/decimal', decimalUnavailableMiddleware);
       }
 
-      // Serve SPA - только для НЕ-API роутов
-      app.get('*', (req, res) => {
-        // Проверяем что это не API запрос
-        if (req.path.startsWith('/api/')) {
-          return res.status(404).json({ error: 'API endpoint not found', path: req.path });
-        }
-        res.sendFile(path.join(__dirname, '../dist/index.html'));
-      });
 
       const server = app.listen(PORT, async () => {
         console.log('==> Server Configuration:');
@@ -194,12 +180,11 @@ const startServer = () => {
             const { MongoClient } = require('mongodb');
             const generateCleanMongoURI = () => {
               const username = 'TAPDEL';
-              const password = 'fpz%sE62KPzmHfM';
+              const password = 'fpz%25sE62KPzmHfM'; // Уже закодированный пароль
               const cluster = 'cluster0.ejo8obw.mongodb.net';
               const database = 'tapdel';
               
-              const encodedPassword = encodeURIComponent(password);
-              return `mongodb+srv://${username}:${encodedPassword}@${cluster}/${database}?retryWrites=true&w=majority&appName=Cluster0`;
+              return `mongodb+srv://${username}:${password}@${cluster}/${database}?retryWrites=true&w=majority&appName=Cluster0`;
             };
 
             const MONGODB_URI = process.env.MONGODB_URI || generateCleanMongoURI();
@@ -230,12 +215,11 @@ const startServer = () => {
             const { MongoClient } = require('mongodb');
             const generateCleanMongoURI = () => {
               const username = 'TAPDEL';
-              const password = 'fpz%sE62KPzmHfM';
+              const password = 'fpz%25sE62KPzmHfM'; // Уже закодированный пароль
               const cluster = 'cluster0.ejo8obw.mongodb.net';
               const database = 'tapdel';
               
-              const encodedPassword = encodeURIComponent(password);
-              return `mongodb+srv://${username}:${encodedPassword}@${cluster}/${database}?retryWrites=true&w=majority&appName=Cluster0`;
+              return `mongodb+srv://${username}:${password}@${cluster}/${database}?retryWrites=true&w=majority&appName=Cluster0`;
             };
 
             const MONGODB_URI = process.env.MONGODB_URI || generateCleanMongoURI();
@@ -245,9 +229,19 @@ const startServer = () => {
             await client.connect();
             const database = client.db(MONGODB_DB);
             
-            // Запускаем мониторинг блокчейна
-            await decimalService.startWatching(database);
-            console.log('🔍 DecimalChain мониторинг запущен');
+                    // Запускаем мониторинг блокчейна
+        await decimalService.startWatching(database);
+        console.log('🔍 DecimalChain мониторинг запущен');
+        
+        // Инициализируем расширенные сервисы для масштабирования
+        try {
+          await advancedCacheService.initialize();
+          await withdrawalBatchService.initialize();
+          await monitoringService.initialize();
+          console.log('✅ Расширенные сервисы инициализированы для масштабирования');
+        } catch (error) {
+          console.warn('⚠️ Ошибка инициализации расширенных сервисов:', error.message);
+        }
           } catch (error) {
             console.error('❌ Ошибка запуска DecimalChain мониторинга:', error);
           }
@@ -276,6 +270,9 @@ const gracefulShutdown = async (server) => {
   
   await botService.shutdown();
   await decimalService.disconnect();
+  await advancedCacheService.shutdown();
+  await withdrawalBatchService.shutdown();
+  await monitoringService.shutdown();
   
   if (server) {
     server.close(() => {
