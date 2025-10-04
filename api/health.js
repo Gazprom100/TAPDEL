@@ -1,8 +1,5 @@
-const express = require('express');
 const { MongoClient } = require('mongodb');
 require('dotenv').config();
-
-const app = express();
 
 // Database configuration
 const generateCleanMongoURI = () => {
@@ -17,7 +14,18 @@ const generateCleanMongoURI = () => {
 const MONGODB_URI = process.env.MONGODB_URI || generateCleanMongoURI();
 const MONGODB_DB = process.env.MONGODB_DB || 'tapdel';
 
-app.get('/api/health', async (req, res) => {
+module.exports = async (req, res) => {
+  // Enable CORS
+  res.setHeader('Access-Control-Allow-Credentials', true);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
   try {
     let mongoStatus = 'disconnected';
     let userCount = 0;
@@ -52,6 +60,4 @@ app.get('/api/health', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   }
-});
-
-module.exports = app;
+};

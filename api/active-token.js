@@ -1,8 +1,5 @@
-const express = require('express');
 const { MongoClient } = require('mongodb');
 require('dotenv').config();
-
-const app = express();
 
 // Database configuration
 const generateCleanMongoURI = () => {
@@ -17,30 +14,22 @@ const generateCleanMongoURI = () => {
 const MONGODB_URI = process.env.MONGODB_URI || generateCleanMongoURI();
 const MONGODB_DB = process.env.MONGODB_DB || 'tapdel';
 
-let client = null;
-let db = null;
+module.exports = async (req, res) => {
+  // Enable CORS
+  res.setHeader('Access-Control-Allow-Credentials', true);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
 
-// Инициализация подключения к MongoDB
-const connectToDatabase = async () => {
-  if (!client) {
-    try {
-      console.log('🔗 Подключение к MongoDB...');
-      client = new MongoClient(MONGODB_URI);
-      await client.connect();
-      db = client.db(MONGODB_DB);
-      console.log('✅ MongoDB подключен');
-    } catch (error) {
-      console.error('❌ Ошибка подключения к MongoDB:', error);
-      throw error;
-    }
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
   }
-  return db;
-};
 
-// GET /api/active-token
-app.get('/api/active-token', async (req, res) => {
   try {
-    const database = await connectToDatabase();
+    const client = new MongoClient(MONGODB_URI);
+    await client.connect();
+    const database = client.db(MONGODB_DB);
     
     // Получаем конфигурацию токенов из БД или используем дефолтную
     const tokenConfig = await database.collection('system_config').findOne({ key: 'tokens' });
@@ -65,6 +54,8 @@ app.get('/api/active-token', async (req, res) => {
     const tokens = tokenConfig?.value || defaultTokens;
     const activeToken = tokens.find(token => token.isActive) || tokens[0];
     
+    await client.close();
+    
     res.json({
       success: true,
       token: {
@@ -78,6 +69,4 @@ app.get('/api/active-token', async (req, res) => {
     console.error('Ошибка получения активного токена:', error);
     res.status(500).json({ success: false, error: 'Ошибка сервера' });
   }
-});
-
-module.exports = app;
+};

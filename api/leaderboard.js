@@ -1,8 +1,5 @@
-const express = require('express');
 const { MongoClient } = require('mongodb');
 require('dotenv').config();
-
-const app = express();
 
 // Database configuration
 const generateCleanMongoURI = () => {
@@ -16,26 +13,6 @@ const generateCleanMongoURI = () => {
 
 const MONGODB_URI = process.env.MONGODB_URI || generateCleanMongoURI();
 const MONGODB_DB = process.env.MONGODB_DB || 'tapdel';
-
-let client = null;
-let db = null;
-
-// Инициализация подключения к MongoDB
-const connectToDatabase = async () => {
-  if (!client) {
-    try {
-      console.log('🔗 Подключение к MongoDB...');
-      client = new MongoClient(MONGODB_URI);
-      await client.connect();
-      db = client.db(MONGODB_DB);
-      console.log('✅ MongoDB подключен');
-    } catch (error) {
-      console.error('❌ Ошибка подключения к MongoDB:', error);
-      throw error;
-    }
-  }
-  return db;
-};
 
 // Безопасная функция форматирования имени пользователя
 const formatUserName = (username, telegramFirstName, telegramLastName, telegramUsername, userId) => {
@@ -74,109 +51,105 @@ async function updateAllRanks(database) {
   }
 }
 
-// GET /api/leaderboard
-app.get('/api/leaderboard', async (req, res) => {
+module.exports = async (req, res) => {
+  // Enable CORS
+  res.setHeader('Access-Control-Allow-Credentials', true);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
   try {
-    console.log('📊 Запрос лидерборда...');
-    const limit = parseInt(req.query.limit) || 100;
-    const page = parseInt(req.query.page) || 1;
+    const client = new MongoClient(MONGODB_URI);
+    await client.connect();
+    const database = client.db(MONGODB_DB);
     
-    const database = await connectToDatabase();
-    
-    if (!database) {
-      console.error('❌ База данных недоступна');
-      return res.status(503).json({ message: 'Database unavailable' });
-    }
-    
-    console.log('🔍 Ищем пользователей в лидерборде...');
-    const skip = (page - 1) * limit;
-    const leaderboard = await database.collection('leaderboard')
-      .find()
-      .sort({ tokens: -1 })
-      .skip(skip)
-      .limit(limit)
-      .toArray();
-    
-    console.log(`✅ Найдено ${leaderboard.length} пользователей в лидерборде`);
-    
-    if (leaderboard.length === 0) {
-      console.log('⚠️ Лидерборд пуст, возвращаем пустой массив');
+    if (req.method === 'GET') {
+      console.log('📊 Запрос лидерборда...');
+      const limit = parseInt(req.query.limit) || 100;
+      const page = parseInt(req.query.page) || 1;
+      
+      console.log('🔍 Ищем пользователей в лидерборде...');
+      const skip = (page - 1) * limit;
+      const leaderboard = await database.collection('leaderboard')
+        .find()
+        .sort({ tokens: -1 })
+        .skip(skip)
+        .limit(limit)
+        .toArray();
+      
+      console.log(`✅ Найдено ${leaderboard.length} пользователей в лидерборде`);
+      
+      if (leaderboard.length === 0) {
+        console.log('⚠️ Лидерборд пуст, возвращаем пустой массив');
+      } else {
+        console.log('🏆 Топ-3:', leaderboard.slice(0, 3).map(u => `${u.telegramFirstName || u.username}: ${u.tokens}`));
+      }
+      
+      await client.close();
+      res.json(leaderboard);
+    } else if (req.method === 'POST') {
+      const entry = req.body;
+      console.log(`🏆 API: Обновление лидерборда для ${entry.userId}:`, {
+        username: entry.username,
+        telegramFirstName: entry.telegramFirstName,
+        telegramUsername: entry.telegramUsername,
+        tokens: entry.tokens
+      });
+      
+      // Обновляем запись пользователя
+      const result = await database.collection('leaderboard').updateOne(
+        { userId: entry.userId },
+        {
+          $set: {
+            userId: entry.userId,
+            username: formatUserName(
+              entry.username,
+              entry.telegramFirstName,
+              entry.telegramLastName,
+              entry.telegramUsername,
+              entry.userId
+            ),
+            telegramId: entry.telegramId,
+            telegramUsername: entry.telegramUsername,
+            telegramFirstName: entry.telegramFirstName,
+            telegramLastName: entry.telegramLastName,
+            tokens: entry.tokens || entry.score || 0,
+            updatedAt: new Date()
+          }
+        },
+        { upsert: true }
+      );
+
+      console.log(`✅ API: Пользователь ${entry.userId} ${result.upsertedCount ? 'добавлен' : 'обновлен'} в лидерборде`);
+
+      // Обновляем ранги для всех пользователей
+      await updateAllRanks(database);
+      
+      // Проверяем результат
+      const updatedUser = await database.collection('leaderboard').findOne({ userId: entry.userId });
+      console.log(`🎯 API: Пользователь в лидерборде:`, {
+        userId: updatedUser.userId,
+        username: updatedUser.username,
+        tokens: updatedUser.tokens,
+        rank: updatedUser.rank
+      });
+      
+      await client.close();
+      res.json({ message: 'Leaderboard updated successfully' });
     } else {
-      console.log('🏆 Топ-3:', leaderboard.slice(0, 3).map(u => `${u.telegramFirstName || u.username}: ${u.tokens}`));
+      res.status(405).json({ message: 'Method not allowed' });
     }
-    
-    res.json(leaderboard);
   } catch (error) {
-    console.error('❌ Error getting leaderboard:', error);
+    console.error('❌ Error in leaderboard API:', error);
     res.status(500).json({ 
       message: 'Internal server error',
       error: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
-});
-
-// POST /api/leaderboard
-app.post('/api/leaderboard', async (req, res) => {
-  try {
-    const entry = req.body;
-    console.log(`🏆 API: Обновление лидерборда для ${entry.userId}:`, {
-      username: entry.username,
-      telegramFirstName: entry.telegramFirstName,
-      telegramUsername: entry.telegramUsername,
-      tokens: entry.tokens
-    });
-    
-    const database = await connectToDatabase();
-    
-    if (!database) {
-      console.error('❌ База данных недоступна');
-      return res.status(503).json({ message: 'Database unavailable' });
-    }
-    
-    // Обновляем запись пользователя
-    const result = await database.collection('leaderboard').updateOne(
-      { userId: entry.userId },
-      {
-        $set: {
-          userId: entry.userId,
-          username: formatUserName(
-            entry.username,
-            entry.telegramFirstName,
-            entry.telegramLastName,
-            entry.telegramUsername,
-            entry.userId
-          ),
-          telegramId: entry.telegramId,
-          telegramUsername: entry.telegramUsername,
-          telegramFirstName: entry.telegramFirstName,
-          telegramLastName: entry.telegramLastName,
-          tokens: entry.tokens || entry.score || 0,
-          updatedAt: new Date()
-        }
-      },
-      { upsert: true }
-    );
-
-    console.log(`✅ API: Пользователь ${entry.userId} ${result.upsertedCount ? 'добавлен' : 'обновлен'} в лидерборде`);
-
-    // Обновляем ранги для всех пользователей
-    await updateAllRanks(database);
-    
-    // Проверяем результат
-    const updatedUser = await database.collection('leaderboard').findOne({ userId: entry.userId });
-    console.log(`🎯 API: Пользователь в лидерборде:`, {
-      userId: updatedUser.userId,
-      username: updatedUser.username,
-      tokens: updatedUser.tokens,
-      rank: updatedUser.rank
-    });
-    
-    res.json({ message: 'Leaderboard updated successfully' });
-  } catch (error) {
-    console.error('❌ API: Error updating leaderboard:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-});
-
-module.exports = app;
+};
