@@ -126,9 +126,9 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         return;
       }
 
-      // Дебаунсинг: не загружаем чаще чем раз в 20 секунд
+      // Дебаунсинг: не загружаем чаще чем раз в 10 секунд
       const now = Date.now();
-      if (now - lastTransactionsUpdate < 20000) {
+      if (now - lastTransactionsUpdate < 10000) {
         return;
       }
       
@@ -137,7 +137,7 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       // Создаем новый AbortController для этого запроса
       abortController = new AbortController();
       
-      // ПРИНУДИТЕЛЬНЫЙ ТАЙМАУТ - 1.5 СЕКУНДЫ
+      // ПРИНУДИТЕЛЬНЫЙ ТАЙМАУТ - 1 СЕКУНДА
       const forceTimeout = setTimeout(() => {
         if (isMounted) {
           // console.warn('🚨 Force timeout транзакций - устанавливаем пустые данные');
@@ -146,19 +146,29 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           setLastTransactionsUpdate(Date.now());
           setIsTransactionsLoading(false);
         }
-      }, 1500);
+      }, 1000);
       
       try {
         const timeoutId = setTimeout(() => {
           // console.warn('⏰ Timeout загрузки транзакций');
           abortController?.abort();
-        }, 2500); // 2.5 секунды timeout
+        }, 1500); // 1.5 секунды timeout
         
-        const response = await fetch(`/api/decimal/users/${profile.userId}/transactions`, {
+        // Пробуем основной endpoint
+        let response = await fetch(`/api/decimal/users/${profile.userId}/transactions`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
           signal: abortController.signal
         });
+        
+        // Если основной endpoint не работает, пробуем fallback
+        if (!response.ok) {
+          response = await fetch(`/api/users/${profile.userId}/transactions`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            signal: abortController.signal
+          });
+        }
         
         clearTimeout(timeoutId);
         clearTimeout(forceTimeout);
@@ -551,10 +561,46 @@ export const Profile: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               }}
             >
               <div className="space-y-3 sm:space-y-4 p-4">
+                {/* Кнопка обновления транзакций */}
+                <div className="flex justify-between items-center mb-4">
+                  <div className="cyber-text text-base font-bold">Транзакции</div>
+                  <button
+                    onClick={() => {
+                      setLastTransactionsUpdate(0); // Сбрасываем время последнего обновления
+                      setIsTransactionsLoading(true);
+                      // Принудительно загружаем транзакции
+                      setTimeout(() => {
+                        const loadTransactionsData = async () => {
+                          try {
+                            const response = await fetch(`/api/decimal/users/${profile?.userId}/transactions`);
+                            if (response.ok) {
+                              const data = await response.json();
+                              setDeposits(data.deposits || []);
+                              setWithdrawals(data.withdrawals || []);
+                              setLastTransactionsUpdate(Date.now());
+                            }
+                          } catch (error) {
+                            setDeposits([]);
+                            setWithdrawals([]);
+                          } finally {
+                            setIsTransactionsLoading(false);
+                          }
+                        };
+                        loadTransactionsData();
+                      }, 100);
+                    }}
+                    disabled={isTransactionsLoading}
+                    className="cyber-button text-xs px-3 py-1"
+                  >
+                    {isTransactionsLoading ? 'Обновление...' : 'Обновить'}
+                  </button>
+                </div>
+                
                 {isTransactionsLoading ? (
                   <div className="text-center py-8">
                     <div className="cyber-spinner"></div>
                     <div className="mt-4 text-sm sm:text-base opacity-70">Загрузка транзакций...</div>
+                    <div className="mt-2 text-xs opacity-50">Пожалуйста, подождите</div>
                   </div>
                 ) : (
                   <>
